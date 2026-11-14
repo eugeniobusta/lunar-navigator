@@ -1,5 +1,6 @@
 // Open data: what we use, what we publish, and how to rebuild it.
 import { useEffect, useState } from "react";
+import { HBars, type BarRow } from "../components/ui/Charts";
 
 const REPO = "https://github.com/eugeniobusta/lunar-navigator";
 const BASE = `${import.meta.env.BASE_URL}data/`;
@@ -73,33 +74,32 @@ export function Data() {
       .catch(() => setFailed(true));
   }, []);
   const total = files?.reduce((a, f) => a + f.bytes, 0) ?? 0;
+  // What we publish, by folder: size and number of files.
+  const folders = new Map<string, { bytes: number; n: number }>();
+  for (const f of files ?? []) {
+    const top = f.path.includes("/") ? f.path.split("/")[0] : "tables and lists";
+    const e = folders.get(top) ?? { bytes: 0, n: 0 };
+    folders.set(top, { bytes: e.bytes + f.bytes, n: e.n + 1 });
+  }
+  const folderBars: BarRow[] = [...folders.entries()].sort((a, b) => b[1].bytes - a[1].bytes).map(([k, v]) => ({
+    key: k, label: k, note: `${v.n} file${v.n === 1 ? "" : "s"}`, value: v.bytes, text: fmtBytes(v.bytes), colour: "var(--bone)" }));
 
   return (
     <section className="panel">
-      <div className="prose">
-        <h2>Open data</h2>
-        <p>
-          Everything here is built from open NASA and JPL data, and everything we compute from it is published
-          for anyone to download, check and reuse.
-        </p>
-        <h3>Open data we use</h3>
-      </div>
-      <div className="table-scroll">
-        <table className="compare wide">
-          <thead>
-            <tr><th>Dataset</th><th>What it is</th><th>What we use it for</th><th>Licence or usage terms</th></tr>
-          </thead>
-          <tbody>
-            {SOURCES.map((s) => (
-              <tr key={s.name}>
-                <th><a href={s.url}>{s.name}</a></th>
-                <td>{s.what}</td>
-                <td>{s.use}{s.also ? <> <a href={s.also[1]}>{s.also[0]}</a>.</> : null}</td>
-                <td>{s.terms} <a href={s.termsUrl}>Terms page</a></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <p className="lede">
+        Everything here is built from open NASA and JPL data, and everything we compute from it is published
+        for anyone to download, check and reuse.
+      </p>
+      <h3>Open data we use</h3>
+      <div className="source-cards">
+        {SOURCES.map((s) => (
+          <article key={s.name} className="card source">
+            <h4><a href={s.url}>{s.name}</a></h4>
+            <p>{s.what}</p>
+            <p><span className="label">We use it for</span>{s.use}{s.also ? <> <a href={s.also[1]}>{s.also[0]}</a>.</> : null}</p>
+            <p className="note"><span className="label">Terms</span>{s.terms} <a href={s.termsUrl}>Terms page</a></p>
+          </article>
+        ))}
       </div>
 
       <div className="prose">
@@ -118,6 +118,14 @@ export function Data() {
       {failed && <p className="note">The file list could not be loaded. The files are in web/public/data/ in the repository.</p>}
       {!files && !failed && <p className="note">Loading the file list…</p>}
       {files && (
+        <div className="card data-glance">
+          <h3>{files.length} files, {fmtBytes(total)}, by folder</h3>
+          <HBars rows={folderBars} max={Math.max(1, ...folderBars.map((r) => r.value))} label="Published data by folder" />
+        </div>
+      )}
+      {files && (
+        <details className="fold">
+          <summary>Every file, one by one ({files.length})</summary>
         <div className="table-scroll">
           <table className="compare wide">
             <caption className="note">{files.length} files, {fmtBytes(total)} in total.</caption>
@@ -136,6 +144,7 @@ export function Data() {
             </tbody>
           </table>
         </div>
+        </details>
       )}
 
       <div className="prose">
@@ -150,7 +159,7 @@ export function Data() {
           Every number here comes from code we ran, not from a model's memory. Sun and Earth positions are checked
           against JPL Horizons, and long-run sunlight and Earth visibility against NASA's PGDA maps: the differences
           are in <a href={`${BASE}validation/jpl.csv`}>jpl.csv</a> and <a href={`${BASE}validation/pgda.csv`}>pgda.csv</a> and
-          on the Method tab. Thresholds we chose ourselves are marked "team choice" in{" "}
+          under How it works. Thresholds we chose ourselves are marked "team choice" in{" "}
           <a href={`${BASE}criteria.csv`}>criteria.csv</a>.
         </p>
         <h3>Rebuild it yourself</h3>

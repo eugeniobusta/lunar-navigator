@@ -1,10 +1,19 @@
 // The horizon as seen from the lander: terrain silhouette, the Sun's and Earth's paths over the window,
 // and their positions at the cursor. x = azimuth centred on north (S, W, N, E, S), because from the south pole
 // Earth always sits roughly north. y = elevation in degrees. Everything is labelled on the chart itself.
+// Look: a starry black sky, the ground in a moon-rock texture with boulders in front, and NASA photos of the Sun
+// (SDO) and Earth (Apollo 17), Earth lit in its real phase as seen from the Moon at that hour.
 import { area, line, scaleLinear } from "d3";
 import { useMemo } from "react";
 import { horizonAt, type Horizon, type Series } from "../lib/analysis";
+import { earthLitFraction, litPath } from "../lib/analysis/phase";
+import { regolithTexture } from "./regolith";
 import { useWidth } from "./useWidth";
+
+const MEDIA = `${import.meta.env.BASE_URL}media/`;
+/** How much of each photo's width the disc fills, so the disc and not the frame is drawn at the right size. */
+const EARTH_PHOTO = { file: "earth-apollo17.jpg", disc: 0.66 };
+const SUN_PHOTO = { file: "sun-sdo.jpg", disc: 0.84 };
 
 const M = { l: 40, r: 12, t: 16, b: 28 };
 const CHAR = 6.5, LINE_H = 16; // rough size of a 13 px label, for placing labels without overlaps
@@ -29,7 +38,7 @@ export function SkyPanorama({ series, horizon, cursor, sunR }: Props) {
   const n = series.sunEl.length;
   const k = Math.min(Math.max(0, cursor), n - 1);
 
-  const { x, y, terrainPath, crestPath, ticksY } = useMemo(() => {
+  const { x, y, terrainPath, crestPath, ticksY, stars, rocks } = useMemo(() => {
     let lo = -2, hi = 6;
     for (let i = 0; i < horizon.elevDeg.length; i++) hi = Math.max(hi, horizon.elevDeg[i] + 1);
     for (let i = 0; i < n; i++) {
@@ -44,8 +53,23 @@ export function SkyPanorama({ series, horizon, cursor, sunR }: Props) {
     const terrainPath = area<[number, number]>()
       .x((d) => x(d[0])).y0(H - M.b).y1((d) => y(d[1]))(pts) ?? "";
     const crestPath = line<[number, number]>().x((d) => x(d[0])).y((d) => y(d[1]))(pts) ?? "";
-    return { x, y, terrainPath, crestPath, ticksY: y.ticks(5) };
+    // Decoration, the same every time: stars in the sky (the ground covers those below the skyline), and boulders
+    // on the near ground, bigger the nearer they are (lower on the chart).
+    let seed = 1969;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    const stars = Array.from({ length: Math.round(W / 6) }, () => ({ x: M.l + rnd() * (W - M.l - M.r), y: M.t + rnd() * (H - M.t - M.b),
+      r: rnd() < 0.9 ? 0.6 : 1.1, o: 0.25 + 0.6 * rnd() }));
+    const rocks: { x: number; y: number; r: number }[] = [];
+    for (let i = 0; i < 60 && rocks.length < Math.round(W / 40); i++) {
+      const px = M.l + rnd() * (W - M.l - M.r), crest = y(horizonAt(horizon, (x.invert(px) + 180) % 360));
+      const room = H - M.b - crest;
+      if (room < 36) continue;
+      const t = Math.pow(rnd(), 0.6); // more of them near the front
+      rocks.push({ x: px, y: crest + 16 + t * (room - 22), r: 1.5 + t * 6 * (0.6 + 0.4 * rnd()) });
+    }
+    return { x, y, terrainPath, crestPath, ticksY: y.ticks(5), stars, rocks };
   }, [horizon, series, n, W, H]);
+  const texture = useMemo(() => (typeof document === "undefined" ? "" : regolithTexture()), []);
 
   // Paths split where they wrap around 0/360 so lines never streak across the chart.
   const pathOf = (az: Float64Array, el: Float64Array) => {
@@ -74,6 +98,10 @@ export function SkyPanorama({ series, horizon, cursor, sunR }: Props) {
   const sx = x(toU(series.sunAz[k])), sy = y(series.sunEl[k]);
   const ex = x(toU(series.earthAz[k])), ey = y(series.earthEl[k]);
   const sunInPlot = sy <= bottom && sy >= top, earthInPlot = ey <= bottom && ey >= top;
+  // Earth's phase from here: lit on the side towards the Sun (taking the short way round the horizon).
+  const earthLit = earthLitFraction(series.sunAz[k], series.sunEl[k], series.earthAz[k], series.earthEl[k]);
+  const du = ((toU(series.sunAz[k]) - toU(series.earthAz[k]) + 540) % 360) - 180;
+  const towardsSun = (Math.atan2(sy - ey, x(180 + du) - x(180)) * 180) / Math.PI;
   const hiddenWord = horizon.flat ? "below the horizon" : "behind the ridge";
 
   // Terrain label: inside the ground, where the ground is tallest across the label's width.
@@ -158,8 +186,25 @@ export function SkyPanorama({ series, horizon, cursor, sunR }: Props) {
             <stop offset="0%" stopColor="var(--sunlight)" stopOpacity="0.5" />
             <stop offset="100%" stopColor="var(--sunlight)" stopOpacity="0" />
           </radialGradient>
+          <pattern id="regolith" patternUnits="userSpaceOnUse" width="256" height="256">
+            <image href={texture} width="256" height="256" />
+          </pattern>
+          <linearGradient id="groundShade" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#000" stopOpacity="0" />
+            <stop offset="100%" stopColor="#000" stopOpacity="0.45" />
+          </linearGradient>
+          <radialGradient id="rockShade" cx="35%" cy="30%" r="75%">
+            <stop offset="0%" stopColor="#d8cfbf" />
+            <stop offset="55%" stopColor="#8d8475" />
+            <stop offset="100%" stopColor="#3a352e" />
+          </radialGradient>
+          <clipPath id="groundClip"><path d={terrainPath} /></clipPath>
+          <clipPath id="earthDisc"><circle r={earthPx} /></clipPath>
+          <clipPath id="earthLit"><path d={litPath(earthPx, earthLit)} transform={`rotate(${towardsSun})`} /></clipPath>
+          <clipPath id="sunDisc"><circle r={sunPx} /></clipPath>
         </defs>
         <rect x={0} y={0} width={W} height={H} className="sky-bg" />
+        {stars.map((st, i) => <circle key={i} cx={st.x} cy={st.y} r={st.r} className="star" opacity={st.o} />)}
         {ticksY.map((t) => (
           <g key={t}>
             <line x1={left} x2={right} y1={y(t)} y2={y(t)} className={t === 0 ? "grid zero" : "grid"} />
@@ -170,9 +215,38 @@ export function SkyPanorama({ series, horizon, cursor, sunR }: Props) {
           <path d={sunPath} className="path sun" />
           <path d={earthPath} className="path earth" />
           {lit && <circle cx={sx} cy={sy} r={sunPx * 4} fill="url(#sunGlow)" />}
-          <circle cx={ex} cy={ey} r={earthPx} className="earth-disc" />
-          <circle cx={sx} cy={sy} r={sunPx} className="sun-disc" />
-          <path d={terrainPath} className="terrain" />
+          {/* Earth: its night side faint (earthshine aside), its day side in full, as the phase says. The plain
+              discs underneath show if a photo is missing. */}
+          <g transform={`translate(${ex} ${ey})`}>
+            <circle r={earthPx} className="earth-night" />
+            <path d={litPath(earthPx, earthLit)} transform={`rotate(${towardsSun})`} className="earth-day" />
+            <g clipPath="url(#earthDisc)">
+              <image href={MEDIA + EARTH_PHOTO.file} x={-earthPx / EARTH_PHOTO.disc} y={-earthPx / EARTH_PHOTO.disc}
+                width={(2 * earthPx) / EARTH_PHOTO.disc} height={(2 * earthPx) / EARTH_PHOTO.disc} opacity={0.18} />
+            </g>
+            <g clipPath="url(#earthLit)">
+              <image href={MEDIA + EARTH_PHOTO.file} x={-earthPx / EARTH_PHOTO.disc} y={-earthPx / EARTH_PHOTO.disc}
+                width={(2 * earthPx) / EARTH_PHOTO.disc} height={(2 * earthPx) / EARTH_PHOTO.disc} />
+            </g>
+          </g>
+          <g transform={`translate(${sx} ${sy})`}>
+            <circle r={sunPx} className="sun-disc" />
+            <g clipPath="url(#sunDisc)">
+              <image href={MEDIA + SUN_PHOTO.file} x={-sunPx / SUN_PHOTO.disc} y={-sunPx / SUN_PHOTO.disc}
+                width={(2 * sunPx) / SUN_PHOTO.disc} height={(2 * sunPx) / SUN_PHOTO.disc} />
+            </g>
+          </g>
+          <g clipPath="url(#groundClip)">
+            <path d={terrainPath} className="terrain" />
+            {texture && <rect x={left} y={top} width={right - left} height={bottom - top} fill="url(#regolith)" />}
+            {rocks.map((r, i) => (
+              <g key={i}>
+                <ellipse cx={r.x + r.r * 0.6} cy={r.y + r.r * 0.55} rx={r.r * 1.5} ry={r.r * 0.5} className="rock-shadow" />
+                <ellipse cx={r.x} cy={r.y} rx={r.r * 1.25} ry={r.r * 0.8} fill="url(#rockShade)" />
+              </g>
+            ))}
+            <rect x={left} y={top} width={right - left} height={bottom - top} fill="url(#groundShade)" />
+          </g>
           <path d={crestPath} className="crest" />
           {!lit && sunInPlot && <circle cx={sx} cy={sy} r={sunPx} className="ghost sun" />}
           {!earthUp && earthInPlot && <circle cx={ex} cy={ey} r={earthPx} className="ghost earth" />}

@@ -20,7 +20,6 @@ const PGDA = [
 export function Method() {
   return (
     <section className="panel prose">
-      <h2>How the answers are made</h2>
       <p>
         Near the lunar south pole the Sun never rises more than a few degrees. A ridge tens of kilometres away
         decides whether a lander is in sunlight, and whether Earth is above the skyline for a direct radio link.

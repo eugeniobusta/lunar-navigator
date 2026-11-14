@@ -20,6 +20,8 @@ are above the real terrain horizon. Static web app + Python precompute pipeline.
 - make data: run the full precompute pipeline (ephemeris, horizons, grids)
 - make dev: run web dev server (run it in a separate terminal, not inside Claude)
 - make build: production web build
+- make e2e: browser smoke test of the built site (every tab opens, no console errors). CI runs it on every PR;
+  first time locally: `cd web && npx playwright install chromium`
 
 ## Hard rules
 - NEVER read files in data/ or web/public/data/ into the conversation. Inspect them with scripts that print shapes/summaries.

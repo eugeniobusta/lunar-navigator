@@ -1,4 +1,4 @@
-.PHONY: setup test data download mocks dev build xr xr-dev
+.PHONY: setup test data download mocks dev build e2e xr xr-dev
 
 setup:      ## install Python and web dependencies
 	uv sync
@@ -28,6 +28,9 @@ dev:        ## web dev server (run in its own terminal, not inside Claude)
 
 build:      ## production web build
 	cd web && npm run build
+
+e2e:        ## end-to-end smoke test in a real browser (builds first; CI runs it on every PR)
+	cd web && npm run build && npm run e2e
 
 xr:         ## production build of the VR view; with make build first, web/dist/xr is what Vercel serves at /xr/
 	cd xr && npm run typecheck && npm run build

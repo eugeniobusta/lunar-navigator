@@ -241,6 +241,10 @@ test("the view lives in the URL: a shared link opens the same view and survives 
   await page.goto("/?tab=map&pick=sunlight&spot=-84.0173,23.4217");
   await expect(page.getByRole("heading", { name: "84.017° S, 23.422° E" })).toBeVisible();
   await expect(page.locator(".map-legend")).toContainText("Sunlight alone");
+  // The README's link to the best zone for everything: zone 2 of zones.csv, recognised as that zone.
+  await page.goto("/?tab=map&spot=-84.01724,23.42232");
+  await expect(page.locator(".spot .sub").first()).toContainText("Zone 2: rank 1 of 5,297");
+  await expect(page.locator(".verdict-line")).toContainText(/Good\s*score\s*76\s*of 100/);
   await page.goto("/?site=nope&tab=evil&days=0&date=1999-01-01&preset=%3Cb%3E&spot=999,1");
   await expect(page.getByRole("tab", { name: "Map", exact: true })).toHaveAttribute("aria-selected", "true");
   await page.getByRole("tab", { name: "Site sky", exact: true }).click();

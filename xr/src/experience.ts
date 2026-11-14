@@ -2237,7 +2237,7 @@ export class ExperienceSystem extends createSystem({}) {
         }),
       })),
       answer: answer(sel, this.prio, this.zones.length, this.zones[0]),
-      legend: mapLegend(shown, this.prio),
+      legend: mapLegend(shown, this.prio, this.colourBlind),
       colors: ragColors(this.colourBlind),
       colourBlind: this.colourBlind,
       opacity: hasMap ? { map: this.opacity[showingKey(shown)] ?? 1, limits: this.opacity.limits ?? 1 } : null,
@@ -2437,7 +2437,9 @@ export class ExperienceSystem extends createSystem({}) {
       lines.push({ text: sp.why.summary, color: 'text2' });
     }
     if (L.opacity) {
-      lines.push({ text: `On the map: ${L.legend.what}. Green good, amber acceptable, red poor; hatched is unsafe, grey no data.`, color: 'text2', small: true });
+      const n = L.legend.lines.map((l) => l.text.split(/[,:]/)[0]);
+      const key = n.length === 5 ? `${n[0]} good, ${n[1].toLowerCase()} acceptable, ${n[2].toLowerCase()} poor; hatched is unsafe; ${n[4].toLowerCase()} is no data.` : 'Clear ground passes every NASA limit; hatched is unsafe.';
+      lines.push({ text: `On the map: ${L.legend.what}. ${key}`, color: 'text2', small: true });
     }
     const coarse = this.scene3?.tile.coarse === true;
     if (coarse) {

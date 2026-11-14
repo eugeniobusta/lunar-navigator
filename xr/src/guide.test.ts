@@ -128,7 +128,7 @@ describe('layers: presets, ranking, classes', () => {
     const css = readFileSync(new URL('../../web/src/styles/tokens.css', import.meta.url), 'utf8');
     const pairs: [string, string][] = [
       ['--go', RAG_COLOR.green], ['--caution', RAG_COLOR.amber], ['--stop', RAG_COLOR.red], ['--nodata', RAG_COLOR.grey],
-      ['--cb-high', CB_COLOR.green], ['--cb-mid', CB_COLOR.amber], ['--cb-low', CB_COLOR.red],
+      ['--cb-high', CB_COLOR.green], ['--cb-mid', CB_COLOR.amber], ['--cb-low', CB_COLOR.red], ['--void', CB_COLOR.grey],
     ];
     for (const [token, hex] of pairs) {
       expect(css).toContain(`${token}: ${hex}`);
@@ -173,10 +173,14 @@ describe('layers: presets, ranking, classes', () => {
 
   it('the legend says what the website says', () => {
     const page = readFileSync(new URL('../../web/src/routes/LandingMap.tsx', import.meta.url), 'utf8');
-    for (const words of ['Green, good: ', 'Amber, acceptable: ', 'Red, poor: ', 'Hatched: unsafe, fails a NASA limit', 'Grey: no data',
+    // The page builds its lines from these pieces, one set per palette.
+    for (const words of ['"Yellow" : "Green"}, good: {lg.green}', '"Grey" : "Amber"}, acceptable: {lg.amber}', '"Dark blue" : "Red"}, poor: {lg.red}',
+      'Hatched: unsafe, fails a NASA limit', '"Black" : "Grey"}: no data',
       'Clear ground passes every NASA limit. Tick a parameter to score it.', 'Combined score of all ten parameters', 'NASA safety limits only']) {
       expect(page).toContain(words);
     }
+    const cb = mapLegend(EVERYTHING, prio, true);
+    expect(cb.lines.map((l) => l.text.split(/[,:]/)[0])).toEqual(['Yellow', 'Grey', 'Dark blue', 'Hatched', 'Black']);
     const all = mapLegend(EVERYTHING, prio);
     expect(all.what).toBe('Combined score of all ten parameters');
     expect(all.lines.map((l) => l.mark)).toEqual(['green', 'amber', 'red', 'unsafe', 'grey']);

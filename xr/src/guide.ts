@@ -163,9 +163,15 @@ export const paramLabel = (k: TermKey, p: Priorities | null) => p?.labels[k] ?? 
 const isLayer = (k: TermKey): k is LayerKey => (LAYER_KEYS as readonly string[]).includes(k);
 
 /** The traffic-light colours of the website (web/src/styles/tokens.css: --go, --caution, --stop, --nodata), and its
- *  colour-blind palette (--cb-high, --cb-mid, --cb-low). guide.test.ts checks them against that file. */
+ *  colour-blind palette (--cb-high, --cb-mid, --cb-low, and --void for no data, since its "acceptable" is grey).
+ *  guide.test.ts checks them against that file. */
 export const RAG_COLOR: Record<Rag, string> = { green: '#6FBF73', amber: '#F0B429', red: '#E5484D', grey: '#7A746B' };
-export const CB_COLOR: Record<Rag, string> = { green: '#FDE737', amber: '#7C7B78', red: '#00204D', grey: '#7A746B' };
+export const CB_COLOR: Record<Rag, string> = { green: '#FDE737', amber: '#7C7B78', red: '#00204D', grey: '#000000' };
+/** What each class's colour is called in the legend, for the two palettes. */
+const COLOUR_NAME: Record<'plain' | 'cb', Record<Rag, string>> = {
+  plain: { green: 'Green', amber: 'Amber', red: 'Red', grey: 'Grey' },
+  cb: { green: 'Yellow', amber: 'Grey', red: 'Dark blue', grey: 'Black' },
+};
 export const ragColors = (colourBlind: boolean) => (colourBlind ? CB_COLOR : RAG_COLOR);
 
 const rgb = (hex: string): RGB => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)) as RGB;
@@ -197,7 +203,8 @@ export interface LegendLine {
 }
 
 /** The legend of whatever the map shows, in the website's words (web/src/routes/LandingMap.tsx). */
-export function mapLegend(shown: Selection, p: Priorities | null): { what: string; lines: LegendLine[] } {
+export function mapLegend(shown: Selection, p: Priorities | null, colourBlind = false): { what: string; lines: LegendLine[] } {
+  const name = COLOUR_NAME[colourBlind ? 'cb' : 'plain'];
   const mode = mapMode(shown);
   const lg = legend(shown);
   const layers = countedTerms(shown).filter(isLayer);
@@ -213,11 +220,11 @@ export function mapLegend(shown: Selection, p: Priorities | null): { what: strin
     mode.kind === 'limits'
       ? [{ mark: null, text: 'Clear ground passes every NASA limit. Tick a parameter to score it.' }]
       : [
-          { mark: 'green', text: `Green, good: ${lg.green}` },
-          { mark: 'amber', text: `Amber, acceptable: ${lg.amber}` },
-          { mark: 'red', text: `Red, poor: ${lg.red}` },
+          { mark: 'green', text: `${name.green}, good: ${lg.green}` },
+          { mark: 'amber', text: `${name.amber}, acceptable: ${lg.amber}` },
+          { mark: 'red', text: `${name.red}, poor: ${lg.red}` },
         ];
-  return { what, lines: [...classes, { mark: 'unsafe', text: 'Hatched: unsafe, fails a NASA limit' }, { mark: 'grey', text: 'Grey: no data' }] };
+  return { what, lines: [...classes, { mark: 'unsafe', text: 'Hatched: unsafe, fails a NASA limit' }, { mark: 'grey', text: `${name.grey}: no data` }] };
 }
 
 /** Re-ranks the zones for a selection (suitability.ts rankZonesFor: weights and turned-round directions); best first. */

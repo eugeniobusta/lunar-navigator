@@ -155,7 +155,7 @@ describe("findWindows equals the brute-force twin", () => {
 // ---------------------------------------------------------------------------------------------------
 // Real data (Kien's ephemeris + LOLA horizons committed in public/data).
 
-const hzFiles = import.meta.glob("../../../public/data/horizons/*.json", { eager: true, import: "default" });
+const hzFiles = import.meta.glob(["../../../public/data/horizons/*.json", "!**/*_grid.json"], { eager: true, import: "default" });
 const horizons: Record<string, Horizon> = {};
 for (const f of Object.values(hzFiles)) {
   const h = parseHorizon(f as Parameters<typeof parseHorizon>[0]);

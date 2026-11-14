@@ -87,3 +87,41 @@ published files on this date. "Fixed" notes are added at the end as the round go
    ground, a click panel with measurements, good here / weak here, failed limits and uncertainty.
 4. P3: "mission chart" visual pass.
 5. P4: end-to-end QA on the live site, backup screenshots, this file updated.
+
+## Outcome of the round (added at the end, 14 Nov 2026)
+
+Evidence for each line is in docs/VALIDATION.md section 8.
+
+### Fixed
+
+- **P0** Traffic-light model shared with the VR (`rag.ts`): three classes, grey for no data, NASA limits always
+  win and say which one fails, five directions can be flipped, thresholds and reasoning in docs/criteria.md
+  section 8. PR #34.
+- **P0** Geography checked against an independent source: the nine named craters sit on depressions of our
+  terrain at their IAU positions. PR #35.
+- **P0** Missing data counted: none inside the region; the code path for it is tested anyway.
+- **P1** The site opens on the map: relief from our LOLA data, smooth zoom and pan, rings, compass, IAU names,
+  markers, one legend with real units and a hatch. PR #35.
+- **P1** A link slightly off a zone's centre showed a score that disagreed with the headline. PR #40.
+- **P1** With one parameter ticked, a zone could read "score 100, acceptable". PR #37.
+- **P2** Layer panel (groups, flips, importance, show alone, opacity), spot panel (measurements, good here, weak
+  here, failed limits, how sure, four next steps), Compare judges both sites as landing sites. PRs #35, #37.
+- **P3** Visual pass: no chips, no card grids, one icon set, spacing scale, traffic-light colours only for
+  suitability. PR #37.
+- **C** README no longer says "the weights are yours to change"; the gradient legend is gone; the IAU gazetteer's
+  terms are quoted from its own FAQ (the first link we used answered HTTP 500). PRs #35, #38.
+
+### Remains
+
+- **Not tested on the presentation computer.** Load time, resolution and browser there are unknown.
+- **The VR scene** was not looked at by this session, and `scripts/record_footage.mjs` (the VR session's) clicks a
+  "Where to land" tab that no longer exists.
+- **Each map pixel still shows its best 120 m square.** The spot panel says so; the area figures are unaffected.
+- **Landing slope, temperature, ice depth and permanent shadow** have no second source to compare with.
+- **Opacity is per layer shown**, not a blend of several layers at once: with several parameters ticked the map
+  shows their combined class, and any one of them can be shown alone.
+- **Zoomed in, the overlay is the 430 m map grid.** The 120 m site tiles are used by the VR, not by this map.
+- **The two time-model parameters** (longest night, longest time without Earth) are known at zone centres and
+  listed sites only, so a clicked spot that is not a zone is scored without them, and says so.
+- **Audio** (brief section 6) was not attempted.
+- One Data-page link (the Wueller et al. DOI) answers 403 to scripts and opens in a browser.

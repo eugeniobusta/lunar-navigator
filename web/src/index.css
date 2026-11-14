@@ -57,6 +57,10 @@ button.primary:hover:not(:disabled), a.primary:hover { background: var(--cloud);
 .sky .path.earth { stroke: var(--earth); stroke-dasharray: 4 3; }
 .sky .sun-disc { fill: var(--sunlight); }
 .sky .earth-disc { fill: var(--earth); stroke: var(--cloud); stroke-width: 1.5; }
+.sky .earth-night { fill: #0B1626; }
+.sky .earth-day { fill: var(--earth); }
+.sky .star { fill: var(--bone); }
+.sky .rock-shadow { fill: #000; opacity: 0.45; }
 .sky .ghost { stroke: var(--shadow); stroke-width: 1.5; stroke-dasharray: 3 3; fill-opacity: 0.45; }
 .sky .ghost.sun { fill: var(--sunlight); }
 .sky .ghost.earth { fill: var(--earth); }

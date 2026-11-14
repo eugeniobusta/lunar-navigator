@@ -170,6 +170,11 @@ export default function App() {
                   <input type="range" min={0} max={n - 1} value={k}
                     onChange={(e) => st.setCursor(+e.target.value)} aria-label="Time within the mission window" />
                 </label>
+                <p className="note credit-line">
+                  Skyline: NASA LOLA terrain, to scale. Earth photo: NASA, Apollo 17 (AS17-148-22727), lit in its phase
+                  as seen from the Moon at that hour. Sun photo: NASA/GSFC/Solar Dynamics Observatory (PIA26681). The
+                  rock texture and boulders are illustration.
+                </p>
               </>
             ) : <p className="note">Loading terrain…</p>}
           </section>

@@ -30,6 +30,13 @@ async function openFinder(page: Page, query = "") {
 /** The pages of the menu, whether they sit in the bar or behind the Menu button. */
 const tabNames = (page: Page) => page.locator("#pages .tab").allTextContents();
 const viewButton = (page: Page, name: "Simple" | "Detailed") => page.getByRole("group", { name: "View" }).getByRole("button", { name, exact: true });
+/** Opens a page from the menu, through the Menu button when the pages are folded behind it. */
+async function goTab(page: Page, name: string) {
+  const tab = page.locator("#pages .tab", { hasText: new RegExp(`^${name.replace(/[&]/g, "\\$&")}$`) });
+  if (!(await tab.isVisible())) await page.getByRole("button", { name: "Menu" }).click();
+  await tab.click();
+  await expect(tab).toHaveClass(/\bon\b/);
+}
 const openGroup = (page: Page, name: string) => page.getByRole("button", { name: `Show the parameters of ${name}` }).click();
 /** The choices fold away once a spot is chosen; this brings them back. */
 async function showChoices(page: Page) {
@@ -90,8 +97,7 @@ for (const [view, names] of [["simple", SIMPLE], ["detailed", DETAILED]] as cons
     expect(await tabNames(page)).toEqual(names);
     for (const name of names) {
       await test.step(`page: ${name}`, async () => {
-        await page.getByRole("tab", { name, exact: true }).click();
-        await expect(page.getByRole("tab", { name, exact: true })).toHaveAttribute("aria-selected", "true");
+        await goTab(page, name);
         await expect(page.getByRole("heading", { level: 1, name })).toBeVisible();
         // Not blank: once any "Loading..." note is gone, the page must hold real content.
         await expect.poll(async () => {

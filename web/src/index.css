@@ -109,6 +109,9 @@ table.compare { border-collapse: collapse; margin-top: 20px; min-width: min(560p
 .prose { max-width: 72ch; }
 .prose p, .prose li { color: var(--text); }
 .prose ul { padding-left: 1.2em; }
+.panel a { color: var(--earth); }
+.table-scroll { overflow-x: auto; }
+.prose pre { background: var(--surface); padding: 12px 14px; border-radius: 4px; overflow-x: auto; }
 
 .foot { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.8125rem; }
 

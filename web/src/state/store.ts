@@ -3,7 +3,7 @@ import { create } from "zustand";
 import type { Ephemeris, Horizon } from "../lib/analysis";
 import { loadEphemeris, loadHorizon, loadSites, type Loaded, type Site } from "../lib/data";
 
-export type Tab = "overview" | "compare" | "windows" | "power" | "moonbox" | "method";
+export type Tab = "overview" | "compare" | "windows" | "power" | "moonbox" | "method" | "moon3d" | "data";
 
 interface State {
   ready: boolean;

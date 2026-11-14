@@ -60,12 +60,14 @@ def long_run(hz, sun_dir, semi, earth_km):
             "earth_any": 100.0 * (s["earthMargin"] > -earth_semi).mean()}
 
 
-def main():
+def compute_rows(verbose=True):
+    """One dict per Artemis site: our long-run percentages and the PGDA map values."""
     ts, eph, _, frame = ephem.load_kernels()
     t = ephem.hourly_times(ts, START, N, STEP_S)
-    print(f"long-run ephemeris: {t[0].utc_iso()} .. {t[-1].utc_iso()}, {N} samples every {STEP_S // 3600} h")
+    if verbose:
+        print(f"long-run ephemeris: {t[0].utc_iso()} .. {t[-1].utc_iso()}, {N} samples every {STEP_S // 3600} h")
     sun_dir, semi, earth_km = ephem.moon_me_vectors(eph, frame, t)
-    sun_map, earth_map = PgdaMap(SUN_TIF), PgdaMap(EARTH_TIF)
+    sun_map, earth_map = PgdaMap(SUN_TIF, verbose), PgdaMap(EARTH_TIF, verbose)
     dem = Dem.from_label()
 
     rows = []
@@ -79,11 +81,16 @@ def main():
         elev0, surf0 = horizon(dem, s["lat"], s["lon"], observer_h_m=0.0)
         ground = long_run({**hz, "observer_h_m": 0.0, "surface_elev_m": surf0, "elev_deg": elev0},
                           sun_dir, semi, earth_km)
-        rows.append({"id": s["id"], **ours, "pgda_sun": sun_map.percent(x, y), "pgda_earth": earth_map.percent(x, y),
+        rows.append({"id": s["id"], "name": s["name"], **ours, "pgda_sun": sun_map.percent(x, y), "pgda_earth": earth_map.percent(x, y),
                      "pgda_sun_3x3": sun_map.percent(x, y, 1), "pgda_earth_3x3": earth_map.percent(x, y, 1),
                      "pgda_sun_1km": sun_map.percent(x, y, 4), "ground_sun_disc": ground["sun_disc"],
                      "ground_earth_any": ground["earth_any"]})
 
+    return rows
+
+
+def main():
+    rows = compute_rows()
     print("\nTable 4 (centre-of-disc, as the app counts it; Diff = ours - PGDA, percentage points)")
     print("| Site | Our Sun % | PGDA Sun % | Diff | Our Earth % | PGDA Earth % | Diff |")
     print("|------|-----------|------------|------|-------------|--------------|------|")

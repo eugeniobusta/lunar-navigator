@@ -23,3 +23,4 @@
 - Sat 11:15, Claude (local): Test files are excluded from the app's tsc build; a root vercel.json builds web/ for Git deploys. Why: Vercel uploads only web/ from the CLI, so a test importing ../tests/fixtures broke the production build.
 - Sat 11:40, Claude (local): Pitch numbers come from scripts/pitch_numbers.py only; the mma01 landing-day count was cross-checked against the app's findWindows (same 32 days). Why: stage numbers must match what the demo shows.
 - Sat 12:10, Eugenio: INTERFACES.md section 8 added (3D terrain export, 1024 x 1024, 220 km half-width). Why: data for Ahmed's 3D view; each pixel is an area mean, so it is for display, not per-site numbers.
+- Sat 12:40, Eugenio: Code is MIT, our derived data CC BY 4.0, source data keeps its providers' terms (DATA_LICENSE.md quotes each terms page). web/public/data/index.json lists every published file; a test keeps it in step.

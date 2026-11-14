@@ -130,6 +130,20 @@ export function Data() {
       )}
 
       <div className="prose">
+        <h3>Use of AI</h3>
+        <p>
+          This project was built with AI coding assistants: Claude Code (Claude Fable 5.2 and Claude Opus 5.5) and
+          OpenAI Codex. They wrote most of the code, the data pipeline, the tests and the design, working from the
+          team's prompts and reviews; two research runs with web search gathered the sources for the landing
+          criteria and the list of past landings.
+        </p>
+        <p>
+          Every number here comes from code we ran, not from a model's memory. Sun and Earth positions are checked
+          against JPL Horizons, and long-run sunlight and Earth visibility against NASA's PGDA maps: the differences
+          are in <a href={`${BASE}validation/jpl.csv`}>jpl.csv</a> and <a href={`${BASE}validation/pgda.csv`}>pgda.csv</a> and
+          on the Method tab. Thresholds we chose ourselves are marked "team choice" in{" "}
+          <a href={`${BASE}criteria.csv`}>criteria.csv</a>.
+        </p>
         <h3>Rebuild it yourself</h3>
         <p>Three commands turn the raw NASA files into every file above. You need git, Python 3.11 or later and uv.</p>
         <pre>{`git clone ${REPO}.git && cd lunar-navigator

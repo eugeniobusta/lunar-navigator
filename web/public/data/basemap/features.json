@@ -1,0 +1,197 @@
+{
+ "version": 1,
+ "source": "IAU Gazetteer of Planetary Nomenclature (USGS Astrogeology Science Center), https://planetarynames.wr.usgs.gov, read on 14 Nov 2026",
+ "note": "Centre latitude and east longitude in degrees, diameter in km, as listed by the gazetteer.",
+ "features": [
+  {
+   "id": 247,
+   "name": "Amundsen",
+   "type": "Crater",
+   "lat": -84.44,
+   "lon": 83.07,
+   "diameter_km": 103.39,
+   "rank": "major",
+   "url": "https://planetarynames.wr.usgs.gov/Feature/247"
+  },
+  {
+   "id": 953,
+   "name": "Cabeus",
+   "type": "Crater",
+   "lat": -85.33,
+   "lon": -42.13,
+   "diameter_km": 100.58,
+   "rank": "major",
+   "url": "https://planetarynames.wr.usgs.gov/Feature/953"
+  },
+  {
+   "id": 1439,
+   "name": "de Gerlache",
+   "type": "Crater",
+   "lat": -88.48,
+   "lon": -88.34,
+   "diameter_km": 32.71,
+   "rank": "major",
+   "url": "https://planetarynames.wr.usgs.gov/Feature/1439"
+  },
+  {
+   "id": 1919,
+   "name": "Faustini",
+   "type": "Crater",
+   "lat": -87.18,
+   "lon": 84.31,
+   "diameter_km": 42.48,
+   "rank": "major",
+   "url": "https://planetarynames.wr.usgs.gov/Feature/1919"
+  },
+  {
+   "id": 14502,
+   "name": "Haworth",
+   "type": "Crater",
+   "lat": -87.45,
+   "lon": -5.17,
+   "diameter_km": 51.42,
+   "rank": "major",
+   "url": "https://planetarynames.wr.usgs.gov/Feature/14502"
+  },
+  {
+   "id": 3603,
+   "name": "Malapert",
+   "type": "Crater",
+   "lat": -85.0,
+   "lon": 11.4,
+   "diameter_km": 72.38,
+   "rank": "major",
+   "url": "https://planetarynames.wr.usgs.gov/Feature/3603"
+  },
+  {
+   "id": 4321,
+   "name": "Nobile",
+   "type": "Crater",
+   "lat": -85.28,
+   "lon": 53.27,
+   "diameter_km": 79.27,
+   "rank": "major",
+   "url": "https://planetarynames.wr.usgs.gov/Feature/4321"
+  },
+  {
+   "id": 5450,
+   "name": "Shackleton",
+   "type": "Crater",
+   "lat": -89.67,
+   "lon": 129.78,
+   "diameter_km": 20.92,
+   "rank": "major",
+   "url": "https://planetarynames.wr.usgs.gov/Feature/5450"
+  },
+  {
+   "id": 5494,
+   "name": "Shoemaker",
+   "type": "Crater",
+   "lat": -88.14,
+   "lon": 45.91,
+   "diameter_km": 51.82,
+   "rank": "major",
+   "url": "https://planetarynames.wr.usgs.gov/Feature/5494"
+  },
+  {
+   "id": 16004,
+   "name": "Henson",
+   "type": "Crater",
+   "lat": -88.57,
+   "lon": -130.63,
+   "diameter_km": 43.0,
+   "rank": "minor",
+   "url": "https://planetarynames.wr.usgs.gov/Feature/16004"
+  },
+  {
+   "id": 14535,
+   "name": "Kocher",
+   "type": "Crater",
+   "lat": -84.47,
+   "lon": -134.02,
+   "diameter_km": 24.03,
+   "rank": "minor",
+   "url": "https://planetarynames.wr.usgs.gov/Feature/14535"
+  },
+  {
+   "id": 16415,
+   "name": "Lacus Tenebrarum",
+   "type": "Lacus",
+   "lat": -86.71,
+   "lon": -87.67,
+   "diameter_km": 85.0,
+   "rank": "minor",
+   "url": "https://planetarynames.wr.usgs.gov/Feature/16415"
+  },
+  {
+   "id": 16394,
+   "name": "Mons Kocher",
+   "type": "Mons",
+   "lat": -85.46,
+   "lon": -118.06,
+   "diameter_km": 67.0,
+   "rank": "minor",
+   "url": "https://planetarynames.wr.usgs.gov/Feature/16394"
+  },
+  {
+   "id": 16338,
+   "name": "Mons Malapert",
+   "type": "Mons",
+   "lat": -85.98,
+   "lon": -1.67,
+   "diameter_km": 67.0,
+   "rank": "minor",
+   "url": "https://planetarynames.wr.usgs.gov/Feature/16338"
+  },
+  {
+   "id": 16070,
+   "name": "Mons Mouton",
+   "type": "Mons",
+   "lat": -84.6,
+   "lon": 31.0,
+   "diameter_km": 130.0,
+   "rank": "minor",
+   "url": "https://planetarynames.wr.usgs.gov/Feature/16070"
+  },
+  {
+   "id": 15325,
+   "name": "Slater",
+   "type": "Crater",
+   "lat": -88.08,
+   "lon": 111.29,
+   "diameter_km": 25.12,
+   "rank": "minor",
+   "url": "https://planetarynames.wr.usgs.gov/Feature/15325"
+  },
+  {
+   "id": 5782,
+   "name": "Sverdrup",
+   "type": "Crater",
+   "lat": -88.32,
+   "lon": -153.39,
+   "diameter_km": 32.83,
+   "rank": "minor",
+   "url": "https://planetarynames.wr.usgs.gov/Feature/5782"
+  },
+  {
+   "id": 16395,
+   "name": "Whitaker",
+   "type": "Crater",
+   "lat": -84.67,
+   "lon": 0.69,
+   "diameter_km": 20.0,
+   "rank": "minor",
+   "url": "https://planetarynames.wr.usgs.gov/Feature/16395"
+  },
+  {
+   "id": 6541,
+   "name": "Wiechert",
+   "type": "Crater",
+   "lat": -84.03,
+   "lon": 164.7,
+   "diameter_km": 40.82,
+   "rank": "minor",
+   "url": "https://planetarynames.wr.usgs.gov/Feature/6541"
+  }
+ ]
+}

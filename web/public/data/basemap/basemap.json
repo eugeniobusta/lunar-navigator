@@ -1,0 +1,40 @@
+{
+ "version": 1,
+ "projection": "south polar stereographic, R = 1737.4 km, lon 0 up, lon 90 E right; row 0 = northern edge",
+ "images": [
+  {
+   "file": "relief.jpg",
+   "size": 2048,
+   "half_width_m": 220000.0
+  },
+  {
+   "file": "relief_wide.jpg",
+   "size": 2048,
+   "half_width_m": 457380.0
+  }
+ ],
+ "shading": {
+  "method": "multidirectional hillshade of the 120 m heights, then averaged down",
+  "azimuths_deg": [
+   225.0,
+   270.0,
+   315.0,
+   360.0
+  ],
+  "weights": [
+   0.2,
+   0.25,
+   0.35,
+   0.2
+  ],
+  "altitude_deg": 35.0,
+  "vertical_exaggeration": 2.0,
+  "note": "Shading shows the shape of the ground. It is not the real sunlight."
+ },
+ "sources": [
+  {
+   "name": "LOLA LDEM_75S_120M (LRO Lunar Orbiter Laser Altimeter, PDS Geosciences Node)",
+   "url": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/float_img/"
+  }
+ ]
+}

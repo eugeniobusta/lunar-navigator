@@ -11,22 +11,25 @@ Built by team **Claude's Plan** at HackAthlone 2026 for the NASA Space Apps Chal
 
 Each link opens the app in exactly that state.
 
-1. **Stand at a site.** [Malapert Massif, January 2027](https://claudes-plan-lunar-navigator.vercel.app/?site=mma01&date=2027-01-09&days=14&tab=overview).
+1. **Ask where to land.** [The map](https://claudes-plan-lunar-navigator.vercel.app/?tab=map) is the home page:
+   every 120 m square within 6° of the pole, tested against NASA's Artemis III landing requirements, over shaded
+   relief with the craters named. 14.3 % of the ground passes, in 5,297 zones. Green is good, amber acceptable,
+   red poor for what you tick; hatched red is unsafe and says which limit fails. Tick a group or a single
+   parameter, or pick "Power first", "Radio link" or "Ice science": the classes and the ranking follow. One
+   parameter by itself reads in real units, as [sunlight alone](https://claudes-plan-lunar-navigator.vercel.app/?tab=map&pick=sunlight).
+2. **Click a spot.** [The best zone for everything](https://claudes-plan-lunar-navigator.vercel.app/?tab=map&spot=-84.01732,23.42168):
+   its measurements, what is good and what is weak there, how sure the numbers are, and four next steps.
+3. **See its sky.** [Malapert Massif, January 2027](https://claudes-plan-lunar-navigator.vercel.app/?site=mma01&date=2027-01-09&days=14&tab=overview).
    The chart is the whole horizon unrolled, with the real skyline. Drag the time slider: the Sun skims the ridges
    and Earth bobs in the north. One sentence says what it means: sunlight 51 % of the time, Earth always in view.
-2. **Slip the launch.** [Nobile Rim 1 against Malapert](https://claudes-plan-lunar-navigator.vercel.app/?site=nr107&compare=mma01&date=2027-01-09T22:00Z&days=10&tab=compare).
+4. **Slip the launch.** [Nobile Rim 1 against Malapert](https://claudes-plan-lunar-navigator.vercel.app/?site=nr107&compare=mma01&date=2027-01-09T22:00Z&days=10&tab=compare).
    A 10-day stay at Nobile Rim 1 has 100 % sunlight. Drag "Launch slip" to +14 days: it falls to 12.5 %.
-3. **Ask when to land.** [Window Finder](https://claudes-plan-lunar-navigator.vercel.app/?site=mma01&date=2026-11-14&days=14&tab=windows),
+5. **Ask when to land.** [Window Finder](https://claudes-plan-lunar-navigator.vercel.app/?site=mma01&date=2026-11-14&days=14&tab=windows),
    then "Find landing days". A 14-day mission at Malapert works on 32 days of the next 12 months, three days a month.
-4. **Ask where to land.** [Where to land](https://claudes-plan-lunar-navigator.vercel.app/?tab=land). Every 120 m
-   square within 6° of the pole, tested against NASA's Artemis III landing requirements: 14.3 % passes, in 5,297
-   zones. Tick what matters for your mission, or pick "Power first", "Radio link" or "Ice science": the map and the
-   ranking follow. Tick a single box to see that parameter by itself, as [sunlight alone](https://claudes-plan-lunar-navigator.vercel.app/?tab=land&pick=sunlight).
-   "Click any spot" gives any point's numbers, and "Why here?" explains a zone in plain sentences.
-5. **Stand on the Moon.** [3D / VR](https://claudes-plan-lunar-navigator.vercel.app/xr/): the same data as a
+6. **Stand on the Moon.** [3D / VR](https://claudes-plan-lunar-navigator.vercel.app/xr/): the same data as a
    place you can stand in, on a laptop or a Meta Quest 3.
-6. **Check us.** The [Data tab](https://claudes-plan-lunar-navigator.vercel.app/?tab=data) lists every source with
-   its terms and every file we publish; the Method tab shows our numbers against JPL's and NASA's.
+7. **Check us.** The [Data page](https://claudes-plan-lunar-navigator.vercel.app/?tab=data) lists every source with
+   its terms and every file we publish; the Method page shows our numbers against JPL's and NASA's.
 
 ## How it works
 
@@ -38,7 +41,8 @@ Each link opens the app in exactly that state.
    else (percentages, longest night, landing windows, battery charge) is counting hours.
 4. **Where to land.** Six hard limits from NASA's Artemis III requirements (within 6° of the pole, landing slope
    under 10°, walkable ground within 2 km, Earth in view, lit for the stay, a 100 m box) and a 0 to 100 score for
-   the rest. The weights are yours to change. Every threshold has a source or is marked "team choice":
+   the rest, shown as green (70 or more), amber (40 to 69) or red. What counts is yours to tick. Every threshold has
+   a source or is marked "team choice":
    [docs/criteria.md](docs/criteria.md), [docs/criteria.csv](docs/criteria.csv).
 
 Formulas: [docs/SCIENCE.md](docs/SCIENCE.md). File formats: [docs/INTERFACES.md](docs/INTERFACES.md).
@@ -48,12 +52,13 @@ One page for non-scientists: [docs/CHEATSHEET.md](docs/CHEATSHEET.md).
 
 | Data | From | Used for |
 |------|------|----------|
-| LOLA LDEM_75S_120M elevation map | NASA LRO, PDS Geosciences Node | Skylines, slopes, the 3D terrain |
+| LOLA LDEM_75S_120M elevation map | NASA LRO, PDS Geosciences Node | Skylines, slopes, the relief under the map, the 3D terrain |
 | Lunar polar illumination and Earth visibility maps (product 69) | NASA Goddard PGDA | Where-to-land limits and score; check of our model |
 | Diviner Polar Resource Product (temperature, depth of stable ice) | NASA LRO Diviner, PDS | Two soft criteria |
 | DE421 ephemeris and lunar orientation kernels | JPL / NAIF, via Skyfield | Sun and Earth positions |
 | Horizons API | JPL | Check of our Sun and Earth positions |
 | Artemis candidate landing sites | Wueller et al. 2026, JGR Planets | The nine Artemis points (verified against the paper) |
+| Names and positions of craters and mountains | IAU Gazetteer of Planetary Nomenclature (USGS) | Labels on the map |
 | Lunar landing attempts, 1965 to 2025 | NASA NSSDCA and mission sources | Lessons table |
 
 Each provider's terms are quoted in [DATA_LICENSE.md](DATA_LICENSE.md) and on the Data tab. Everything we compute

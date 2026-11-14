@@ -4,6 +4,30 @@
  "dictionary": "https://github.com/eugeniobusta/lunar-navigator/blob/main/docs/DATA_DICTIONARY.md",
  "files": [
   {
+   "path": "basemap/basemap.json",
+   "bytes": 888,
+   "format": "JSON",
+   "description": "Extents, shading method and sources of the two relief images of the landing map."
+  },
+  {
+   "path": "basemap/features.json",
+   "bytes": 4262,
+   "format": "JSON",
+   "description": "Named craters and mountains near the south pole, positions from the IAU Gazetteer of Planetary Nomenclature."
+  },
+  {
+   "path": "basemap/relief.jpg",
+   "bytes": 766293,
+   "format": "JPEG image, 8-bit greyscale",
+   "description": "Shaded relief of the south pole from the LOLA elevation map, 2048 x 2048 over 440 km (about 215 m per pixel)."
+  },
+  {
+   "path": "basemap/relief_wide.jpg",
+   "bytes": 1060157,
+   "format": "JPEG image, 8-bit greyscale",
+   "description": "Shaded relief of the whole LOLA map down to 75 deg S, 2048 x 2048 (about 447 m per pixel)."
+  },
+  {
    "path": "criteria.csv",
    "bytes": 7740,
    "format": "CSV",
@@ -119,7 +143,7 @@
   },
   {
    "path": "index.json",
-   "bytes": 45129,
+   "bytes": 45984,
    "format": "JSON",
    "description": "This list: every published file with its size, format and description."
   },

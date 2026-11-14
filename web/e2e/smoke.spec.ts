@@ -69,6 +69,15 @@ test("Where to land shows the map, a zone and the criteria", async ({ page }) =>
   await expect(page.getByRole("heading", { name: /^Zone 1:/ })).toBeVisible();
   await page.getByRole("button", { name: /^Zone 3,/ }).click();
   await expect(page.getByRole("heading", { name: /^Zone 3:/ })).toBeVisible();
+  // "Your priorities": another preset re-scores the map and re-ranks the zones, so the selected zone moves.
+  await page.getByRole("button", { name: "Ice science first", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Ice science first", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("heading", { name: /^Zone 3:/ })).toHaveCount(0);
+  await expect(page.getByText(/^Rank \d+ with your priorities; rank 3 with the balanced ones/)).toBeVisible();
+  await expect(page.getByText("Loading the six map layers")).toHaveCount(0);
+  await page.getByRole("button", { name: "Balanced", exact: true }).click();
+  await expect(page.getByRole("heading", { name: /^Zone 3:/ })).toBeVisible();
+  await expect(page.getByRole("row", { name: /Malapert Massif/ }).first()).toContainText("32 (65)");
   await expect(page.getByRole("cell", { name: /Artemis III must land near the south pole/ })).toBeVisible();
   expect(errors).toEqual([]);
 });

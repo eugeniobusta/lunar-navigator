@@ -60,3 +60,21 @@ Mission: 336 h on the surface, at least 70 % sunlit, at least 50 % Earth visible
 | 5 | -84.58 | 39.35 | 74 | 10.1 | 59 | 86 | 2.3 | 13.8 | Nobile Rim 1 (19.7) |
 
 Thresholds and sources: docs/criteria.csv. Method: docs/criteria.md.
+
+## 6. Where the nine Artemis points rank under different priorities
+
+Each point is scored like a zone and placed among the 4,224 zones whose 6.5-day window our model confirms: rank (score). The hard limits are the same in every column; only the weights of the soft criteria change (docs/criteria.md).
+
+| Artemis point | Passes hard limits | Balanced | Power first | Radio link first | Ice science first |
+|---------------|--------------------|---:|---:|---:|---:|
+| Peak near Cabeus B | no (latitude) | 97 (59) | 139 (48) | 220 (72) | 2,352 (58) |
+| Haworth | yes | 190 (55) | 234 (44) | 737 (57) | 30 (81) |
+| Malapert Massif | yes | 32 (65) | 253 (43) | 6 (91) | 2,041 (60) |
+| Mons Mouton Plateau | no (sunlight) | 1,401 (40) | 2,439 (22) | 1,352 (42) | 495 (72) |
+| Mons Mouton | yes | 70 (61) | 30 (61) | 713 (58) | 203 (75) |
+| Nobile Rim 1 | yes | 230 (54) | 163 (47) | 737 (57) | 908 (68) |
+| Nobile Rim 2 | no (latitude) | 752 (46) | 1,230 (31) | 1,046 (47) | 203 (75) |
+| de Gerlache Rim 2 | yes | 133 (57) | 79 (53) | 824 (54) | 596 (71) |
+| Slater Plain | yes | 752 (46) | 253 (43) | 1,537 (40) | 2,484 (57) |
+
+Best-placed Artemis point per preset: Balanced: Malapert Massif; Power first: Mons Mouton; Radio link first: Malapert Massif; Ice science first: Haworth.

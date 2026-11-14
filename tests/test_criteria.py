@@ -160,3 +160,56 @@ def test_criteria_and_missions_tables():
             assert -90 <= float(m["lat"]) <= 90 and -180 <= float(m["lon"]) <= 180
     polar = {m["id"] for m in missions if m["in_criteria_area"] == "yes"}
     assert {"im1", "im2"} <= polar
+
+
+# ---- "Your priorities": layers and weights (docs/INTERFACES.md section 11) ----
+
+def test_int_map_score_and_weighted_zone_score():
+    balanced = C.PRESETS["balanced"][1]
+    q = np.array([[255, 0, 255], [0, 0, 255], [0, 0, 255], [0, 255, 255], [0, 0, 255], [0, 0, 255]])
+    assert C.int_map_score(q, balanced).tolist() == [30, 15, 100]      # sunlight alone, shadow alone, everything
+    assert C.int_map_score(q, {**balanced, **dict.fromkeys(C.LAYER_KEYS, 0)}).tolist() == [0, 0, 0]
+    for m, d, n in [(100, 85, 0), (65, 560, 0), (55, 85, 336), (73, 201, 177), (40, 500, 12)]:
+        z = {"map_score": m, "longest_dark_h": d, "longest_no_earth_h": n}
+        assert C.zone_score_weighted(m, d, n, balanced) == C.zone_score(z)
+    assert C.zone_score_weighted(80, 400, 400, {**balanced, "darkness": 0, "no_earth": 0}) == 80
+
+
+def test_layers_reproduce_the_published_scores():
+    weights = json.loads((SUIT / "weights.json").read_text())
+    balanced = next(p["weights"] for p in weights["presets"] if p["key"] == "balanced")
+    assert balanced == C.PRESETS["balanced"][1] and [la["key"] for la in weights["layers"]] == C.LAYER_KEYS
+
+    def check(score_file, layer_pattern, n):
+        published = np.fromfile(score_file, dtype=np.uint8).astype(np.int64)
+        q = np.stack([np.fromfile(str(layer_pattern).format(k), dtype=np.uint8) for k in C.LAYER_KEYS])
+        assert q.shape == (6, n)
+        ok = published != 255
+        assert np.array_equal(C.int_map_score(q, balanced)[ok], np.where(published <= 100, published, published - 101)[ok])
+
+    check(SUIT / "south_pole_score.u8", SUIT / "layers" / "south_pole_{}.u8", 1024 * 1024)
+    for s in json.loads((DATA / "sites.json").read_text())["sites"]:
+        if s["terrain"] == "dem":
+            check(SUIT / "sites" / f"{s['id']}_score.u8", SUIT / "layers" / "sites" / (s["id"] + "_{}.u8"), 512 * 512)
+
+
+def test_zone_layers_and_artemis_points():
+    z = zones()
+    zl = list(csv.DictReader((SUIT / "zones_layers.csv").open()))
+    assert [r["rank"] for r in zl] == [r["rank"] for r in z]
+    balanced = C.PRESETS["balanced"][1]
+    q = np.array([[int(r[k]) for r in zl] for k in C.LAYER_KEYS])
+    assert C.int_map_score(q, balanced).tolist() == [int(r["map_score"]) for r in z]
+    points = list(csv.DictReader((SUIT / "artemis_points.csv").open()))
+    assert len(points) == 9
+    summary = json.loads((SUIT / "summary.json").read_text())
+    assert sum(p["passes_hard_limits"] == "yes" for p in points) == summary["artemis_points_passing"]
+    confirmed = [i for i, r in enumerate(z) if r["stay_window_ok"] == "True"]
+    for name, (_, weights) in C.PRESETS.items():
+        scores = [C.zone_score_weighted(int(m), int(z[i]["longest_dark_h"]), int(z[i]["longest_no_earth_h"]), weights)
+                  for m, i in zip(C.int_map_score(q[:, confirmed], weights), confirmed, strict=True)]
+        for p in points:
+            pq = np.array([[int(p[k])] for k in C.LAYER_KEYS])
+            score = C.zone_score_weighted(int(C.int_map_score(pq, weights)[0]), int(p["longest_dark_h"]),
+                                          int(p["longest_no_earth_h"]), weights)
+            assert score == int(p[f"score_{name}"]) and 1 + sum(v > score for v in scores) == int(p[f"rank_{name}"])

@@ -34,7 +34,8 @@ def test_dictionary_covers_every_file_and_column():
     for name in ("index.json", "stars.json", "sites.json", "ephemeris.json", "_grid.json", "south_pole.json", "south_pole_height.u16",
                  "south_pole_sun.u8", "south_pole_earth.u8", "tile.json", "height.u16", "far.u16", "sun.u8", "earth.u8", "slope.u8", "validation/jpl.csv", "validation/pgda.csv"):
         assert name in text, name
-    for csv_name in ("validation/jpl.csv", "validation/pgda.csv", "suitability/zones.csv", "criteria.csv", "missions.csv"):
+    for csv_name in ("validation/jpl.csv", "validation/pgda.csv", "suitability/zones.csv", "criteria.csv", "missions.csv",
+                     "suitability/zones_layers.csv", "suitability/artemis_points.csv"):
         assert csv_name in text, csv_name
         for col in next(csv.reader((DATA / csv_name).open())):
             assert f"`{col}`" in text, (csv_name, col)
@@ -42,6 +43,12 @@ def test_dictionary_covers_every_file_and_column():
         assert name in text, name
     for key in json.loads((DATA / "suitability" / "summary.json").read_text()):
         assert f"`{key}`" in text, key
+    weights = json.loads((DATA / "suitability" / "weights.json").read_text())
+    for key in weights:
+        assert f"`{key}`" in text or f"`{key}[]." in text, key
+    for group in ("layers", "zone_terms", "presets"):
+        for key in weights[group][0]:
+            assert f"`{group}[].{key}`" in text, (group, key)
     for doc in ("sites.json", "ephemeris.json", "horizons/mma01.json", "horizons/mma01_grid.json", "terrain/south_pole.json",
                 "terrain/sites/mma01/tile.json", "stars.json"):
         d = json.loads((DATA / doc).read_text())

@@ -119,7 +119,7 @@
   },
   {
    "path": "index.json",
-   "bytes": 22908,
+   "bytes": 39588,
    "format": "JSON",
    "description": "This list: every published file with its size, format and description."
   },
@@ -140,6 +140,408 @@
    "bytes": 185816,
    "format": "JSON",
    "description": "Bright stars (Yale Bright Star Catalogue) and the Moon's orientation every 6 hours, for the VR sky."
+  },
+  {
+   "path": "suitability/artemis_points.csv",
+   "bytes": 1231,
+   "format": "CSV",
+   "description": "The nine Artemis points: layer values, model numbers, score and rank under each preset."
+  },
+  {
+   "path": "suitability/layers/sites/dgr203_earth.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for Earth in view around de Gerlache Rim 2, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/dgr203_landing_slope.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for landing slope around de Gerlache Rim 2, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/dgr203_shadow.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for distance to permanent shadow around de Gerlache Rim 2, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/dgr203_sunlight.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for sunlight around de Gerlache Rim 2, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/dgr203_temperature.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for ground temperature around de Gerlache Rim 2, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/dgr203_walkable.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for walkable ground around de Gerlache Rim 2, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/hw02_earth.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for Earth in view around Haworth, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/hw02_landing_slope.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for landing slope around Haworth, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/hw02_shadow.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for distance to permanent shadow around Haworth, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/hw02_sunlight.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for sunlight around Haworth, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/hw02_temperature.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for ground temperature around Haworth, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/hw02_walkable.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for walkable ground around Haworth, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/im2_earth.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for Earth in view around IM-2 Athena (Mons Mouton), Mar 2025, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/im2_landing_slope.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for landing slope around IM-2 Athena (Mons Mouton), Mar 2025, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/im2_shadow.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for distance to permanent shadow around IM-2 Athena (Mons Mouton), Mar 2025, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/im2_sunlight.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for sunlight around IM-2 Athena (Mons Mouton), Mar 2025, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/im2_temperature.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for ground temperature around IM-2 Athena (Mons Mouton), Mar 2025, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/im2_walkable.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for walkable ground around IM-2 Athena (Mons Mouton), Mar 2025, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/mma01_earth.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for Earth in view around Malapert Massif, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/mma01_landing_slope.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for landing slope around Malapert Massif, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/mma01_shadow.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for distance to permanent shadow around Malapert Massif, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/mma01_sunlight.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for sunlight around Malapert Massif, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/mma01_temperature.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for ground temperature around Malapert Massif, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/mma01_walkable.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for walkable ground around Malapert Massif, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/mmo01_earth.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for Earth in view around Mons Mouton, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/mmo01_landing_slope.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for landing slope around Mons Mouton, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/mmo01_shadow.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for distance to permanent shadow around Mons Mouton, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/mmo01_sunlight.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for sunlight around Mons Mouton, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/mmo01_temperature.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for ground temperature around Mons Mouton, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/mmo01_walkable.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for walkable ground around Mons Mouton, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/mmp06_earth.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for Earth in view around Mons Mouton Plateau, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/mmp06_landing_slope.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for landing slope around Mons Mouton Plateau, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/mmp06_shadow.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for distance to permanent shadow around Mons Mouton Plateau, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/mmp06_sunlight.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for sunlight around Mons Mouton Plateau, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/mmp06_temperature.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for ground temperature around Mons Mouton Plateau, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/mmp06_walkable.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for walkable ground around Mons Mouton Plateau, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/nr107_earth.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for Earth in view around Nobile Rim 1, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/nr107_landing_slope.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for landing slope around Nobile Rim 1, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/nr107_shadow.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for distance to permanent shadow around Nobile Rim 1, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/nr107_sunlight.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for sunlight around Nobile Rim 1, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/nr107_temperature.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for ground temperature around Nobile Rim 1, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/nr107_walkable.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for walkable ground around Nobile Rim 1, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/nr208_earth.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for Earth in view around Nobile Rim 2, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/nr208_landing_slope.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for landing slope around Nobile Rim 2, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/nr208_shadow.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for distance to permanent shadow around Nobile Rim 2, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/nr208_sunlight.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for sunlight around Nobile Rim 2, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/nr208_temperature.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for ground temperature around Nobile Rim 2, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/nr208_walkable.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for walkable ground around Nobile Rim 2, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/pcb03_earth.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for Earth in view around Peak near Cabeus B, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/pcb03_landing_slope.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for landing slope around Peak near Cabeus B, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/pcb03_shadow.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for distance to permanent shadow around Peak near Cabeus B, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/pcb03_sunlight.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for sunlight around Peak near Cabeus B, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/pcb03_temperature.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for ground temperature around Peak near Cabeus B, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/pcb03_walkable.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for walkable ground around Peak near Cabeus B, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/sp07_earth.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for Earth in view around Slater Plain, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/sp07_landing_slope.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for landing slope around Slater Plain, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/sp07_shadow.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for distance to permanent shadow around Slater Plain, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/sp07_sunlight.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for sunlight around Slater Plain, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/sp07_temperature.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for ground temperature around Slater Plain, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/sp07_walkable.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for walkable ground around Slater Plain, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/south_pole_earth.u8",
+   "bytes": 1048576,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for Earth in view of the south pole, 1024 x 1024: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/south_pole_landing_slope.u8",
+   "bytes": 1048576,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for landing slope of the south pole, 1024 x 1024: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/south_pole_shadow.u8",
+   "bytes": 1048576,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for distance to permanent shadow of the south pole, 1024 x 1024: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/south_pole_sunlight.u8",
+   "bytes": 1048576,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for sunlight of the south pole, 1024 x 1024: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/south_pole_temperature.u8",
+   "bytes": 1048576,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for ground temperature of the south pole, 1024 x 1024: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/south_pole_walkable.u8",
+   "bytes": 1048576,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for walkable ground of the south pole, 1024 x 1024: 0 = rejected, 255 = ideal."
   },
   {
    "path": "suitability/sites/dgr203_limits.u8",
@@ -280,6 +682,12 @@
    "description": "Headline numbers of the suitability analysis."
   },
   {
+   "path": "suitability/weights.json",
+   "bytes": 2836,
+   "format": "JSON",
+   "description": "The scoring layers, their bounds, and the weight presets (balanced, power, radio, ice)."
+  },
+  {
    "path": "suitability/zones.csv",
    "bytes": 736394,
    "format": "CSV",
@@ -290,6 +698,12 @@
    "bytes": 282925,
    "format": "GeoJSON",
    "description": "The 500 best Goldilocks zones as GeoJSON points (lunar longitude and latitude)."
+  },
+  {
+   "path": "suitability/zones_layers.csv",
+   "bytes": 135811,
+   "format": "CSV",
+   "description": "The six layer values at each zone's best cell, for re-ranking zones under other weights."
   },
   {
    "path": "terrain/sites/dgr203/earth.u8",

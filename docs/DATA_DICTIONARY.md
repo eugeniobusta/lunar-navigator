@@ -218,6 +218,49 @@ One row per Goldilocks zone: a connected area where every hard limit passes. All
 | `artemis` | | Per Artemis point: `id`, `name`, `passes_at_point`, `failed_limits`, `score_at_point`, `zones_nearby`, `best_zone_rank_nearby`, `best_zone_score_nearby`. |
 | `artemis_points_passing`, `artemis_regions_with_a_zone` | | How many of the nine points pass, and how many have a zone within 12.5 km. |
 
+### suitability/layers/ and suitability/weights.json ("Your priorities")
+
+Each soft criterion as its own layer, so the score can be recomputed under any weights
+(docs/INTERFACES.md section 11; code in web/src/lib/analysis/suitability.ts).
+
+| File | Encoding | Value |
+|------|----------|-------|
+| `suitability/layers/south_pole_<key>.u8` | 1024 x 1024 uint8, the `terrain/south_pole.json` grid | Sub-score of one criterion: 0 = at its reject bound, 255 = at its ideal bound. `<key>`: `sunlight`, `earth`, `landing_slope`, `shadow`, `walkable`, `temperature`. |
+| `suitability/layers/sites/<site_id>_<key>.u8` | 512 x 512 uint8, the site's tile grid, 120 m | The same, one value per 120 m cell. |
+
+`suitability/weights.json`:
+
+| Field | Meaning |
+|-------|---------|
+| `version` | Format version (1). |
+| `layers[].key`, `layers[].label` | Layer key (as in the file names) and display name. |
+| `layers[].parameter`, `layers[].unit` | The zones.csv column the layer is made from, and its unit. |
+| `layers[].reject`, `layers[].ideal` | Values that map to 0 and to 255. |
+| `layers[].file`, `layers[].site_file` | Paths of the layer grids, relative to `suitability/`. |
+| `zone_terms[].key`, `zone_terms[].label`, `zone_terms[].column`, `zone_terms[].unit`, `zone_terms[].reject`, `zone_terms[].ideal` | The two terms known only at zone best cells: longest darkness and longest time without Earth, with their bounds in hours. |
+| `default` | Key of the default preset: `balanced`. |
+| `presets[].key`, `presets[].label`, `presets[].weights` | Weight presets. Weights are relative: only their ratios matter. |
+| `confirmed_zones` | Number of zones whose 6.5-day stay window our model confirms; Artemis ranks are among these. |
+
+`suitability/zones_layers.csv`, one row per zone in the order of zones.csv:
+
+| Column | Meaning |
+|--------|---------|
+| `rank` | The zone's rank in zones.csv. |
+| `sunlight`, `earth`, `landing_slope`, `shadow`, `walkable`, `temperature` | The six layer values (0 to 255) at the zone's best cell. |
+
+`suitability/artemis_points.csv`, one row per Artemis candidate point:
+
+| Column | Meaning |
+|--------|---------|
+| `id`, `name`, `lat`, `lon` | The point (as in sites.json). |
+| `passes_hard_limits` | yes / no: whether the 120 m cell at the point passes every hard limit. |
+| `failed_limits` | The limits it fails: `landing_slope`, `eva_slope`, `sunlight`, `earth`, `latitude`. |
+| `sunlight`, `earth`, `landing_slope`, `shadow`, `walkable`, `temperature` | Layer values (0 to 255) at the point. |
+| `longest_dark_h`, `longest_no_earth_h`, `longest_sun_and_earth_h` | Our model at the point, Nov 2026 to Dec 2029, hours. |
+| `score_balanced`, `score_power`, `score_radio`, `score_ice` | The point scored like a zone under each preset, 0 to 100. |
+| `rank_balanced`, `rank_power`, `rank_radio`, `rank_ice` | 1 + the number of confirmed zones that score higher under that preset. |
+
 ## criteria.csv
 
 The landing criteria as a table (also in docs/criteria.csv). One row per criterion.

@@ -273,3 +273,54 @@ Bright Star Catalogue brighter than V = 3.5, and the Moon's orientation from the
 A star's MOON_ME direction at time t is its ICRF vector rotated by the quaternion interpolated (slerp) between the
 two nearest samples; alt/az then follows docs/SCIENCE.md section 2. Proper motion since J2000 and aberration
 (under 0.01 deg together) are ignored: the stars are scenery, not a measurement.
+
+---------------------------------------------------------------------------------------------------
+## 11. Suitability layers and weights: "Your priorities"  (owner: Eugenio; consumers: the web app and the VR view)
+
+Added next to the section-10 files, which are unchanged. Written by `scripts/build_suitability.py`.
+The scoring code is `web/src/lib/analysis/suitability.ts` (pure TypeScript, no React, importable from `xr/`).
+
+**Layers**, one per soft criterion, uint8, row-major, same grids and orientation as section 10:
+- `suitability/layers/south_pole_<key>.u8`: 1024 x 1024 on the section-8 grid (the same 120 m cell per pixel as
+  `south_pole_score.u8`).
+- `suitability/layers/sites/<id>_<key>.u8`: 512 x 512 at 120 m on the section-9 tile of each terrain="dem" site.
+
+`<key>` is one of `sunlight`, `earth`, `landing_slope`, `shadow`, `walkable`, `temperature`. A value `q` is the
+criterion's sub-score: `0` at its "reject" bound, `255` at its "ideal" bound, linear in between (bounds in
+`weights.json`). Where `south_pole_score.u8` is 255 (no data) the layers hold 0.
+
+**Score from weights** `W` (any non-negative numbers; only their ratios matter):
+
+    map_score = floor( (200 * sum(W_k * q_k) + D) / (2 * D) ),   D = 255 * sum(W_k)      (integers, round half up)
+    zone_score = round_half_even( (W6 / T) * map_score + (100 * W_darkness / T) * s_dark + (100 * W_no_earth / T) * s_no_earth )
+
+with `W6` = sum of the six layer weights, `T` = `W6 + W_darkness + W_no_earth`, and `s_dark`, `s_no_earth` the
+sub-scores of `longest_dark_h` and `longest_no_earth_h` (zones.csv) between the bounds in `weights.json`.
+Pass / fail does not depend on the weights: take it from the section-10 score and limit grids.
+With the `balanced` preset these formulas reproduce `south_pole_score.u8`, every `sites/<id>_score.u8` and the
+`score`, `map_score` and order of zones.csv exactly (web/src/lib/analysis/suitability.test.ts). To make that
+possible each layer value is the sub-score rounded to the nearest of 256 steps, except that in 2.65 % of cells one
+to three layers are moved by a single step (0.4 % of their range).
+
+**Tables**
+- `suitability/weights.json`:
+
+```json
+{
+  "version": 1,
+  "layers": [ { "key": "sunlight", "label": "Sunlight", "parameter": "sun_pct", "unit": "% of time", "reject": 25.0,
+                "ideal": 70.0, "file": "layers/south_pole_sunlight.u8", "site_file": "layers/sites/<id>_sunlight.u8" } ],
+  "zone_terms": [ { "key": "darkness", "label": "Short nights", "column": "longest_dark_h", "unit": "h",
+                    "reject": 354.0, "ideal": 85.0 } ],
+  "default": "balanced",
+  "presets": [ { "key": "balanced", "label": "Balanced",
+                 "weights": { "sunlight": 42, "earth": 28, "landing_slope": 28, "shadow": 21, "walkable": 14,
+                              "temperature": 7, "darkness": 30, "no_earth": 30 } } ],
+  "confirmed_zones": 4224
+}
+```
+  Presets: `balanced` (docs/criteria.md), `power`, `radio`, `ice`.
+- `suitability/zones_layers.csv`: `rank, sunlight, earth, landing_slope, shadow, walkable, temperature`: the six
+  layer values at each zone's best cell, in the row order of zones.csv.
+- `suitability/artemis_points.csv`: the nine Artemis points with their layer values, model numbers, and for each
+  preset `score_<preset>` and `rank_<preset>` (1 + the number of confirmed zones that score higher).

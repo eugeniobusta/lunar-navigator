@@ -68,6 +68,27 @@ The weights are a team choice: power first (sunlight and darkness together carry
 radio link (29 %), then safe ground (21 %), then science access (10.5 %). Change them in `engine/criteria.py` and
 rerun; docs/criteria.csv is written from the same table.
 
+### Your priorities: other weights
+
+The weights above are the "Balanced" preset. The "Where to land" tab lets anyone change them, and the map and the
+zone ranking follow at once. The hard limits never move. Each soft term is published as a 0-255 layer
+(docs/INTERFACES.md section 11), and `web/src/lib/analysis/suitability.ts` recomputes the score from the layers;
+under Balanced it reproduces every published score and the whole ranking exactly.
+
+| Term | Balanced | Power first | Radio link first | Ice science first |
+|------|---------:|------------:|-----------------:|------------------:|
+| Sunlight | 42 | 80 | 20 | 20 |
+| Earth in view | 28 | 15 | 80 | 15 |
+| Flat landing ground | 28 | 20 | 20 | 20 |
+| Permanent shadow nearby | 21 | 10 | 10 | 90 |
+| Walkable ground | 14 | 5 | 5 | 30 |
+| Milder ground | 7 | 10 | 5 | 0 |
+| Short nights | 30 | 60 | 0 | 10 |
+| Never out of contact | 30 | 0 | 60 | 15 |
+
+Weights are relative: only their ratios matter. The three mission presets are a team choice. Where the nine
+Artemis points rank under each one is in docs/PITCH_NUMBERS.md section 6 and in `suitability/artemis_points.csv`.
+
 ## 3. Goldilocks zones
 
 A zone is a connected patch of cells where every hard limit passes (cells touching by a side or a corner). Each

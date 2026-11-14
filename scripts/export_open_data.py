@@ -78,6 +78,13 @@ def describe(rel, names):
             "earth.u8": f"NASA PGDA average Earth visibility around {site}, percent, 120 m per pixel.",
             "slope.u8": f"Terrain slope around {site}, degrees, 120 m per pixel.",
         }[Path(rel).name]
+    if rel.startswith("suitability/layers/"):
+        key = stem.split("_", 1)[1] if rel.startswith("suitability/layers/sites/") else stem.removeprefix("south_pole_")
+        what = {"sunlight": "sunlight", "earth": "Earth in view", "landing_slope": "landing slope",
+                "shadow": "distance to permanent shadow", "walkable": "walkable ground", "temperature": "ground temperature"}[key]
+        where = (f"around {names[stem.split('_', 1)[0]]}, 512 x 512 at 120 m" if "/sites/" in rel
+                 else "of the south pole, 1024 x 1024")
+        return f"Sub-score layer for {what} {where}: 0 = rejected, 255 = ideal."
     if rel.startswith("suitability/sites/"):
         site, kind = names[stem.rsplit("_", 1)[0]], stem.rsplit("_", 1)[1]
         return (f"Landing suitability score around {site}, 512 x 512 at 120 m per pixel." if kind == "score"
@@ -90,6 +97,9 @@ def describe(rel, names):
         "suitability/south_pole_score.u8": "Landing suitability score of the south pole, 1024 x 1024, about 430 m per pixel.",
         "suitability/south_pole_limits.u8": "Which hard limits fail (bit flags), on the same 1024 x 1024 grid.",
         "suitability/summary.json": "Headline numbers of the suitability analysis.",
+        "suitability/weights.json": "The scoring layers, their bounds, and the weight presets (balanced, power, radio, ice).",
+        "suitability/zones_layers.csv": "The six layer values at each zone's best cell, for re-ranking zones under other weights.",
+        "suitability/artemis_points.csv": "The nine Artemis points: layer values, model numbers, score and rank under each preset.",
         "terrain/south_pole.json": "Grid definition, site positions and sources for the south-pole terrain files.",
         "terrain/south_pole_height.u16": "South-pole terrain heights, 1024 x 1024, about 430 m per pixel.",
         "terrain/south_pole_sun.u8": "NASA PGDA average sunlight, percent, on the same grid.",

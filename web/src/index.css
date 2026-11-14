@@ -137,6 +137,8 @@ table.compare { border-collapse: collapse; margin-top: 20px; min-width: min(560p
 .priorities { margin: 20px 0 4px; padding: 16px; background: var(--dust); border: 1px solid var(--rim); border-radius: var(--r); }
 .priorities h3 { margin-top: 0; }
 .priorities .presets { margin: 12px 0; }
+.weights summary { cursor: pointer; width: fit-content; padding: 4px 0; color: var(--ash); font-size: 0.875rem; }
+.weights[open] summary { margin-bottom: 8px; }
 .sliders { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px 24px; }
 .sliders .field span { display: flex; justify-content: space-between; gap: 8px; }
 .sliders b { color: var(--bone); font-weight: 600; font-variant-numeric: tabular-nums; }

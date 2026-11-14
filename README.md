@@ -1,58 +1,96 @@
 # Lunar Landing Site Navigator
 
-Team **Claude's Plan** · HackAthlone 2026 · NASA Space Apps Challenge #11.
+At the Moon's south pole the Sun never climbs more than a few degrees, so one ridge decides whether a lander has
+power and whether it can see Earth to call home. This tool shows, for real terrain and any date from November 2026
+to December 2029, when a landing site has sunlight and a radio link, and where the good sites are.
+Built by team **Claude's Plan** at HackAthlone 2026 for the NASA Space Apps Challenge "Lunar Landing Site Navigator".
 
-Pick a landing site near the lunar south pole and a date, and see when the Sun (power) and Earth
-(direct-to-Earth comms) are above the real terrain horizon. Compare sites, slip the launch date,
-find the landing days that meet a mission's needs, and check whether the battery survives the dark.
+**Live: https://claudes-plan-lunar-navigator.vercel.app** · 3D / VR: https://claudes-plan-lunar-navigator.vercel.app/xr/
 
-## Start here (everyone, 5 minutes)
+## The 3-minute tour
 
-1. Install: Node 22, Python 3.11+, [uv](https://docs.astral.sh/uv/), git, `gh`, Claude Code.
-2. `gh auth login`, then `gh repo clone eugeniobusta/lunar-navigator && cd lunar-navigator`
-3. `make setup` then `make test` (both must pass)
-4. `make dev` in its own terminal to see the app.
-5. Open **docs/PROMPTS.md**, find your section, run your next prompt.
+Each link opens the app in exactly that state.
 
-## How we work
+1. **Stand at a site.** [Malapert Massif, January 2027](https://claudes-plan-lunar-navigator.vercel.app/?site=mma01&date=2027-01-09&days=14&tab=overview).
+   The chart is the whole horizon unrolled, with the real skyline. Drag the time slider: the Sun skims the ridges
+   and Earth bobs in the north. One sentence says what it means: sunlight 51 % of the time, Earth always in view.
+2. **Slip the launch.** [Nobile Rim 1 against Malapert](https://claudes-plan-lunar-navigator.vercel.app/?site=nr107&compare=mma01&date=2027-01-09T22:00Z&days=10&tab=compare).
+   A 10-day stay at Nobile Rim 1 has 100 % sunlight. Drag "Launch slip" to +14 days: it falls to 12.5 %.
+3. **Ask when to land.** [Window Finder](https://claudes-plan-lunar-navigator.vercel.app/?site=mma01&date=2026-11-14&days=14&tab=windows),
+   then "Find landing days". A 14-day mission at Malapert works on 32 days of the next 12 months, three days a month.
+4. **Ask where to land.** [Where to land](https://claudes-plan-lunar-navigator.vercel.app/?tab=land). Every 120 m
+   square within 6° of the pole, tested against NASA's Artemis III landing requirements: 14.3 % passes, in 5,297
+   zones. Pick "Radio link first" or "Ice science first" and the ranking changes; switch to **Layers** and click
+   any spot to see each criterion by itself. "Why here?" explains a zone in plain sentences.
+5. **Stand on the Moon.** [3D / VR](https://claudes-plan-lunar-navigator.vercel.app/xr/): the same data as a
+   place you can stand in, on a laptop or a Meta Quest 3.
+6. **Check us.** The [Data tab](https://claudes-plan-lunar-navigator.vercel.app/?tab=data) lists every source with
+   its terms and every file we publish; the Method tab shows our numbers against JPL's and NASA's.
 
-- **One owner per file** (docs/OWNERSHIP.md). Need a change in someone else's file? Ask them in the chat.
-- **One prompt = one branch = one PR.** Branch names: `feat/<name>-<topic>`. Nobody pushes to `main`.
-- **Merge windows** at 11:00, 13:00, 15:00, 17:00, 19:00, 21:00 and 23:00. Eugenio merges (squash).
-- **Contracts are law**: docs/INTERFACES.md. Build against `web/src/mocks/` until real data lands in `web/public/data/`.
-- Before a PR: `git fetch && git rebase origin/main && make test && make build`.
-- Gates: **13:00** (data + shell), **17:00** MVP deployed on real data, **21:00** everything in. Freeze 22:00.
+## How it works
 
-## Layout
+1. **Where the Sun and Earth are.** Skyfield with JPL's DE421 ephemeris gives their positions from the Moon's
+   centre every hour, in the Moon's own frame. The browser turns that into elevation and azimuth for any site.
+2. **The skyline.** From NASA's LOLA elevation map (120 m per pixel) we walk outward from each site in 720
+   directions, up to 150 km, and keep the highest angle the terrain reaches, allowing for the Moon's curvature.
+3. **Lit, in contact, or neither.** The Sun or Earth is "up" when its centre is above that skyline. Everything
+   else (percentages, longest night, landing windows, battery charge) is counting hours.
+4. **Where to land.** Six hard limits from NASA's Artemis III requirements (within 6° of the pole, landing slope
+   under 10°, walkable ground within 2 km, Earth in view, lit for the stay, a 100 m box) and a 0 to 100 score for
+   the rest. The weights are yours to change. Every threshold has a source or is marked "team choice":
+   [docs/criteria.md](docs/criteria.md), [docs/criteria.csv](docs/criteria.csv).
 
-| Path | What | Owner |
-|------|------|-------|
-| `engine/`, `scripts/`, `tests/` | Python precompute (Skyfield, LOLA DEM) | Kien |
-| `web/src/lib/analysis/`, `web/src/workers/` | Visibility, metrics, Window Finder | Chinh |
-| `web/src/` app shell, routes, charts, state | React app | Rahan |
-| `web/src/lib/power/`, `web/src/lib/serial/`, `firmware/` | Battery simulator, MoonBox | Ahmed |
-| `web/src/content/`, `docs/PITCH.md`, `media/` | Story, copy, pitch | Luke |
-| `docs/`, `CLAUDE.md`, `web/public/data/sites.json` | Contracts, sites, integration | Eugenio |
+Formulas: [docs/SCIENCE.md](docs/SCIENCE.md). File formats: [docs/INTERFACES.md](docs/INTERFACES.md).
+One page for non-scientists: [docs/CHEATSHEET.md](docs/CHEATSHEET.md).
 
-## Data
+## Data used
 
-Raw NASA data (~520 MB) is not in git: `make download` puts it in `data/`. Download once, share by USB.
-Sources and validation: docs/DATA.md, docs/SCIENCE.md, docs/VALIDATION.md.
+| Data | From | Used for |
+|------|------|----------|
+| LOLA LDEM_75S_120M elevation map | NASA LRO, PDS Geosciences Node | Skylines, slopes, the 3D terrain |
+| Lunar polar illumination and Earth visibility maps (product 69) | NASA Goddard PGDA | Where-to-land limits and score; check of our model |
+| Diviner Polar Resource Product (temperature, depth of stable ice) | NASA LRO Diviner, PDS | Two soft criteria |
+| DE421 ephemeris and lunar orientation kernels | JPL / NAIF, via Skyfield | Sun and Earth positions |
+| Horizons API | JPL | Check of our Sun and Earth positions |
+| Artemis candidate landing sites | Wueller et al. 2026, JGR Planets | The nine Artemis points (verified against the paper) |
+| Lunar landing attempts, 1965 to 2025 | NASA NSSDCA and mission sources | Lessons table |
 
-## Open data
+Each provider's terms are quoted in [DATA_LICENSE.md](DATA_LICENSE.md) and on the Data tab. Everything we compute
+is published in `web/public/data/` (listed in `index.json`, described in [docs/DATA_DICTIONARY.md](docs/DATA_DICTIONARY.md))
+under CC BY 4.0; the code is MIT.
 
-Live app: https://claudes-plan-lunar-navigator.vercel.app (open the **Data** tab).
+## Validation
 
-- **What we use**: NASA LOLA LDEM_75S_120M (PDS Geosciences Node), NASA Goddard PGDA lunar polar illumination maps
-  (product 69), the JPL Horizons API, JPL DE421 and NAIF lunar kernels via Skyfield, and the Artemis candidate points
-  of Wueller et al. 2026. Each provider's terms are quoted in DATA_LICENSE.md and on the Data tab.
-- **What we publish**: every file in `web/public/data/` (hourly ephemeris, terrain horizons, 9 x 9 grids, the
-  south-pole terrain export, and our validation tables as CSV), listed with sizes in `web/public/data/index.json`
-  and downloadable from the Data tab. Every field is described in docs/DATA_DICTIONARY.md.
-- **Licences**: code MIT (LICENSE); our derived data CC BY 4.0 (DATA_LICENSE.md); NASA and JPL source data keeps
-  its own terms.
-- **Rebuild it yourself**: `git clone https://github.com/eugeniobusta/lunar-navigator.git && cd lunar-navigator`,
-  then `make download` (about 1 GB) and `make data` (about 2 minutes on our laptop).
+| Check | Result |
+|-------|--------|
+| Sun and Earth positions against JPL Horizons, 3 sites x 20 times | largest difference 0.0007° (target: under 0.05°) |
+| Browser maths against the Python reference, 3 sites x 20 times | largest difference 0.00022° |
+| Long-run sunlight against NASA's PGDA map, 9 Artemis sites | within 3.5 percentage points |
+| Long-run Earth visibility against NASA's PGDA map, 9 Artemis sites | within 4.3 percentage points |
+| Skyline sampling against a 30 times finer march | under-reads by at most 0.08° |
+| Artemis coordinates against Wueller et al. 2026, Table A1 | all nine confirmed |
+
+Details, and what the tool does not model: [docs/VALIDATION.md](docs/VALIDATION.md). An honest limit: the IM-2
+lander's 2025 landing spot passes every one of our limits on the 120 m map; it fell into a crater 20 m across.
+Passing means "worth a closer look", not "safe".
+
+## Run it
+
+You need git, Node 22, Python 3.11 or later and [uv](https://docs.astral.sh/uv/).
+
+```
+git clone https://github.com/eugeniobusta/lunar-navigator.git && cd lunar-navigator
+make setup && make dev        # the app, on the data already in the repository
+make test                     # Python and browser-maths tests;  make e2e  runs the browser smoke test
+make download && make data    # optional: fetch the raw NASA data (about 1 GB) and rebuild every file (about 2 minutes)
+```
+
+The 3D / VR view: `make xr-dev` ([docs/XR.md](docs/XR.md)). Team workflow: [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).
+
+## Team: Claude's Plan
+
+Eugenio Busta (lead, integration) · Kien (science) · Chinh (algorithms, site map) · Rahan (app, shareable links) ·
+Ahmed Diallo (power, 3D / VR concept) · Luke (story and pitch)
 
 ## Use of AI
 
@@ -60,9 +98,9 @@ This project was built with AI coding assistants: Claude Code (Claude Fable 5.2 
 OpenAI Codex.
 
 - **What they did**: wrote most of the code (the Python data pipeline, the web app, the VR view), the tests, the
-  visual design and these documents, working from prompts and reviews by the team (docs/PROMPTS.md). Two research
-  runs with web search gathered the sources for the landing criteria and the list of past landings
-  (docs/research/).
+  visual design and these documents, working from prompts and reviews by the team (docs/PROMPTS.md). Research
+  runs with web search gathered the sources for the landing criteria, the list of past landings and the check of
+  the Artemis coordinates (docs/research/).
 - **What keeps it honest**: every number in the app and in the pitch comes from code we ran, not from a model's
   memory. Sun and Earth positions are checked against JPL Horizons (largest difference 0.0007 degrees) and long-run
   sunlight and Earth visibility against NASA's PGDA maps (largest difference 4.3 percentage points):
@@ -70,7 +108,3 @@ OpenAI Codex.
   ourselves are marked "team choice" in docs/criteria.csv.
 - **What it is not**: results are our own computations from open NASA and JPL data. This is not an official NASA
   product and implies no NASA endorsement.
-
-## Team: Claude's Plan
-
-Eugenio Busta (lead) · Kien · Chinh · Rahan · Ahmed Diallo · Luke

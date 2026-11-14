@@ -94,7 +94,11 @@ export default function App() {
       <nav className="tabs" role="tablist">
         {TABS.map(([t, label]) => (
           <button key={t} role="tab" aria-selected={st.tab === t} className={st.tab === t ? "tab on" : "tab"}
-            onClick={() => st.setTab(t)}>{label}</button>
+            // On a phone the tab row scrolls sideways. Focusing a half-hidden tab makes the browser scroll the row
+            // under the finger, and the tap is then lost. So a pointer press does not move focus (the keyboard
+            // still does), and the chosen tab is brought into view afterwards.
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={(e) => { st.setTab(t); e.currentTarget.scrollIntoView({ block: "nearest", inline: "nearest" }); }}>{label}</button>
         ))}
       </nav>
 

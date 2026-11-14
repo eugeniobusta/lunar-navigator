@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 const REPO = "https://github.com/eugeniobusta/lunar-navigator";
 const BASE = `${import.meta.env.BASE_URL}data/`;
 
-interface Source { name: string; what: string; use: string; url: string; terms: string; termsUrl: string }
+interface Source { name: string; what: string; use: string; url: string; terms: string; termsUrl: string; also?: [string, string] }
 
 // Terms as stated on each provider's own page, read on 14 Nov 2026. Where a page states no licence, we say so.
 const SOURCES: Source[] = [
@@ -43,7 +43,8 @@ const SOURCES: Source[] = [
   {
     name: "Artemis candidate points, Wueller et al. 2026",
     what: "Representative points in the Artemis candidate landing regions, from a paper in JGR Planets (doi:10.1029/2025JE009434).",
-    use: "The coordinates of the nine Artemis sites. Two are flagged as under review.",
+    use: "The coordinates of the nine Artemis sites, checked against the paper's Table A1 and its data set.",
+    also: ["The paper's open data set on Zenodo", "https://zenodo.org/records/17084058"],
     url: "https://doi.org/10.1029/2025JE009434",
     terms: "CC BY 4.0, according to the licence the publisher registered with Crossref.",
     termsUrl: "https://api.crossref.org/works/10.1029/2025JE009434",
@@ -85,7 +86,7 @@ export function Data() {
               <tr key={s.name}>
                 <th><a href={s.url}>{s.name}</a></th>
                 <td>{s.what}</td>
-                <td>{s.use}</td>
+                <td>{s.use}{s.also ? <> <a href={s.also[1]}>{s.also[0]}</a>.</> : null}</td>
                 <td>{s.terms} <a href={s.termsUrl}>Terms page</a></td>
               </tr>
             ))}

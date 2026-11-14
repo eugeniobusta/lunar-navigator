@@ -57,6 +57,7 @@ One page for non-scientists: [docs/CHEATSHEET.md](docs/CHEATSHEET.md).
 | Diviner Polar Resource Product (temperature, depth of stable ice) | NASA LRO Diviner, PDS | Two soft criteria |
 | DE421 ephemeris and lunar orientation kernels | JPL / NAIF, via Skyfield | Sun and Earth positions |
 | Horizons API | JPL | Check of our Sun and Earth positions |
+| CGI Moon Kit: LROC WAC colour map, LOLA elevation | NASA Scientific Visualization Studio | The whole Moon in the 3D / VR view (display only) |
 | Artemis candidate landing sites | Wueller et al. 2026, JGR Planets | The nine Artemis points (verified against the paper) |
 | Names and positions of craters and mountains | IAU Gazetteer of Planetary Nomenclature (USGS) | Labels on the map |
 | Lunar landing attempts, 1965 to 2025 | NASA NSSDCA and mission sources | Lessons table |

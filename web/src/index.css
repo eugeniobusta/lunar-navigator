@@ -166,7 +166,9 @@ button.link { background: none; border: none; padding: 0; color: var(--bone); te
 .land-map { position: relative; flex: 1 1 420px; max-width: 660px; aspect-ratio: 1; border: 1px solid var(--rim); border-radius: var(--r); overflow: hidden; background: var(--shadow); }
 .land-map canvas, .land-map svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .land-side { flex: 1 1 320px; min-width: 0; }
-.land-scroll { flex: 1 1 420px; max-width: 660px; max-height: 80vh; overflow: auto; border-radius: var(--r); }
+.land-scroll { flex: 1 1 420px; max-width: 660px; border-radius: var(--r); }
+/* Only a zoomed-in map scrolls; at 1x it fits. */
+.land-scroll.zoomed { max-height: 80vh; overflow: auto; scrollbar-width: thin; scrollbar-color: var(--rim) transparent; }
 .land-scroll .land-map { flex: none; max-width: none; }
 .land-map svg.pickable { cursor: crosshair; }
 .map-pick { fill: none; stroke: var(--bone); }

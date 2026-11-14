@@ -319,7 +319,7 @@ export function WhereToLand() {
         <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" fill="none" stroke="currentColor" strokeWidth="1.6" />
         <path d="M9.5 4.5v15" stroke="currentColor" strokeWidth="1.6" />
       </svg>
-      <span>{side ? "Hide choices" : "What matters?"}</span>
+      <span>What matters?</span>
     </button>
   );
 
@@ -391,7 +391,7 @@ export function WhereToLand() {
 
         <div className="finder-main">
           <div className="finder-bar">
-            {sideToggle}
+            {!side && sideToggle}
             <p className="answer" role="status">
               {counted.length === 0 ? (
                 <>Nothing is ticked, so nothing is ranked. The map shows where the NASA safety limits pass: {zones.length.toLocaleString("en-GB")} zones.</>
@@ -430,7 +430,7 @@ export function WhereToLand() {
             </label>
           </div>
           <div className="land">
-            <div className="land-scroll">
+            <div className={zoom > 1 ? "land-scroll zoomed" : "land-scroll"}>
             <div className="land-map" ref={mapRef} style={{ width: `${zoom * 100}%` }}>
               <canvas ref={canvas} width={880} height={880} aria-hidden="true" />
               <svg viewBox={`${-VIEW_HALF_KM} ${-VIEW_HALF_KM} ${2 * VIEW_HALF_KM} ${2 * VIEW_HALF_KM}`} role="img" onClick={onMapClick}

@@ -70,8 +70,22 @@ function Stars() {
 interface Photo { file: string; alt: string; focus?: string }
 interface Feature { tab: Tab; kicker: string; title: string; text: string; cta: string; credit: string; photo?: Photo; tint?: ArtTint; sunAz?: number }
 
+/** Adds "in" to every .reveal element once it scrolls into view (the text fades up as you reach it). */
+function useReveal() {
+  useEffect(() => {
+    const els = [...document.querySelectorAll<HTMLElement>(".home .reveal")];
+    if (!("IntersectionObserver" in window)) { els.forEach((e) => e.classList.add("in")); return; }
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+    }, { threshold: 0.15 });
+    els.forEach((e) => io.observe(e));
+    return () => io.disconnect();
+  });
+}
+
 export function Home() {
   const s = useSummary();
+  useReveal();
   const fmt = (n: number) => n.toLocaleString("en-GB");
   const features: Feature[] = [
     { tab: "overview", kicker: "Overview", title: "Stand at a site", cta: "See a site hour by hour",
@@ -137,7 +151,7 @@ export function Home() {
               ? <img src={MEDIA + f.photo.file} alt={f.photo.alt} loading="lazy" style={f.photo.focus ? { objectPosition: f.photo.focus } : undefined} />
               : <PoleArt tint={f.tint} sunAz={f.sunAz} sunEl={8} label={f.credit} />}
           </div>
-          <div className="feature-copy">
+          <div className="feature-copy reveal">
             <p className="eyebrow">{f.kicker}</p>
             <h2 className="display">{f.title}</h2>
             <p>{f.text}</p>
@@ -149,6 +163,7 @@ export function Home() {
 
       <section className="home-data">
         <img className="home-data-bg" src={`${MEDIA}artemis2-moon-and-earth.jpg`} alt="" loading="lazy" />
+        <div className="reveal">
         <p className="eyebrow">Open data</p>
         <h2 className="display">Every number, yours to check</h2>
         <p>
@@ -161,6 +176,7 @@ export function Home() {
         </div>
         <p className="credit">Photo: NASA, Artemis II crew, A New View of the Moon (art002e009287), 2026. NASA photos are
           public domain; we use them with credit and no NASA logo, and they imply no NASA endorsement.</p>
+        </div>
       </section>
     </div>
   );

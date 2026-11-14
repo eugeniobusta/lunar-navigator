@@ -84,7 +84,7 @@ export default function App() {
             onClick={() => st.setTab(t)}>{label}</button>
         ))}
       </nav>
-      {st.ready && site && sunMargin !== undefined && (
+      {tab === "home" && st.ready && site && sunMargin !== undefined && (
         <button type="button" className="live" onClick={() => st.setTab("overview")}
           title={`The Sun at ${site.name}, ${fmtDate(idxToMs(st.startIdx + k))}: ${Math.abs(sunMargin).toFixed(2)}° ${sunMargin >= 0 ? "above" : "below"} the skyline`}>
           <span>Sun at {site.name}</span>

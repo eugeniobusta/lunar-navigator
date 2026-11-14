@@ -44,7 +44,7 @@ export function Method() {
         Earth-visibility percentages are compared with NASA's published illumination maps. The differences and their
         causes are listed in the project's validation notes.
       </p>
-      <table className="compare">
+      <div className="table-scroll"><table className="compare">
         <caption className="note">Position of the Sun and Earth in the sky: largest error against JPL Horizons, 20 times across 2027-2028.</caption>
         <thead>
           <tr><th>Site</th><th>Sun elevation / azimuth</th><th>Earth elevation / azimuth</th></tr>
@@ -54,8 +54,8 @@ export function Method() {
             <tr key={site}><th>{site}</th><td>{sun}</td><td>{earth}</td></tr>
           ))}
         </tbody>
-      </table>
-      <table className="compare">
+      </table></div>
+      <div className="table-scroll"><table className="compare">
         <caption className="note">Share of time sunlit and with Earth in view, 2009-2028: ours, NASA's map, and the difference in percentage points.</caption>
         <thead>
           <tr><th>Site</th><th>Sunlit: ours</th><th>NASA</th><th>Diff</th><th>Earth: ours</th><th>NASA</th><th>Diff</th></tr>
@@ -68,7 +68,7 @@ export function Method() {
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
       <p className="note">
         We count the centre of the Sun or Earth above the skyline, seen from 2 m above the ground. NASA's maps are for
         the ground itself and count Earth when any part of it shows, which explains most of the differences.

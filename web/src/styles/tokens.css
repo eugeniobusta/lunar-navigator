@@ -1,17 +1,19 @@
-/* Design tokens. Colour carries meaning: amber = sunlight, blue = Earth. */
+/* Earthrise tokens. A colour always means the same thing:
+   sunlight = Sun and power; earth (with cloud) = Earth and the radio link, the only blue in the app;
+   eclipse = dark, no power, no link; lichen = survives, OK. Everything else is lunar ground. */
 :root {
-  --bg: #161b26;          /* shadowed regolith */
-  --surface: #1c2230;
-  --surface-2: #252d3e;
-  --line: #333c50;
-  --terrain: #8a8f99;
-  --terrain-edge: #b6b9bf;
-  --text: #ebe7de;
-  --muted: #a3a6ad;
-  --sun: #f2b84b;
-  --earth: #5fa8e8;
-  --good: #7cc68a;
-  --bad: #e07a6a;
+  --void: #000000;      /* sky areas only */
+  --shadow: #191612;    /* page */
+  --dust: #24201B;      /* panels */
+  --rim: #3B352D;       /* lines */
+  --regolith: #A39888;  /* terrain */
+  --bone: #EFE8DC;      /* text */
+  --ash: #A89F92;       /* secondary text */
+  --sunlight: #F6B93B;
+  --earth: #2F6FD6;
+  --cloud: #DCE8FF;     /* Earth as small text and highlights: earth blue is too dark for AA on small text */
+  --eclipse: #E0457B;
+  --lichen: #8FC28A;
   --font: "Barlow", system-ui, sans-serif;
   --font-head: "Barlow Semi Condensed", "Barlow", system-ui, sans-serif;
   --r: 4px;

@@ -76,7 +76,7 @@ export function Data() {
         <h3>Open data we use</h3>
       </div>
       <div className="table-scroll">
-        <table className="compare">
+        <table className="compare wide">
           <thead>
             <tr><th>Dataset</th><th>What it is</th><th>What we use it for</th><th>Licence or usage terms</th></tr>
           </thead>
@@ -106,7 +106,7 @@ export function Data() {
       {!files && !failed && <p className="note">Loading the file list…</p>}
       {files && (
         <div className="table-scroll">
-          <table className="compare">
+          <table className="compare wide">
             <caption className="note">{files.length} files, {fmtBytes(total)} in total.</caption>
             <thead>
               <tr><th>File</th><th>Size</th><th>Format</th><th>What it holds</th></tr>

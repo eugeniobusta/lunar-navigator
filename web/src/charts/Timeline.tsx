@@ -1,9 +1,9 @@
 // Two strips over the window: hours with sunlight and hours with Earth in view. Click or drag to move the cursor.
 import { scaleLinear } from "d3";
-import { useRef } from "react";
+import { useWidth } from "./useWidth";
 import type { Series } from "../lib/analysis";
 
-const W = 1000, ROW = 18, GAP = 6, LABEL = 70;
+const ROW = 18, GAP = 6, LABEL = 70;
 
 /** Runs of 1s as [start, end) pairs, so a 30-day window draws a handful of rects, not 720. */
 function runs(a: Uint8Array): [number, number][] {
@@ -23,24 +23,26 @@ interface Props {
 }
 
 export function Timeline({ series, startMs, stepS, cursor, onCursor, label }: Props) {
+  const [ref, W] = useWidth<HTMLDivElement>();
   const n = series.sunlit.length;
   const x = scaleLinear().domain([0, Math.max(1, n)]).range([LABEL, W]);
   const H = 2 * ROW + GAP + 20;
-  const ref = useRef<SVGSVGElement>(null);
   const days = Math.round((n * stepS) / 86400);
-  const tickEvery = days > 60 ? 14 : days > 20 ? 7 : 1;
+  const room = Math.max(1, Math.floor((W - LABEL) / 64)); // one date label needs about 64 px
+  const tickEvery = [1, 2, 7, 14, 30, 60, 90].find((d) => days / d <= room) ?? 180;
   const ticks: number[] = [];
   for (let d = 0; d <= days; d += tickEvery) ticks.push(Math.round((d * 86400) / stepS));
 
   const pick = (clientX: number) => {
     const r = ref.current?.getBoundingClientRect();
     if (!r || !onCursor) return;
-    const vx = ((clientX - r.left) / r.width) * W;
+    const vx = clientX - r.left;
     onCursor(Math.max(0, Math.min(n - 1, Math.floor(x.invert(vx)))));
   };
 
   return (
-    <svg ref={ref} className="timeline" viewBox={`0 0 ${W} ${H}`}
+    <div ref={ref}>
+    <svg className="timeline" width={W} height={H} viewBox={`0 0 ${W} ${H}`}
       onPointerDown={(e) => { (e.target as Element).setPointerCapture?.(e.pointerId); pick(e.clientX); }}
       onPointerMove={(e) => { if (e.buttons) pick(e.clientX); }}
       aria-label={label ?? "Sunlight and Earth visibility over the window"}>
@@ -55,7 +57,7 @@ export function Timeline({ series, startMs, stepS, cursor, onCursor, label }: Pr
         <rect key={`e${a}`} x={x(a)} y={ROW + GAP} width={Math.max(1, x(b) - x(a))} height={ROW} className="strip earth" />
       ))}
       {ticks.map((t) => (
-        <text key={t} x={x(t)} y={H - 4} className="tick" textAnchor="middle">
+        <text key={t} x={x(t)} y={H - 4} className="tick" textAnchor={t === 0 ? "start" : x(t) > W - 24 ? "end" : "middle"}>
           {new Date(startMs + t * stepS * 1000).toISOString().slice(5, 10)}
         </text>
       ))}
@@ -63,5 +65,6 @@ export function Timeline({ series, startMs, stepS, cursor, onCursor, label }: Pr
         <line x1={x(cursor + 0.5)} x2={x(cursor + 0.5)} y1={-2} y2={2 * ROW + GAP + 2} className="cursor" />
       )}
     </svg>
+    </div>
   );
 }

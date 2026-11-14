@@ -13,6 +13,7 @@ download:   ## fetch raw NASA data into data/ (~520 MB, run once, share by USB)
 
 data:       ## full precompute pipeline -> web/public/data/ (needs make download first)
 	uv run python scripts/build_ephemeris.py
+	uv run python scripts/build_horizons.py
 
 mocks:      ## regenerate web/src/mocks/
 	uv run python scripts/make_mocks.py

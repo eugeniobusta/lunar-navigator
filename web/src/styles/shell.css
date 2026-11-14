@@ -335,5 +335,3 @@ button.primary.big { padding: 16px 28px; font-family: var(--font-head); font-siz
 .home-data::before { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.9)); }
 @media (prefers-reduced-motion: reduce) { .feature-art img { animation: none; } }
 .credit-line { margin: 8px 0 0; font-size: 0.75rem; }
-.live span small { display: block; margin-bottom: 2px; color: var(--ash); font-size: 0.6875rem; letter-spacing: 0.1em; }
-.live.dated { padding-block: 7px; }

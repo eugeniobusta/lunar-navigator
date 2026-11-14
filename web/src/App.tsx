@@ -85,7 +85,7 @@ export default function App() {
         ))}
       </nav>
       {tab === "home" && st.ready && eph && site && hz && (
-        <SunClock eph={eph} horizon={hz.value} siteName={site.name} fromIdx={st.startIdx + k} onOpen={() => st.setTab("overview")} />
+        <SunClock eph={eph} horizon={hz.value} siteName={site.name} onOpen={() => st.setTab("overview")} />
       )}
     </header>
   );

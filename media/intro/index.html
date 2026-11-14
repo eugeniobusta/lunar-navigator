@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lunar Landing Site Navigator: opening</title>
+<style>
+  :root { --ink:#111111; --blue:#0042A6; --white:#FFFFFF; --yellow:#EAFE07; }
+  html, body { margin:0; height:100%; background:var(--ink); overflow:hidden; font-family:'Fira Sans','Overpass','Helvetica Neue',Arial,sans-serif; }
+  body { display:flex; align-items:center; justify-content:center; }
+  #wrap { position:relative; background:var(--ink); }
+  canvas { width:100%; height:100%; display:block; }
+  #hint { position:absolute; left:0; right:0; bottom:5%; text-align:center; color:var(--white); opacity:.42; font-size:clamp(11px,1.1vw,16px); letter-spacing:.3em; text-transform:uppercase; transition:opacity .6s; pointer-events:none; }
+  #hint.gone { opacity:0; }
+  #controls { position:absolute; right:1.6%; bottom:2.4%; display:flex; gap:6px; opacity:0; transition:opacity .35s; }
+  #controls.show, #controls:hover { opacity:.9; }
+  #controls button, #controls .dots { background:rgba(17,17,17,.75); color:var(--white); border:1px solid rgba(0,66,166,.9); border-radius:6px; height:34px; min-width:34px; padding:0 10px; font:600 13px 'Fira Sans','Helvetica Neue',Arial,sans-serif; cursor:pointer; }
+  #controls button:hover:not(:disabled) { background:var(--blue); }
+  #controls button:disabled { opacity:.35; cursor:default; }
+  #controls .dots { display:flex; align-items:center; gap:6px; cursor:default; }
+  .dot { width:7px; height:7px; border-radius:50%; background:rgba(255,255,255,.25); }
+  .dot.on { background:var(--white); }
+  #b-demo { border-color:var(--yellow) !important; color:var(--yellow) !important; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="stage" aria-label="Animated opening: Earth, the Moon, the lunar south pole, then the Lunar Landing Site Navigator"></canvas>
+  <div id="hint">Space &rarr;</div>
+  <div id="controls" role="toolbar" aria-label="Presenter controls">
+    <button id="b-back" title="Back (Left Arrow)" aria-label="Previous beat">&#9664;</button>
+    <div class="dots" aria-hidden="true"><span class="dot" data-b="1"></span><span class="dot" data-b="2"></span><span class="dot" data-b="3"></span><span class="dot" data-b="4"></span></div>
+    <button id="b-next" title="Next (Space or Right Arrow)" aria-label="Next beat">&#9654;</button>
+    <button id="b-reset" title="Reset (R)" aria-label="Reset to the start">R</button>
+    <button id="b-full" title="Fullscreen (F)" aria-label="Toggle fullscreen">&#9974;</button>
+    <button id="b-demo" title="Open the live demo" style="display:none">Open demo &#8599;</button>
+  </div>
+</div>
+<script src="earth-data.js"></script>
+<script src="intro.js"></script>
+</body>
+</html>

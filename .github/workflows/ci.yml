@@ -28,6 +28,9 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+      # End-to-end smoke test on the built site: every tab opens, no console errors, the Window Finder answers.
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
 
   xr:
     runs-on: ubuntu-latest

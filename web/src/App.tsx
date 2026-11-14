@@ -26,7 +26,7 @@ const Grid = gridModule ? lazy(() => gridModule().then((m) => ({ default: m.Grid
 /** The pages in the menu bar: id, label, one line under the page title. */
 const TABS: [Tab, string, string][] = [
   ["overview", "Overview", "One site, one mission: when the Sun gives power and Earth is in view."],
-  ["land", "Where to land", "Every 120 m square near the pole against NASA's limits, ranked for your mission."],
+  ["land", "Site Finder", "Every 120 m square near the pole checked against NASA's limits, then ranked for your mission."],
   ["windows", "Window Finder", "The days on which a landing works at your site."],
   ["compare", "Compare sites", "Two sites side by side, hour by hour."],
   ...(Grid ? [["grid", "Move the lander", "What a few hundred metres changes."] as [Tab, string, string]] : []),
@@ -114,7 +114,7 @@ export default function App() {
   return (
     <div className="shell">
       {nav}
-      <div className="page">
+      <div className={tab === "land" ? "page wide" : "page"}>
         <div className="page-head">
           <h1 className="display">{page?.[1]}</h1>
           <p>{page?.[2]}</p>

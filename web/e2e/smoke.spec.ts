@@ -65,7 +65,7 @@ test("every tab renders something and logs no errors", async ({ page }) => {
   const errors = watchErrors(page);
   await openApp(page);
   const names = await page.getByRole("tab").allTextContents();
-  expect(names).toEqual(expect.arrayContaining(["Overview", "Where to land", "Window Finder", "Compare sites", "Battery", "3D Moon", "Data", "Method"]));
+  expect(names).toEqual(expect.arrayContaining(["Overview", "Site Finder", "Window Finder", "Compare sites", "Battery", "3D Moon", "Data", "Method"]));
   for (const name of names) {
     await test.step(`tab: ${name}`, async () => {
       await page.getByRole("tab", { name, exact: true }).click();
@@ -94,10 +94,10 @@ test("Window Finder returns a calendar", async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
-test("Where to land: ticks decide the map and the ranking", async ({ page }) => {
+test("Site Finder: ticks decide the map and the ranking", async ({ page }) => {
   const errors = watchErrors(page);
   await openApp(page);
-  await page.getByRole("tab", { name: "Where to land", exact: true }).click();
+  await page.getByRole("tab", { name: "Site Finder", exact: true }).click();
   // Default: everything ticked, NASA limits locked on, the panel shows the best zone for that choice.
   await expect(page.getByRole("button", { name: "Everything", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator(".tick input:checked")).toHaveCount(11);
@@ -126,7 +126,14 @@ test("Where to land: ticks decide the map and the ranking", async ({ page }) => 
   await page.getByRole("button", { name: "NASA-style balance", exact: true }).click();
   await page.getByRole("button", { name: /^Rank 3: zone #3,/ }).click();
   await expect(page.getByRole("heading", { name: "Rank 3: zone #3" })).toBeVisible();
+  // Choosing a zone folds the sidebar away; its button brings it back.
+  const sideButton = page.getByRole("button", { name: "What matters for your mission?" });
+  await expect(sideButton).toHaveAttribute("aria-expanded", "false");
+  await expect(page.locator("#finder-side")).toBeHidden();
+  await page.getByText("Does this find NASA's own regions?").click();
   await expect(page.getByRole("row", { name: /Malapert Massif/ }).last()).toContainText("32 (65)");
+  await sideButton.click();
+  await expect(page.locator("#finder-side")).toBeVisible();
   // Nothing ticked is allowed, and says so.
   await page.getByRole("button", { name: "Radio link", exact: true }).click();
   await page.getByLabel(/^Earth in view/).uncheck();
@@ -145,6 +152,7 @@ test("Where to land: ticks decide the map and the ranking", async ({ page }) => 
   await expect(page.getByRole("row", { name: /Score for your choice/ })).toContainText("of 100");
   await expect(page.getByRole("button", { name: /^Open the 3D view at / })).toBeVisible();
   await page.getByRole("button", { name: "Ranked zones", exact: true }).click();
+  await page.getByText("The criteria", { exact: true }).click();
   await expect(page.getByRole("cell", { name: /Artemis III must land near the south pole/ })).toBeVisible();
   expect(errors).toEqual([]);
 });
@@ -158,7 +166,7 @@ test("the view lives in the URL: a shared link opens the same view and survives 
   await expect(page.getByLabel("Landing date (UTC)")).toHaveValue("2027-03-14");
   await expect(page.getByLabel("Mission length")).toHaveValue("14");
   // The Where to land preset travels too.
-  await page.getByRole("tab", { name: "Where to land", exact: true }).click();
+  await page.getByRole("tab", { name: "Site Finder", exact: true }).click();
   await expect(page.getByRole("button", { name: "Ice science", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(page).toHaveURL(/site=hw02&compare=nr107&date=2027-03-14&days=14&tab=land&preset=ice$/);
   // Changing the view rewrites the address; a reload brings the same view back.
@@ -166,10 +174,10 @@ test("the view lives in the URL: a shared link opens the same view and survives 
   // The site picker is on the pages that use a site; the choice travels across pages.
   await page.getByRole("tab", { name: "Overview", exact: true }).click();
   await page.getByLabel("Landing site").selectOption("mma01");
-  await page.getByRole("tab", { name: "Where to land", exact: true }).click();
+  await page.getByRole("tab", { name: "Site Finder", exact: true }).click();
   await expect(page).toHaveURL(/site=mma01&compare=nr107&date=2027-03-14&days=14&tab=land&preset=power$/);
   await page.reload();
-  await expect(page.getByRole("tab", { name: "Where to land", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tab", { name: "Site Finder", exact: true })).toHaveAttribute("aria-selected", "true");
   await expect(page).toHaveURL(/site=mma01/);
   await expect(page.getByRole("button", { name: "Power first", exact: true })).toHaveAttribute("aria-pressed", "true");
   // Hand-set ticks travel as pick=...; an old link with exact weights (w=) still opens; nonsense is ignored.

@@ -1,6 +1,7 @@
-// Where to land: the suitability map of the south pole, the zones that pass every hard limit, past landings,
-// and the criteria as a plain table. A checkbox list says what matters for the mission: one parameter ticked
-// shows that parameter's own heat map, two or more show the combined score, and the zones are re-ranked live.
+// Site Finder (tab id "land"; it was "Where to land"): the suitability map of the south pole, the zones that pass
+// every hard limit, past landings, and the criteria. A sidebar says what matters for the mission: one parameter
+// ticked shows that parameter's own heat map, two or more show the combined score, and the zones are re-ranked
+// live. The sidebar folds away once a zone or a spot is chosen, and a button brings it back.
 // Two ways to read the map: the ranked zones, or click any spot for its numbers (Chinh's Site Map, folded in).
 // All scoring is web/src/lib/analysis/suitability.ts.
 // Data: web/public/data/suitability/ (docs/INTERFACES.md sections 10 and 11).
@@ -12,6 +13,7 @@ import {
   type Importance, type LayerKey, type Preset, type Selection, type TermKey, type Weights, type ZoneInput,
 } from "../lib/analysis/suitability";
 import { WhyHere } from "../components/ui/WhyHere";
+import { Donut, HBars, Histogram, type BarRow } from "../components/ui/Charts";
 import { explainFor, valuesFromRow, type CriterionRow } from "../lib/analysis/explain";
 import {
   cellAt, cellCentre, failedLimits, latLonToXY, layerValueText, ramp3, readPoint, xyToLatLon, type LayerInfo,
@@ -101,7 +103,10 @@ export function WhereToLand() {
   // The zone the reader chose (a zone's published rank is its id, shown as #id), remembered for the choice of
   // parameters it was made under: change the ticks and the panel goes back to the best zone.
   const [chosen, setChosen] = useState<{ id: number; under: string } | null>(null);
-  const [explainOpen, setExplainOpen] = useState(() => typeof window === "undefined" || window.innerWidth >= 640);
+  const [explainOpen, setExplainOpen] = useState(false);
+  // The sidebar with the choices: open on a wide screen, closed on a phone; it folds away once a zone or a spot is
+  // chosen, so the map and the answer get the room.
+  const [side, setSide] = useState(() => typeof window === "undefined" || window.innerWidth >= 900);
   const [config, setConfig] = useState<WeightsFile | null>(null);
   const [zoneLayers, setZoneLayers] = useState<Row[]>([]);
   const [points, setPoints] = useState<Row[]>([]);
@@ -209,7 +214,7 @@ export function WhereToLand() {
   };
   const under = TERM_KEYS.map((k) => weights[k]).join(",");
   const selected = chosen && chosen.under === under ? chosen.id : ranked[0]?.id ?? 1;
-  const setSelected = (id: number) => setChosen({ id, under });
+  const setSelected = (id: number) => { setChosen({ id, under }); setSide(false); };
   const zone = zones[selected - 1];
   const live = liveOf.get(selected);
 
@@ -256,7 +261,7 @@ export function WhereToLand() {
     const xKm = (((e.clientX - r.left) / r.width) * 2 - 1) * VIEW_HALF_KM;
     const yKm = -(((e.clientY - r.top) / r.height) * 2 - 1) * VIEW_HALF_KM;
     const cell = cellAt(xKm * 1000, yKm * 1000);
-    if (cell >= 0 && grid[cell] !== 255) setPick(cell);
+    if (cell >= 0 && grid[cell] !== 255) { setPick(cell); setSide(false); }
   };
 
   // Legend: one parameter in its real units, or the combined (Goldilocks) score.
@@ -293,245 +298,306 @@ export function WhereToLand() {
     ["Nearest Artemis region", `${zone.nearest_artemis_region}, ${zone.nearest_artemis_km} km`],
   ];
 
+  // The chosen zone, parameter by parameter: 0 at the reject bound, 100 at the ideal. Unticked ones are faint.
+  const colourOf = (k: TermKey) => `var(${colourBlind ? "--cb-high" : parameter(k).token})`;
+  const zoneBars: BarRow[] = LIST_ORDER.map((k) => {
+    const term = config.zone_terms.find((t) => t.key === k);
+    const v = (LAYER_KEYS as readonly string[]).includes(k) ? +zoneLayers[selected - 1][k] / 255
+      : term ? subscore(k === "darkness" ? +zone.longest_dark_h : +zone.longest_no_earth_h, term.reject, term.ideal) : 0;
+    const pct = Math.round(v * 100);
+    return { key: k, label: labelOf(k), value: pct, text: `${pct}`, colour: colourOf(k), faint: !counted.includes(k) };
+  });
+  // Why ground fails, as a share of the whole region; one square can fail several limits.
+  const failNames: Record<string, string> = { landing_slope: "Slope of 10° or more", eva_slope: "Too little walkable ground",
+    sunlight: "Too little sunlight", earth: "Earth in view too rarely" };
+  const failBars: BarRow[] = Object.entries(summary.fail_pct_of_region).sort((a, b) => b[1] - a[1])
+    .map(([k, v]) => ({ key: k, label: failNames[k] ?? k, value: v, text: `${v} %`, colour: "var(--eclipse)" }));
+  const sideToggle = (
+    <button type="button" className={side ? "side-toggle on" : "side-toggle"} aria-expanded={side} aria-controls="finder-side"
+      aria-label="What matters for your mission?" onClick={() => setSide(!side)}>
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" fill="none" stroke="currentColor" strokeWidth="1.6" />
+        <path d="M9.5 4.5v15" stroke="currentColor" strokeWidth="1.6" />
+      </svg>
+      <span>{side ? "Hide choices" : "What matters?"}</span>
+    </button>
+  );
+
   return (
-    <section className="panel">
-      <div className="prose">
-        <h2>Where to land</h2>
-        <p className="lede">
-          We tested every 120 m square within 6° of the south pole against NASA's Artemis III site requirements.{" "}
-          <strong>{summary.pass_pct_of_region}% of the ground passes all of them</strong> ({summary.pass_km2.toLocaleString("en-GB")} of{" "}
-          {summary.region_km2.toLocaleString("en-GB")} km²), in {summary.zones.toLocaleString("en-GB")} separate zones.
-          Tick what matters for your mission and the zones are ranked for it.
-        </p>
-      </div>
+    <section className="panel finder-page">
+      <div className={side ? "finder" : "finder closed"}>
+        <aside id="finder-side" className="finder-side" hidden={!side} aria-label="What matters for your mission?">
+          <div className="side-head">
+            <h2>What matters for your mission?</h2>
+            <button type="button" className="side-close" aria-label="Hide the choices" onClick={() => setSide(false)}>
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </button>
+          </div>
+          <div className="presets" role="group" aria-label="Presets">
+            {config.presets.map((p) => {
+              const on = sameSelection(presetSelection(p), selection);
+              return <button key={p.key} className={on ? "chip on" : "chip"} aria-pressed={on} onClick={() => setLandChoice(p.key, null)}>{p.label}</button>;
+            })}
+          </div>
+          <ul className={explainOpen ? "ticks" : "ticks compact"}>
+            <li className="tick locked">
+              <label>
+                <input type="checkbox" checked disabled />
+                <span className="chip-colour limits" aria-hidden="true" />
+                <span><b>NASA safety limits</b> <span className="why-line always">Slope under 10°, within 6° of the pole, and the rest of NASA's Artemis III limits. Always on.</span></span>
+              </label>
+            </li>
+            {LIST_ORDER.map((k) => {
+              const info = parameter(k), on = counted.includes(k);
+              return (
+                <li key={k} className={on ? "tick on" : "tick"}>
+                  <label>
+                    <input type="checkbox" checked={on} onChange={() => choose(toggleTerm(selection, k))} />
+                    <span className="chip-colour" style={{ background: `var(${info.token})` }} aria-hidden="true" />
+                    <span><b>{labelOf(k)}</b> <span className="why-line">{info.explain}</span></span>
+                  </label>
+                </li>
+              );
+            })}
+          </ul>
+          <button className="link explain-toggle" aria-expanded={explainOpen} onClick={() => setExplainOpen(!explainOpen)}>
+            {explainOpen ? "Hide what each one means" : "What does each one mean?"}
+          </button>
+          {counted.length > 0 && !selection.weights && (
+            <details className="weights">
+              <summary>Fine-tune importance</summary>
+              <div className="levels">
+                {LIST_ORDER.filter((k) => counted.includes(k)).map((k) => (
+                  <fieldset key={k}>
+                    <legend>{labelOf(k)}</legend>
+                    {LEVELS.map(([level, name]) => (
+                      <label key={level}>
+                        <input type="radio" name={`importance-${k}`} checked={(selection.importance?.[k] ?? "normal") === level}
+                          onChange={() => choose(setImportance(selection, k, level))} />{name}
+                      </label>
+                    ))}
+                  </fieldset>
+                ))}
+              </div>
+            </details>
+          )}
+          {selection.weights && (
+            <p className="note">
+              {balanced ? "NASA-style balance uses its own fixed weights (docs/criteria.md): it is the ranking of the published files." : "This link carries its own exact weights."}{" "}
+              Tick or untick anything to go back to equal importance.
+            </p>
+          )}
+        </aside>
 
-      <div className="priorities">
-        <h3>What matters for your mission?</h3>
-        <div className="presets" role="group" aria-label="Presets">
-          {config.presets.map((p) => {
-            const on = sameSelection(presetSelection(p), selection);
-            return <button key={p.key} className={on ? "chip on" : "chip"} aria-pressed={on} onClick={() => setLandChoice(p.key, null)}>{p.label}</button>;
-          })}
-        </div>
-        <ul className={explainOpen ? "ticks" : "ticks compact"}>
-          <li className="tick locked">
-            <label>
-              <input type="checkbox" checked disabled />
-              <span className="chip-colour limits" aria-hidden="true" />
-              <span><b>NASA safety limits</b> <span className="why-line always">Slope under 10°, within 6° of the pole, and the rest of NASA's Artemis III limits. Always on.</span></span>
-            </label>
-          </li>
-          {LIST_ORDER.map((k) => {
-            const info = parameter(k), on = counted.includes(k);
-            return (
-              <li key={k} className={on ? "tick on" : "tick"}>
-                <label>
-                  <input type="checkbox" checked={on} onChange={() => choose(toggleTerm(selection, k))} />
-                  <span className="chip-colour" style={{ background: `var(${info.token})` }} aria-hidden="true" />
-                  <span><b>{labelOf(k)}</b> <span className="why-line">{info.explain}</span></span>
-                </label>
-              </li>
-            );
-          })}
-        </ul>
-        <button className="link explain-toggle" aria-expanded={explainOpen} onClick={() => setExplainOpen(!explainOpen)}>
-          {explainOpen ? "Hide what each one means" : "What does each one mean?"}
-        </button>
-        {counted.length > 0 && !selection.weights && (
-          <details className="weights">
-            <summary>Fine-tune importance</summary>
-            <div className="levels">
-              {LIST_ORDER.filter((k) => counted.includes(k)).map((k) => (
-                <fieldset key={k}>
-                  <legend>{labelOf(k)}</legend>
-                  {LEVELS.map(([level, name]) => (
-                    <label key={level}>
-                      <input type="radio" name={`importance-${k}`} checked={(selection.importance?.[k] ?? "normal") === level}
-                        onChange={() => choose(setImportance(selection, k, level))} />{name}
-                    </label>
-                  ))}
-                </fieldset>
-              ))}
+        <div className="finder-main">
+          <div className="finder-bar">
+            {sideToggle}
+            <p className="answer" role="status">
+              {counted.length === 0 ? (
+                <>Nothing is ticked, so nothing is ranked. The map shows where the NASA safety limits pass: {zones.length.toLocaleString("en-GB")} zones.</>
+              ) : single && bounds ? (
+                <>
+                  Showing <strong>{labelOf(single)}</strong> by itself: {bounds.reject} {bounds.unit} (dark) to {bounds.ideal} {bounds.unit}
+                  {bounds.ideal > bounds.reject ? " or more" : " or less"} (full colour). Best of {zones.length.toLocaleString("en-GB")} zones:
+                  #{best.id} (score {best.score}).
+                </>
+              ) : (
+                <>
+                  Best landing spots for{" "}
+                  <strong>{counted.length === TERM_KEYS.length ? "everything on the list" : LIST_ORDER.filter((k) => counted.includes(k)).map(labelOf).join(" + ")}</strong>:{" "}
+                  {zones.length.toLocaleString("en-GB")} zones; best is #{best.id} (score {best.score}).
+                </>
+              )}
+            </p>
+          </div>
+          {single && !singleLayer && (
+            <p className="note">
+              {labelOf(single)} comes from our hour-by-hour model, so it is known at the zones, not at every point: the
+              map shows where the NASA limits pass, and the zone markers carry the colour.
+            </p>
+          )}
+          {!liveGrid && <p className="note">Loading the map layers…</p>}
+
+          <div className="map-bar">
+            <div className="presets" role="group" aria-label="Map view">
+              <button className={view === "zones" ? "chip on" : "chip"} aria-pressed={view === "zones"} onClick={() => setView("zones")}>Ranked zones</button>
+              <button className={view === "layers" ? "chip on" : "chip"} aria-pressed={view === "layers"} onClick={() => setView("layers")}>Click any spot</button>
             </div>
-          </details>
-        )}
-        {selection.weights && (
-          <p className="note">
-            {balanced ? "NASA-style balance uses its own fixed weights (docs/criteria.md): it is the ranking of the published files." : "This link carries its own exact weights."}{" "}
-            Tick or untick anything to go back to equal importance.
-          </p>
-        )}
-      </div>
+            <label className="field check"><input type="checkbox" checked={colourBlind} onChange={(e) => setColourBlind(e.target.checked)} /><span>Colour-blind palette</span></label>
+            <label className="field check"><input type="checkbox" checked={numbers} onChange={(e) => setNumbers(e.target.checked)} /><span>Show the numbers</span></label>
+            <label className="field"><span>Zoom</span>
+              <select value={zoom} onChange={(e) => setZoom(+e.target.value)}>{[1, 2, 4].map((z) => <option key={z} value={z}>{z}×</option>)}</select>
+            </label>
+          </div>
+          <div className="land">
+            <div className="land-scroll">
+            <div className="land-map" ref={mapRef} style={{ width: `${zoom * 100}%` }}>
+              <canvas ref={canvas} width={880} height={880} aria-hidden="true" />
+              <svg viewBox={`${-VIEW_HALF_KM} ${-VIEW_HALF_KM} ${2 * VIEW_HALF_KM} ${2 * VIEW_HALF_KM}`} role="img" onClick={onMapClick}
+                className={view === "layers" ? "pickable" : undefined}
+                aria-label="Map of the lunar south pole coloured by landing suitability, with the best zones, the Artemis candidate points and past landings.">
+                <circle cx={0} cy={0} r={ring84} className="map-ring" strokeWidth={1.2 * u} strokeDasharray={`${6 * u} ${6 * u}`} />
+                <text x={0} y={ring84 - 6 * u} textAnchor="middle" className="map-text" style={font}>6° from the pole</text>
+                <text x={0} y={-VIEW_HALF_KM + 13 * u} textAnchor="middle" className="map-text" style={font}>Towards Earth</text>
+                <path d={`M${-6 * u} 0H${6 * u}M0 ${-6 * u}V${6 * u}`} className="map-pole" strokeWidth={1.5 * u} />
+                <text x={8 * u} y={-6 * u} className="map-text" style={font}>South pole</text>
+                {artemis.map((s) => { const p = pt(s.lat, s.lon); return (
+                  <g key={s.id}><rect x={p.x - 4 * u} y={p.y - 4 * u} width={8 * u} height={8 * u} strokeWidth={1.5 * u} className="map-artemis" transform={`rotate(45 ${p.x} ${p.y})`} /><title>{`Artemis candidate: ${s.name}`}</title></g>
+                ); })}
+                {view === "layers" && pickXY && <circle cx={pickXY[0] / 1000} cy={-pickXY[1] / 1000} r={8 * u} strokeWidth={2 * u} className="map-pick" />}
+                {view === "zones" && shown.map((z) => { const p = pt(+z.lat, +z.lon); const id = +z.rank; const on = id === selected; const now = liveOf.get(id)!; return (
+                  <g key={id} className={on ? "map-zone on" : "map-zone"} role="button" tabIndex={0} aria-label={`Rank ${now.rank}: zone #${id}, score ${now.score}`}
+                    onClick={() => setSelected(id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelected(id); } }}>
+                    <circle cx={p.x} cy={p.y} r={(on ? 9 : 6) * u} strokeWidth={1.5 * u} style={markerShade(id) ? { fill: markerShade(id), fillOpacity: 1 } : undefined} />
+                    {(now.rank <= 10 || on) && <text x={p.x} y={p.y - 10 * u} textAnchor="middle" className="map-text" style={font}>{now.rank}</text>}
+                  </g>
+                ); })}
+                {polar.map((m) => { const p = pt(+m.lat, +m.lon); return (
+                  <g key={m.id} className={m.outcome === "landed" ? "map-mission ok" : "map-mission"}>
+                    <path strokeWidth={2.5 * u} d={`M${p.x - 5 * u} ${p.y - 5 * u}L${p.x + 5 * u} ${p.y + 5 * u}M${p.x - 5 * u} ${p.y + 5 * u}L${p.x + 5 * u} ${p.y - 5 * u}`} />
+                    <text x={p.x + 8 * u} y={p.y + 4 * u} className="map-text" style={font}>{m.name}</text>
+                    <title>{`${m.name}: ${m.outcome}`}</title>
+                  </g>
+                ); })}
+              </svg>
+            </div>
+            </div>
 
-      <p className="lede answer" role="status">
-        {counted.length === 0 ? (
-          <>Nothing is ticked, so nothing is ranked. The map shows where the NASA safety limits pass: {zones.length.toLocaleString("en-GB")} zones.</>
-        ) : single && bounds ? (
-          <>
-            Showing <strong>{labelOf(single)}</strong> by itself: {bounds.reject} {bounds.unit} (dark) to {bounds.ideal} {bounds.unit}
-            {bounds.ideal > bounds.reject ? " or more" : " or less"} (full colour). Best of {zones.length.toLocaleString("en-GB")} zones:
-            #{best.id} (score {best.score}).
-          </>
-        ) : (
-          <>
-            Best landing spots for{" "}
-            <strong>{counted.length === TERM_KEYS.length ? "everything on the list" : LIST_ORDER.filter((k) => counted.includes(k)).map(labelOf).join(" + ")}</strong>:{" "}
-            {zones.length.toLocaleString("en-GB")} zones; best is #{best.id} (score {best.score}).
-          </>
-        )}
-      </p>
-      {single && !singleLayer && (
-        <p className="note">
-          {labelOf(single)} comes from our hour-by-hour model, so it is known at the zones, not at every point: the
-          map shows where the NASA limits pass, and the zone markers carry the colour.
-        </p>
-      )}
-      {!liveGrid && <p className="note">Loading the map layers…</p>}
-
-      <div className="map-bar">
-        <div className="presets" role="group" aria-label="Map view">
-          <button className={view === "zones" ? "chip on" : "chip"} aria-pressed={view === "zones"} onClick={() => setView("zones")}>Ranked zones</button>
-          <button className={view === "layers" ? "chip on" : "chip"} aria-pressed={view === "layers"} onClick={() => setView("layers")}>Click any spot</button>
-        </div>
-        <label className="field check"><input type="checkbox" checked={colourBlind} onChange={(e) => setColourBlind(e.target.checked)} /><span>Colour-blind palette</span></label>
-        <label className="field check"><input type="checkbox" checked={numbers} onChange={(e) => setNumbers(e.target.checked)} /><span>Show the numbers</span></label>
-        <label className="field"><span>Zoom</span>
-          <select value={zoom} onChange={(e) => setZoom(+e.target.value)}>{[1, 2, 4].map((z) => <option key={z} value={z}>{z}×</option>)}</select>
-        </label>
-      </div>
-      <div className="land">
-        <div className="land-scroll">
-        <div className="land-map" ref={mapRef} style={{ width: `${zoom * 100}%` }}>
-          <canvas ref={canvas} width={880} height={880} aria-hidden="true" />
-          <svg viewBox={`${-VIEW_HALF_KM} ${-VIEW_HALF_KM} ${2 * VIEW_HALF_KM} ${2 * VIEW_HALF_KM}`} role="img" onClick={onMapClick}
-            className={view === "layers" ? "pickable" : undefined}
-            aria-label="Map of the lunar south pole coloured by landing suitability, with the best zones, the Artemis candidate points and past landings.">
-            <circle cx={0} cy={0} r={ring84} className="map-ring" strokeWidth={1.2 * u} strokeDasharray={`${6 * u} ${6 * u}`} />
-            <text x={0} y={ring84 - 6 * u} textAnchor="middle" className="map-text" style={font}>6° from the pole</text>
-            <text x={0} y={-VIEW_HALF_KM + 13 * u} textAnchor="middle" className="map-text" style={font}>Towards Earth</text>
-            <path d={`M${-6 * u} 0H${6 * u}M0 ${-6 * u}V${6 * u}`} className="map-pole" strokeWidth={1.5 * u} />
-            <text x={8 * u} y={-6 * u} className="map-text" style={font}>South pole</text>
-            {artemis.map((s) => { const p = pt(s.lat, s.lon); return (
-              <g key={s.id}><rect x={p.x - 4 * u} y={p.y - 4 * u} width={8 * u} height={8 * u} strokeWidth={1.5 * u} className="map-artemis" transform={`rotate(45 ${p.x} ${p.y})`} /><title>{`Artemis candidate: ${s.name}`}</title></g>
-            ); })}
-            {view === "layers" && pickXY && <circle cx={pickXY[0] / 1000} cy={-pickXY[1] / 1000} r={8 * u} strokeWidth={2 * u} className="map-pick" />}
-            {view === "zones" && shown.map((z) => { const p = pt(+z.lat, +z.lon); const id = +z.rank; const on = id === selected; const now = liveOf.get(id)!; return (
-              <g key={id} className={on ? "map-zone on" : "map-zone"} role="button" tabIndex={0} aria-label={`Rank ${now.rank}: zone #${id}, score ${now.score}`}
-                onClick={() => setSelected(id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelected(id); } }}>
-                <circle cx={p.x} cy={p.y} r={(on ? 9 : 6) * u} strokeWidth={1.5 * u} style={markerShade(id) ? { fill: markerShade(id), fillOpacity: 1 } : undefined} />
-                {(now.rank <= 10 || on) && <text x={p.x} y={p.y - 10 * u} textAnchor="middle" className="map-text" style={font}>{now.rank}</text>}
-              </g>
-            ); })}
-            {polar.map((m) => { const p = pt(+m.lat, +m.lon); return (
-              <g key={m.id} className={m.outcome === "landed" ? "map-mission ok" : "map-mission"}>
-                <path strokeWidth={2.5 * u} d={`M${p.x - 5 * u} ${p.y - 5 * u}L${p.x + 5 * u} ${p.y + 5 * u}M${p.x - 5 * u} ${p.y + 5 * u}L${p.x + 5 * u} ${p.y - 5 * u}`} />
-                <text x={p.x + 8 * u} y={p.y + 4 * u} className="map-text" style={font}>{m.name}</text>
-                <title>{`${m.name}: ${m.outcome}`}</title>
-              </g>
-            ); })}
-          </svg>
-        </div>
-        </div>
-
-        {view === "layers" && (
-          <div className="land-side">
-            {!layers ? <p className="note">Loading the map layers…</p> : !point || !pickLatLon ? (
-              <>
-                <h3>Pick a spot</h3>
-                <p className="note">Click anywhere on the map for that spot's numbers: pass or fail, its score for what you ticked, and every criterion by itself.</p>
-              </>
-            ) : (
-              <>
-                <h3>{Math.abs(pickLatLon[0]).toFixed(3)}° S, {Math.abs(pickLatLon[1]).toFixed(3)}° {pickLatLon[1] < 0 ? "W" : "E"}</h3>
-                <p className="note">
-                  {point.passes
-                    ? "Passes every hard limit."
-                    : `Fails a hard limit: ${failedLimits(limits?.[pick!] ?? 255).join(", ") || "see the criteria"}.`}{" "}
-                  Each map pixel shows its best 120 m square.
-                </p>
-                <table className="compare facts">
-                  <tbody>
-                    <tr><th>Score for your choice</th><td>{counted.length ? `${point.score} of 100` : "nothing ticked"}</td></tr>
-                    {config.layers.map((l, k) => (
-                      <tr key={l.key} className={counted.includes(l.key) ? undefined : "unticked"}>
-                        <th><span className="chip-colour small" style={{ background: `var(${parameter(l.key).token})` }} aria-hidden="true" />{l.label}{counted.includes(l.key) ? "" : " (not ticked)"}
-                          {numbers && <span className="unit">{layerValueText(point.q[k], l)}</span>}</th>
-                        <td><span className="bar" aria-hidden="true"><span style={{ width: `${(point.q[k] / 255) * 100}%` }} /></span> {Math.round((point.q[k] / 255) * 100)}%</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {numbers && pickXY && (
-                  <p className="note">
-                    x {Math.round(pickXY[0]).toLocaleString("en-GB")} m, y {Math.round(pickXY[1]).toLocaleString("en-GB")} m (polar stereographic);
-                    grid row {Math.floor(pick! / GRID)}, column {pick! % GRID}. Percentages are sub-scores: 0% at the
-                    criterion's reject bound, 100% at its ideal.
-                  </p>
+            {view === "layers" && (
+              <div className="land-side">
+                {!layers ? <p className="note">Loading the map layers…</p> : !point || !pickLatLon ? (
+                  <>
+                    <h3>Pick a spot</h3>
+                    <p className="note">Click anywhere on the map for that spot's numbers: pass or fail, its score for what you ticked, and every criterion by itself.</p>
+                  </>
+                ) : (
+                  <>
+                    <h3>{Math.abs(pickLatLon[0]).toFixed(3)}° S, {Math.abs(pickLatLon[1]).toFixed(3)}° {pickLatLon[1] < 0 ? "W" : "E"}</h3>
+                    {/* A spot that fails a NASA limit scores 0, whatever its ticked parameters say. */}
+                    <div className={point.passes ? "score-big" : "score-big fail"}>
+                      <b>{!counted.length ? "–" : point.passes ? point.score : 0}</b>
+                      <span>{!counted.length ? "nothing ticked" : point.passes ? "of 100 for your choice" : "of 100: fails a NASA limit"}</span>
+                    </div>
+                    <p className="note">
+                      {point.passes
+                        ? "Passes every hard limit."
+                        : `Fails a hard limit: ${failedLimits(limits?.[pick!] ?? 255).join(", ") || "see the criteria"}. It would score ${point.score} if it passed.`}{" "}
+                      Each map pixel shows its best 120 m square.
+                    </p>
+                    <table className="compare facts">
+                      <tbody>
+                        <tr><th>Score for your choice</th><td>{counted.length ? `${point.passes ? point.score : 0} of 100` : "nothing ticked"}</td></tr>
+                        {config.layers.map((l, k) => (
+                          <tr key={l.key} className={counted.includes(l.key) ? undefined : "unticked"}>
+                            <th><span className="chip-colour small" style={{ background: `var(${parameter(l.key).token})` }} aria-hidden="true" />{l.label}{counted.includes(l.key) ? "" : " (not ticked)"}
+                              {numbers && <span className="unit">{layerValueText(point.q[k], l)}</span>}</th>
+                            <td><span className="bar" aria-hidden="true"><span style={{ width: `${(point.q[k] / 255) * 100}%`, background: colourOf(l.key) }} /></span> {Math.round((point.q[k] / 255) * 100)}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {numbers && pickXY && (
+                      <p className="note">
+                        x {Math.round(pickXY[0]).toLocaleString("en-GB")} m, y {Math.round(pickXY[1]).toLocaleString("en-GB")} m (polar stereographic);
+                        grid row {Math.floor(pick! / GRID)}, column {pick! % GRID}. Percentages are sub-scores: 0% at the
+                        criterion's reject bound, 100% at its ideal.
+                      </p>
+                    )}
+                    {nearest && (
+                      <button className="primary" onClick={() => goTo3D(nearest!.id, pickLatLon)}>
+                        Open the 3D view at {nearest.name} ({nearest.km < 1 ? "here" : `${nearest.km.toFixed(0)} km away`})
+                      </button>
+                    )}
+                  </>
                 )}
-                {nearest && (
-                  <button className="primary" onClick={() => goTo3D(nearest!.id, pickLatLon)}>
-                    Open the 3D view at {nearest.name} ({nearest.km < 1 ? "here" : `${nearest.km.toFixed(0)} km away`})
-                  </button>
+                {legend}
+                <ul className="key">
+                  <li><span className="mark artemis" />Artemis candidate point</li>
+                  <li><span className="mark mission" />Past landing attempt</li>
+                </ul>
+                {numbers && (
+                  <div className="table-scroll">
+                    <table className="compare">
+                      <thead><tr><th>Parameter</th><th>Scores 0 at</th><th>Scores 100 at</th><th>Counts</th></tr></thead>
+                      <tbody>
+                        {config.layers.map((l) => (
+                          <tr key={l.key}><th>{l.label}</th><td>{l.reject} {l.unit}</td><td>{l.ideal} {l.unit}</td><td>{weights[l.key] ? `x ${weights[l.key] / 2}` : "no"}</td></tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
-              </>
-            )}
-            {legend}
-            <ul className="key">
-              <li><span className="mark artemis" />Artemis candidate point</li>
-              <li><span className="mark mission" />Past landing attempt</li>
-            </ul>
-            {numbers && (
-              <div className="table-scroll">
-                <table className="compare">
-                  <thead><tr><th>Parameter</th><th>Scores 0 at</th><th>Scores 100 at</th><th>Counts</th></tr></thead>
-                  <tbody>
-                    {config.layers.map((l) => (
-                      <tr key={l.key}><th>{l.label}</th><td>{l.reject} {l.unit}</td><td>{l.ideal} {l.unit}</td><td>{weights[l.key] ? `x ${weights[l.key] / 2}` : "no"}</td></tr>
-                    ))}
-                  </tbody>
-                </table>
               </div>
             )}
-          </div>
-        )}
 
-        {view === "zones" && (
-        <div className="land-side">
-          <h3>Rank {live.rank}: zone #{zone.rank}</h3>
-          <p className="note">
-            {(-zone.lat).toFixed(2)}° S, {Math.abs(+zone.lon).toFixed(2)}° {+zone.lon < 0 ? "W" : "E"}.
-            Numbers at the zone's best 120 m square.{" "}
-            {zone.stay_window_ok === "True"
-              ? `Our own model finds ${days(num(zone, "longest_sun_and_earth_h"))} in a row with Sun and Earth both up, enough for a 6.5-day stay.`
-              : `Our own model finds at most ${days(num(zone, "longest_sun_and_earth_h"))} in a row with Sun and Earth both up: not enough for a 6.5-day stay.`}
-          </p>
-          <table className="compare facts">
-            <tbody>{facts.map(([k, v]) => <tr key={k}><th>{k}</th><td>{v}</td></tr>)}</tbody>
-          </table>
-          {legend}
-          <ul className="key">
-            <li><span className="mark zone" />Best zones for your choice (choose one)</li>
-            <li><span className="mark artemis" />Artemis candidate point</li>
-            <li><span className="mark mission" />Past landing attempt</li>
-          </ul>
-          {numbers && (
-            <table className="compare facts">
-              <tbody>
-                <tr><th>Map score at the best square</th><td>{live.mapScore} of 100</td></tr>
-                {config.layers.map((l) => (
-                  <tr key={l.key} className={counted.includes(l.key) ? undefined : "unticked"}><th>{l.label}{counted.includes(l.key) ? "" : " (not ticked)"}</th>
-                    <td>{Math.round((+zoneLayers[selected - 1][l.key] / 255) * 100)}%</td></tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+            {view === "zones" && (
+            <div className="land-side">
+              <h3>Rank {live.rank}: zone #{zone.rank}</h3>
+              <div className="score-big"><b>{live.score}</b><span>of 100 for your choice</span></div>
+              <p className="note">
+                {(-zone.lat).toFixed(2)}° S, {Math.abs(+zone.lon).toFixed(2)}° {+zone.lon < 0 ? "W" : "E"}, near {zone.nearest_artemis_region}.{" "}
+                {zone.stay_window_ok === "True"
+                  ? `Our own model finds ${days(num(zone, "longest_sun_and_earth_h"))} in a row with Sun and Earth both up, enough for a 6.5-day stay.`
+                  : `Our own model finds at most ${days(num(zone, "longest_sun_and_earth_h"))} in a row with Sun and Earth both up: not enough for a 6.5-day stay.`}
+              </p>
+              <div className="tiles">
+                <div><b className="sun">{(+zone.sun_pct).toFixed(0)}%</b><span>Sunlight, long-run</span></div>
+                <div><b className="earth">{(+zone.earth_pct).toFixed(0)}%</b><span>Earth in view</span></div>
+                <div><b>{days(num(zone, "longest_dark_h"))}</b><span>Longest darkness</span></div>
+                <div><b>{zone.landing_slope_deg}°</b><span>Landing slope</span></div>
+              </div>
+              <h4 className="mini-title">Parameter by parameter (0 to 100)</h4>
+              <HBars rows={zoneBars} label={`Zone #${zone.rank}, each parameter scored 0 to 100`} />
+              <details className="fold small" open={numbers || undefined}>
+                <summary>All the numbers</summary>
+                <table className="compare facts">
+                  <tbody>{facts.map(([k, v]) => <tr key={k}><th>{k}</th><td>{v}</td></tr>)}</tbody>
+                </table>
+                {numbers && <p className="note">Map score at the best square: {live.mapScore} of 100.</p>}
+              </details>
+              {legend}
+              <ul className="key">
+                <li><span className="mark zone" />Best zones for your choice (choose one)</li>
+                <li><span className="mark artemis" />Artemis candidate point</li>
+                <li><span className="mark mission" />Past landing attempt</li>
+              </ul>
+            </div>
+            )}
+          </div>
         </div>
-        )}
       </div>
+
+      <section className="glance" aria-label="The south pole at a glance">
+        <div className="card">
+          <h3>How much ground passes</h3>
+          <Donut label={`${summary.pass_pct_of_region}% of the ground within 6° of the pole passes every NASA limit`}
+            centre={`${summary.pass_pct_of_region}%`} sub="passes"
+            parts={[
+              { label: "Passes every NASA limit", value: summary.pass_km2, colour: "var(--lichen)", detail: `${summary.pass_km2.toLocaleString("en-GB")} km²` },
+              { label: "Fails at least one", value: summary.region_km2 - summary.pass_km2, colour: "color-mix(in oklab, var(--regolith) 45%, var(--dust))",
+                detail: `${(summary.region_km2 - summary.pass_km2).toLocaleString("en-GB")} km²` },
+            ]} />
+        </div>
+        <div className="card">
+          <h3>Why the rest fails</h3>
+          <HBars rows={failBars} label="Share of the ground that fails each NASA limit" />
+          <p className="note">Share of all the ground within 6° of the pole. One square can fail more than one limit.</p>
+        </div>
+        <div className="card">
+          <h3>Zone scores for your choice</h3>
+          {counted.length ? (
+            <>
+              <Histogram values={ranked.map((r) => r.score)} mark={best.score} colour={single ? colourOf(single) : "var(--lichen)"}
+                label={`How the ${zones.length} zones score for your choice; the best scores ${best.score}`} />
+              <p className="note">{zones.length.toLocaleString("en-GB")} zones by score; the brighter bar holds the best, #{best.id} ({best.score}).</p>
+            </>
+          ) : <p className="note">Tick something to score the zones.</p>}
+        </div>
+      </section>
 
       {counted.length > 0 && (
         <>
-          <div className="prose"><h3>The ten best for your choice</h3></div>
+          <h3 className="section-title">The ten best for your choice</h3>
           <div className="table-scroll">
             <table className="compare wide ranked">
               <thead><tr><th>Rank</th><th>Zone</th><th>Where</th><th>Score</th><th>Area</th><th>Nearest Artemis region</th></tr></thead>
@@ -541,7 +607,7 @@ export function WhereToLand() {
                     <td>{r.rank}</td>
                     <th><button className="link" onClick={() => { setSelected(r.id); setView("zones"); }}>#{r.id}</button></th>
                     <td>{(-z.lat).toFixed(2)}° S, {Math.abs(+z.lon).toFixed(2)}° {+z.lon < 0 ? "W" : "E"}</td>
-                    <td>{r.score}</td>
+                    <td><span className="bar" aria-hidden="true"><span style={{ width: `${r.score}%`, background: "var(--lichen)" }} /></span> {r.score}</td>
                     <td>{(+z.area_km2).toFixed(+z.area_km2 < 10 ? 2 : 0)} km²</td>
                     <td>{z.nearest_artemis_region}, {z.nearest_artemis_km} km</td>
                   </tr>
@@ -556,79 +622,84 @@ export function WhereToLand() {
         list={explainFor(valuesFromRow({ ...zone, ice_depth_m: zoneLayers[selected - 1].ice_depth_m, hollow_depth_m: zoneLayers[selected - 1].hollow_depth_m }),
           criteria as unknown as CriterionRow[], counted)} />
 
-      <div className="prose">
-        <h3>Does this find NASA's own regions?</h3>
-        <p>
-          Not as its top picks: {summary.top20_near_artemis} of our top 20 zones {summary.top20_near_artemis === 1 ? "lies" : "lie"} inside
-          or within 5 km of an Artemis candidate region. But {summary.artemis_points_passing} of the 9 candidate points pass
-          every limit where they stand, and {summary.artemis_regions_with_a_zone} of the 9 have a passing zone
-          within {summary.artemis_near_km} km. The lists differ because we rank single 120 m squares, while the Artemis
-          regions are about 15 km across and were also chosen for science goals and launch windows, which our filter
-          does not know about.
-        </p>
-        <h3>Where the nine Artemis points rank</h3>
-        <p className="note">
-          Each point scored like a zone and placed among the {config.confirmed_zones.toLocaleString("en-GB")} zones
-          with a confirmed 6.5-day window: rank, then score in brackets. Three points fail a hard limit where they
-          stand; their rank says where they would be if they passed.
-        </p>
-      </div>
-      <div className="table-scroll">
-        <table className="compare wide">
-          <thead>
-            <tr><th>Artemis point</th>{config.presets.map((p) => <th key={p.key}>{p.label}</th>)}<th>Your ticks</th></tr>
-          </thead>
-          <tbody>
-            {artemisRanks.map(({ pt: a, cells }) => (
-              <tr key={a.id}>
-                <th>{a.name}{a.passes_hard_limits === "no" ? <span className="unit">fails: {a.failed_limits.replace("latitude", "more than 6° from the pole").replace("sunlight", "too little sunlight")}</span> : null}</th>
-                {cells.map((c, i) => <td key={i}>{c.rank.toLocaleString("en-GB")} ({c.score})</td>)}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="prose">
-        <h3>The criteria</h3>
-      </div>
-      <div className="table-scroll">
-        <table className="compare wide">
-          <thead><tr><th>What</th><th>Good</th><th>Acceptable</th><th>Rejected</th><th>Why it matters</th></tr></thead>
-          <tbody>
-            {criteria.map((c) => (
-              <tr key={`${c.parameter} ${c.kind}`}>
-                <th>
-                  {c.parameter}{c.kind === "hard" ? " (hard limit)" : c.kind === "reported" ? " (reported only)" : ""}
-                  <span className="unit">{c.unit}</span>
-                </th>
-                <td>{c.ideal}</td><td>{c.acceptable}</td><td>{c.reject}</td><td>{c.reason}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <p className="note">
-        Sources for every threshold, and the score formula, are in the criteria files on the Data tab. A radio signal
-        takes {summary.signal_delay_s.min.toFixed(2)} to {summary.signal_delay_s.max.toFixed(2)} seconds to cross from the Moon to Earth, the same
-        from every site, so the delay does not help choose between them.
-      </p>
+      <details className="fold">
+        <summary>Does this find NASA's own regions?</summary>
+        <div className="prose">
+          <p>
+            Not as its top picks: {summary.top20_near_artemis} of our top 20 zones {summary.top20_near_artemis === 1 ? "lies" : "lie"} inside
+            or within 5 km of an Artemis candidate region. But {summary.artemis_points_passing} of the 9 candidate points pass
+            every limit where they stand, and {summary.artemis_regions_with_a_zone} of the 9 have a passing zone
+            within {summary.artemis_near_km} km. The lists differ because we rank single 120 m squares, while the Artemis
+            regions are about 15 km across and were also chosen for science goals and launch windows, which our filter
+            does not know about.
+          </p>
+          <h3>Where the nine Artemis points rank</h3>
+          <p className="note">
+            Each point scored like a zone and placed among the {config.confirmed_zones.toLocaleString("en-GB")} zones
+            with a confirmed 6.5-day window: rank, then score in brackets. Three points fail a hard limit where they
+            stand; their rank says where they would be if they passed.
+          </p>
+        </div>
+        <div className="table-scroll">
+          <table className="compare wide">
+            <thead>
+              <tr><th>Artemis point</th>{config.presets.map((p) => <th key={p.key}>{p.label}</th>)}<th>Your ticks</th></tr>
+            </thead>
+            <tbody>
+              {artemisRanks.map(({ pt: a, cells }) => (
+                <tr key={a.id}>
+                  <th>{a.name}{a.passes_hard_limits === "no" ? <span className="unit">fails: {a.failed_limits.replace("latitude", "more than 6° from the pole").replace("sunlight", "too little sunlight")}</span> : null}</th>
+                  {cells.map((c, i) => <td key={i}>{c.rank.toLocaleString("en-GB")} ({c.score})</td>)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </details>
 
-      <div className="prose"><h3>What past landings teach</h3></div>
-      <div className="table-scroll">
-        <table className="compare wide">
-          <thead><tr><th>Mission</th><th>Date</th><th>Outcome</th><th>Lesson</th></tr></thead>
-          <tbody>
-            {[...missions].reverse().map((m) => (
-              <tr key={m.id}>
-                <th><a href={m.source_url}>{m.name}</a></th>
-                <td>{m.landing_date_utc}</td>
-                <td className={m.outcome === "landed" ? "outcome ok" : "outcome"}>{m.outcome}</td>
-                <td>{m.lesson}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <details className="fold">
+        <summary>The criteria</summary>
+        <div className="table-scroll">
+          <table className="compare wide">
+            <thead><tr><th>What</th><th>Good</th><th>Acceptable</th><th>Rejected</th><th>Why it matters</th></tr></thead>
+            <tbody>
+              {criteria.map((c) => (
+                <tr key={`${c.parameter} ${c.kind}`}>
+                  <th>
+                    {c.parameter}{c.kind === "hard" ? " (hard limit)" : c.kind === "reported" ? " (reported only)" : ""}
+                    <span className="unit">{c.unit}</span>
+                  </th>
+                  <td>{c.ideal}</td><td>{c.acceptable}</td><td>{c.reject}</td><td>{c.reason}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="note">
+          Sources for every threshold, and the score formula, are in the criteria files on the Data tab. A radio signal
+          takes {summary.signal_delay_s.min.toFixed(2)} to {summary.signal_delay_s.max.toFixed(2)} seconds to cross from the Moon to Earth, the same
+          from every site, so the delay does not help choose between them.
+        </p>
+      </details>
+
+      <details className="fold">
+        <summary>What past landings teach</summary>
+        <div className="table-scroll">
+          <table className="compare wide">
+            <thead><tr><th>Mission</th><th>Date</th><th>Outcome</th><th>Lesson</th></tr></thead>
+            <tbody>
+              {[...missions].reverse().map((m) => (
+                <tr key={m.id}>
+                  <th><a href={m.source_url}>{m.name}</a></th>
+                  <td>{m.landing_date_utc}</td>
+                  <td className={m.outcome === "landed" ? "outcome ok" : "outcome"}>{m.outcome}</td>
+                  <td>{m.lesson}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </details>
     </section>
   );
 }

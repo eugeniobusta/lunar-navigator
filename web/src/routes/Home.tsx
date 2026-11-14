@@ -70,7 +70,7 @@ export function Home() {
   const s = useSummary();
   const fmt = (n: number) => n.toLocaleString("en-GB");
   const features: Feature[] = [
-    { tab: "land", kicker: "Landing sites", title: "Where is it safe to land?", cta: "Find a landing site", tint: "score", sunAz: 120,
+    { tab: "land", kicker: "Site Finder", title: "Where is it safe to land?", cta: "Find a landing site", tint: "score", sunAz: 120,
       text: s ? `We tested every 120 m square within 6° of the pole against NASA's Artemis III limits. ${s.pass_pct_of_region} % of the ground passes, in ${fmt(s.zones)} separate zones. Tick what matters for your mission and we rank them for it.`
         : "We tested every 120 m square within 6° of the pole against NASA's Artemis III limits. Tick what matters for your mission and we rank the safe zones for it.",
       credit: "Green: ground that passes every NASA limit (our analysis). Relief: NASA LOLA." },

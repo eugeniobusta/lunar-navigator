@@ -9,8 +9,8 @@
       "lon": -68.2009,
       "terrain": "dem",
       "has_grid": false,
-      "note": "Artemis candidate region (representative point PCB03).",
-      "source": "Wueller et al. 2026, JGR Planets, doi:10.1029/2025JE009434 (verify against the paper)",
+      "note": "Artemis candidate region (representative point PCB03). Coordinates verified against Wueller et al. 2026, Table A1. The point lies 6.4 degrees from the pole, outside NASA's 6 degree limit, and so do all five of the paper's sites in this region.",
+      "source": "Wueller et al. 2026, JGR Planets, doi:10.1029/2025JE009434, Table A1 (checked against the paper and its Zenodo data set, 14 Nov 2026)",
       "coords_quality": "published"
     },
     {
@@ -22,7 +22,7 @@
       "terrain": "dem",
       "has_grid": true,
       "note": "Artemis candidate region (representative point HW02).",
-      "source": "Wueller et al. 2026, JGR Planets, doi:10.1029/2025JE009434 (verify against the paper)",
+      "source": "Wueller et al. 2026, JGR Planets, doi:10.1029/2025JE009434, Table A1 (checked against the paper and its Zenodo data set, 14 Nov 2026)",
       "coords_quality": "published"
     },
     {
@@ -34,7 +34,7 @@
       "terrain": "dem",
       "has_grid": true,
       "note": "Artemis candidate region (representative point MMA01).",
-      "source": "Wueller et al. 2026, JGR Planets, doi:10.1029/2025JE009434 (verify against the paper)",
+      "source": "Wueller et al. 2026, JGR Planets, doi:10.1029/2025JE009434, Table A1 (checked against the paper and its Zenodo data set, 14 Nov 2026)",
       "coords_quality": "published"
     },
     {
@@ -45,9 +45,9 @@
       "lon": 30.4525,
       "terrain": "dem",
       "has_grid": false,
-      "note": "Artemis candidate region (representative point MMP06). Representative point sits in a local hollow; coordinates under review.",
-      "source": "Wueller et al. 2026, JGR Planets, doi:10.1029/2025JE009434 (verify against the paper)",
-      "coords_quality": "verify"
+      "note": "Artemis candidate region (representative point MMP06). Coordinates verified against Wueller et al. 2026, Table A1. The paper chose this point for access to a permanent shadow colder than 110 K, not for sunlight: it sits in a hollow and gets 14% average sunlight.",
+      "source": "Wueller et al. 2026, JGR Planets, doi:10.1029/2025JE009434, Table A1 (checked against the paper and its Zenodo data set, 14 Nov 2026)",
+      "coords_quality": "published"
     },
     {
       "id": "mmo01",
@@ -58,7 +58,7 @@
       "terrain": "dem",
       "has_grid": false,
       "note": "Artemis candidate region (representative point MMO01).",
-      "source": "Wueller et al. 2026, JGR Planets, doi:10.1029/2025JE009434 (verify against the paper)",
+      "source": "Wueller et al. 2026, JGR Planets, doi:10.1029/2025JE009434, Table A1 (checked against the paper and its Zenodo data set, 14 Nov 2026)",
       "coords_quality": "published"
     },
     {
@@ -70,7 +70,7 @@
       "terrain": "dem",
       "has_grid": true,
       "note": "Artemis candidate region (representative point NR107).",
-      "source": "Wueller et al. 2026, JGR Planets, doi:10.1029/2025JE009434 (verify against the paper)",
+      "source": "Wueller et al. 2026, JGR Planets, doi:10.1029/2025JE009434, Table A1 (checked against the paper and its Zenodo data set, 14 Nov 2026)",
       "coords_quality": "published"
     },
     {
@@ -81,9 +81,9 @@
       "lon": 57.8114,
       "terrain": "dem",
       "has_grid": false,
-      "note": "Artemis candidate region (representative point NR208). Representative point sits in a local hollow; coordinates under review.",
-      "source": "Wueller et al. 2026, JGR Planets, doi:10.1029/2025JE009434 (verify against the paper)",
-      "coords_quality": "verify"
+      "note": "Artemis candidate region (representative point NR208). Coordinates verified against Wueller et al. 2026, Table A1. The point lies 6.1 degrees from the pole, just outside NASA's 6 degree limit, in a local hollow; three of the paper's other sites in this region (NR201, NR202, NR2_K2023) are inside the limit.",
+      "source": "Wueller et al. 2026, JGR Planets, doi:10.1029/2025JE009434, Table A1 (checked against the paper and its Zenodo data set, 14 Nov 2026)",
+      "coords_quality": "published"
     },
     {
       "id": "dgr203",
@@ -94,7 +94,7 @@
       "terrain": "dem",
       "has_grid": false,
       "note": "Artemis candidate region (representative point DGR203).",
-      "source": "Wueller et al. 2026, JGR Planets, doi:10.1029/2025JE009434 (verify against the paper)",
+      "source": "Wueller et al. 2026, JGR Planets, doi:10.1029/2025JE009434, Table A1 (checked against the paper and its Zenodo data set, 14 Nov 2026)",
       "coords_quality": "published"
     },
     {
@@ -106,7 +106,7 @@
       "terrain": "dem",
       "has_grid": false,
       "note": "Artemis candidate region (representative point SP07).",
-      "source": "Wueller et al. 2026, JGR Planets, doi:10.1029/2025JE009434 (verify against the paper)",
+      "source": "Wueller et al. 2026, JGR Planets, doi:10.1029/2025JE009434, Table A1 (checked against the paper and its Zenodo data set, 14 Nov 2026)",
       "coords_quality": "published"
     },
     {

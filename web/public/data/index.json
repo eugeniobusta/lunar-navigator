@@ -131,7 +131,7 @@
   },
   {
    "path": "sites.json",
-   "bytes": 5433,
+   "bytes": 6379,
    "format": "JSON",
    "description": "Landing sites: coordinates, source and coordinate quality."
   },

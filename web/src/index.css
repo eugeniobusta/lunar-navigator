@@ -51,10 +51,10 @@ button.primary:hover:not(:disabled), a.primary:hover { background: var(--cloud);
 .sky .grid { stroke: var(--rim); stroke-width: 1; }
 .sky .grid.zero { stroke: var(--ash); stroke-dasharray: 3 5; stroke-opacity: 0.7; }
 .sky .terrain { fill: var(--regolith); }
-.sky .crest { fill: none; stroke: color-mix(in oklab, var(--regolith), var(--bone) 60%); stroke-width: 1.5; stroke-linejoin: round; }
-.sky .path { fill: none; stroke-width: 1.5; }
+.sky .crest { fill: none; stroke: color-mix(in oklab, var(--regolith), var(--bone) 60%); stroke-width: 0.75; stroke-linejoin: round; }
+.sky .path { fill: none; stroke-width: 0.6; }
 .sky .path.sun { stroke: var(--sunlight); stroke-opacity: 0.7; }
-.sky .path.earth { stroke: var(--earth); stroke-dasharray: 4 3; }
+.sky .path.earth { stroke: var(--earth); stroke-dasharray: 3 2; }
 .sky .sun-disc { fill: var(--sunlight); }
 .sky .earth-disc { fill: var(--earth); stroke: var(--cloud); stroke-width: 1.5; }
 .sky .earth-night { fill: #0B1626; }

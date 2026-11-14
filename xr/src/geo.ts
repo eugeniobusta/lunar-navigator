@@ -167,6 +167,27 @@ export function groundAt(f: Field, row: number, col: number): GroundHit {
   return { row, col, lat, lon, heightM, pos: latLonToScene(f.frame, lat, lon, heightM) };
 }
 
+/**
+ * Landing slope (deg) at pixel (row, col) of a 120 m grid, with the formula of engine/criteria.py landing_slope_deg
+ * (the one behind landing_slope_deg in zones.csv and the 10 degree hard limit): over one pixel, the steeper of the
+ * two one-sided differences on each axis, corrected for the map scale. NaN on the grid's edge.
+ */
+export function landingSlopeDeg(g: HeightGrid, row: number, col: number): number {
+  const n = g.size;
+  if (!(row >= 1 && col >= 1 && row <= n - 2 && col <= n - 2)) {
+    return NaN;
+  }
+  const m = (g.heightMaxM - g.heightMinM) / 65535;
+  const i = row * n + col;
+  const h = g.data[i];
+  const sx = Math.max(Math.abs(g.data[i + 1] - h), Math.abs(h - g.data[i - 1])) * m;
+  const sy = Math.max(Math.abs(g.data[i + n] - h), Math.abs(h - g.data[i - n])) * m;
+  const x = g.xMinM + (col + 0.5) * g.pixelM;
+  const y = g.yMaxM - (row + 0.5) * g.pixelM;
+  const k = 1 + (x * x + y * y) / (4 * R_M * R_M);
+  return Math.atan((Math.hypot(sx, sy) / g.pixelM) * k) / D2R;
+}
+
 /** First intersection of a scene ray with the field's surface, or null. */
 export function raycastField(f: Field, o: V3, d: V3, maxDist: number): GroundHit | null {
   const step = f.grid.pixelM * 0.5;

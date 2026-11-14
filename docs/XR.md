@@ -11,7 +11,7 @@ Live at `/xr/` on the project site; the website can embed it with `/xr/?site=<id
 |------|---------|-------|
 | Install | `make setup` | installs web/ and xr/ |
 | Dev server + Quest 3 emulator | `make xr-dev` | https://localhost:8081 in a managed Chromium window; "Enter XR" at the top is the emulator's button and exists only in dev |
-| Tests | `make test` | includes `xr/src/geo.test.ts` |
+| Tests | `make test` | includes `xr/src/*.test.ts` (frames and shadows, guide, automatic quality) |
 | Production build | `make build && make xr` | writes `web/dist/xr/`, which Vercel serves at `/xr/` |
 
 The app reads the published data at `/data/` (the files in `web/public/data/`). In dev, `xr/vite.config.ts` serves
@@ -23,8 +23,10 @@ Driving the emulator from Claude Code or a shell, with the dev server running (f
 `npx @iwsdk/cli xr look-at ...`, `npx @iwsdk/cli xr select ...`. `xr/AGENTS.md` and `xr/.claude/skills/` (written
 by the IWSDK scaffolder) explain the rest. If you start Claude Code inside `xr/`, the same tools load as MCP servers.
 
-URL parameters: `site` (a site id with terrain, e.g. `mma01`), `t` (UTC start of the 30-day window, e.g.
-`2026-11-24T00:00Z`; default: now), `embed=1` (hides the title box).
+URL parameters: `site` (a site id with terrain, e.g. `mma01`), `zone` (a zone's published rank, e.g. `1`), `lat` and `lon` (any point within 10 degrees of the pole, as the website's map sends),
+`t` (UTC start of the 30-day window, e.g. `2026-11-24T00:00Z`), `demo=1` (opens Orbit with the Goldilocks heat map
+on), `embed=1` (hides the title box). Without `t`, Orbit shows now, and a site or zone opens at the next hour at
+which the whole Sun is above its skyline (`nextSunUp` in `guide.ts`, a search with `computeSeries`).
 
 ## File map (xr/src)
 
@@ -34,7 +36,9 @@ URL parameters: `site` (a site id with terrain, e.g. `mma01`), `t` (UTC start of
 | `experience.ts` | The whole flow: Orbit, flight, Land, Stand; laptop camera and mouse; VR ray, pinch, thumbstick; builds the models for the HUD and the VR panel. Constants at the top: window length, globe scale, raised-view height, enlarge factor. | behaviour, modes, input |
 | `terrain.ts` | Terrain material (lighting, heat-map ramps, palette), the GPU shadow pass, mesh builder, the depth scheme. | look of the ground, heat-map colours, shadow quality |
 | `geo.ts` | Frames: MOON_ME to the scene, fields of true 3D positions (curvature included), picking a ground point, CPU copy of the shadow test. Tested. | never, unless the maths is wrong |
-| `data.ts` | Loaders for everything in `/data/`, including optional files (zones, missions, score). | a data file changes shape |
+| `data.ts` | Loaders for everything in `/data/`, including optional files (zones, missions, score, layers, presets, criteria); `tileFromPole` cuts a tile from the south-pole grid for a zone no site tile covers. | a data file changes shape |
+| `guide.ts` | What the view says and ranks: demo start time, "Why here?" lines, priorities (re-rank, recolour), the tour's four captions. Only calls `explain.ts`, `suitability.ts` and `computeSeries`. Tested. | tour text, a new preset or criterion |
+| `perf.ts` | Automatic quality in the headset: the three detail levels and the rule that lowers them. Tested. | frame rate on the Quest |
 | `objects.ts` | Lander, rocket, Sun disc, Earth, stars, labels, sight lines, markers. | models and labels |
 | `hud.ts` | Laptop interface (plain DOM and CSS, Earthrise tokens) and the credits line. | laptop UI text and layout |
 | `vrpanel.ts` | The floating panel in VR (a canvas on a plane; buttons are rectangles hit by the app's own ray). | VR UI |
@@ -56,6 +60,18 @@ IWSDK scene: everything is generated from data at run time.
   "Enlarge" multiplies both by 5 and says so.
 - Landing-point panel: "NASA map" = the PGDA pixel under the point; "Our model" = `demHorizon` at that exact point
   (2 m observer) + `computeSeries` + `computeMetrics` over the 30-day window.
+- "Why here?": the sentences of `web/src/lib/analysis/explain.ts`. For a zone or a site's own point the values are
+  the row of `zones.csv` or `suitability/site_values.csv`; for any other landing point they are what is known
+  there: latitude, the NASA sunlight and Earth pixels, the landing slope (the formula of `engine/criteria.py` on
+  the tile's heights; within 0.105 deg of zones.csv at 235 zones) and the longest darkness and time without Earth
+  from `computeSeries` over the whole ephemeris (at Malapert: 404 h and 0 h, the same as site_values.csv).
+- "Your priorities": the presets of `suitability/weights.json`. Choosing one re-ranks all 5,297 zones with
+  `rankZones` and recolours the Goldilocks map with `mapScoreGrid` on the published layers; cells that fail a
+  hard limit stay uncoloured. "Goldilocks map score" in the landing-point panel is the map score of that cell; a
+  zone's score also counts its longest darkness and time without Earth, so the two differ.
+- Tour: four stops, each waiting for "Next". Every number in a caption is computed when the stop opens: the Sun's
+  highest elevation at the pole from the ephemeris, the passing area from `summary.json`, the best zone and its
+  "Why here?" lines under the priorities in use, the Sun's path over the two days that stop 4 plays.
 - Stars: `stars.json`, Yale Bright Star Catalogue rotated by the Moon's real orientation.
 - Display choices that are not data (say so if asked): terrain colour #A39888; brightness curve
   `1 - exp(-11 * lit)` because true Lambert at 1 to 6 deg of Sun is nearly black; a faint slope-shaded fill (6 %) so
@@ -65,9 +81,14 @@ IWSDK scene: everything is generated from data at run time.
 ## Known issues
 
 - Not yet tested on a real Quest 3: only in the IWSDK emulator. Frame rate on the headset is unmeasured.
+- A zone further than 29 km from every site's centre has no 120 m tile. It opens on a tile interpolated from the
+  ~430 m south-pole grid (heights within 0.5 m of that grid), with the NASA maps at their own pixels, no slope
+  map, and a note on screen. The list marks these zones "430 m terrain".
+- Tour stop 4 plays 2 days at 4 hours per second and repeats. The speed buttons mean hours per second (1x = 1 hour
+  per second), so "100x" would show the 2 days in half a second.
 - Goldilocks zones are drawn as rings with the zone's area around its best cell (zones.geojson holds points, not
   outlines); the true shapes are what the "Goldilocks score" heat map shows (only cells that pass every hard limit
-  are coloured). Orbit rings the best 40 zones and lists the best 8.
+  are coloured). Orbit rings the best 40 zones and lists the best 10, under the priorities in use.
 - Zones, the score layer and past landings are optional files: if one is missing its feature is hidden, nothing breaks.
 - Ordinary objects (lander, markers, lines, panel, controllers) always draw in front of terrain, because terrain
   and sky use their own logarithmic depth range (see the comment in `terrain.ts`). From far away the lander can
@@ -87,7 +108,9 @@ IWSDK scene: everything is generated from data at run time.
    the trigger, or pinch with a bare hand; (c) in Land you stand 2 km above the point: aim at the ground, trigger
    to move the landing point; (d) A or X, or "Stand here": you are on the surface, eyes 2 m up; (e) thumbstick
    left or right scrubs time, or pinch and drag on the time bar; (f) "Enlarge 5x", heat maps, Play at 1x, 10x, 100x.
-4. Frame rate: Quest menu, Developer, Performance HUD (or `adb shell setprop debug.oculus.perfhud 1`). Target 72.
-   If it is lower: in `experience.ts` `onXRChange`, raise the mesh steps (2 to 4 for the tile) or lower the shadow
-   resolutions (256 to 128); in `update`, recompute shadows every 6th frame instead of every 3rd.
-5. Over USB with automation: the `iwsdk-native-xr-test` skill in `xr/.claude/skills/`.
+4. Frame rate: press "Stats" on the panel. It shows frames per second, milliseconds per frame (mean of the last
+   72 frames) and the detail level. Target 72 fps (13.9 ms). In the headset detail is automatic: when the mean
+   frame time of a second is over 13.9 ms by more than 5 %, terrain and shadow detail drop one level (high, medium,
+   low) and stay there until you leave VR. The levels are the `LEVELS` table in `xr/src/perf.ts`.
+5. "Tour: 4 stops" on the panel: read each caption, press "Next" (during the flight "Next" waits).
+6. Over USB with automation: the `iwsdk-native-xr-test` skill in `xr/.claude/skills/`.

@@ -31,9 +31,9 @@ Start every feature with:
 
 ## Ahmed (VR view, xr/)
 Start with docs/XR.md (how to run, file map, known issues, Quest test). Branches `feat/ahmed-*`, Opus 5.5.
-1. `feat/ahmed-quest-fps`: "Measure the frame rate of /xr/ on the Quest 3 in Orbit, Land and Stand (Performance HUD).
-   If any mode is under 72 fps, tune the mesh steps and shadow resolution in xr/src/experience.ts (onXRChange) and
-   report before and after."
+1. `feat/ahmed-quest-fps`: "Read the frame rate of /xr/ on the Quest 3 in Orbit, Land and Stand with the panel's
+   Stats button. If a mode settles on 'low' detail or stays under 72 fps, tune the LEVELS table in xr/src/perf.ts
+   and report before and after."
 2. `feat/ahmed-lander`: "Replace the procedural lander in xr/src/objects.ts (makeLander) with the lander from
    xr/reference/ahmed_concept.html (copy the file there first). Keep the returned panel and dish groups so they
    still turn to the real Sun and Earth."
@@ -43,6 +43,9 @@ Start with docs/XR.md (how to run, file map, known issues, Quest test). Branches
    Stand, and let the left thumbstick turn the view in 30 degree steps."
 5. `feat/ahmed-earth-phase-labels`: "Name the brightest stars and show the Earth's phase and the Sun's azimuth as
    small labels in Stand, using stars.json names and computeSeries values only."
+Stretch: `feat/ahmed-tour-voice`: "voice-over (ElevenLabs) for the four tour stops of /xr/: one audio file per
+caption, generated from the caption text of xr/src/guide.ts, played when the stop opens, with a mute button. The
+captions contain live numbers, so generate the audio in `make data` or keep the numbers out of the spoken text."
 The old placeholder `web/src/routes/Moon3D.tsx` belongs to the website session: it embeds `/xr/?embed=1`.
 
 ## Luke (story)

@@ -14,6 +14,7 @@ import {
   VisibilityState,
   createSystem,
   type BufferGeometry,
+  type DataTexture,
   type Line,
   type Object3D,
   type Points,
@@ -30,10 +31,20 @@ import {
   type Series,
 } from '../../web/src/lib/analysis';
 import { demHorizon, heightAt, stereoLatLon, stereoXY } from '../../web/src/lib/analysis/demHorizon';
+import type { CriterionRow } from '../../web/src/lib/analysis/explain';
+import type { Preset } from '../../web/src/lib/analysis/suitability';
 import {
+  loadCriteria,
   loadEphemeris,
   LIMIT_NAMES,
   loadMissions,
+  loadPoleLayers,
+  loadPresets,
+  loadSiteLayers,
+  loadSiteValues,
+  loadSummary,
+  resampleBytes,
+  tileFromPole,
   loadPoleSuitability,
   loadSiteTile,
   loadSites,
@@ -46,8 +57,27 @@ import {
   type SouthPole,
   type Stars,
   type Suitability,
-  type Zone,
 } from './data.js';
+import {
+  FALLBACK_PRESETS,
+  TOUR_PLAY_H,
+  TOUR_PLAY_RATE,
+  TOUR_STOPS,
+  captionGoldilocks,
+  captionPole,
+  captionStand,
+  captionZone,
+  longRunMetrics,
+  nextSunUp,
+  rankAll,
+  rescore,
+  why,
+  whyFromRow,
+  type Summary,
+  type Why,
+  type ZoneRow,
+} from './guide.js';
+import { LEVELS, QualityGovernor } from './perf.js';
 import {
   R_M,
   azElToScene,
@@ -57,6 +87,7 @@ import {
   fieldUpAt,
   gridFrame,
   groundAt,
+  landingSlopeDeg,
   latLonToScene,
   raycastField,
   sunDirAt,
@@ -109,10 +140,12 @@ const ENLARGE = 5;
 const EARTH_R_KM = 6378.137;
 const D2R = Math.PI / 180;
 const ORBIT_ZONES = 40; // zones ringed on the relief
-const LISTED_ZONES = 8; // zones with a marker and a button
+const LISTED_ZONES = 10; // zones with a marker and a button
+const POINT_ID = 'point'; // the place id of a point given by ?lat=&lon= that no site tile covers
+const TILE_REACH_M = 29000; // a zone this close to a site's centre (in x and in y) is shown on that site's 120 m tile
 
 /** A circle of [lat, lon] with the zone's area around its best cell. */
-function zoneRing(z: Zone): [number, number][] {
+function zoneRing(z: ZoneRow): [number, number][] {
   const r = Math.max(250, Math.sqrt((z.areaKm2 * 1e6) / Math.PI));
   const [x, y] = stereoXY(z.lat, z.lon);
   const out: [number, number][] = [];
@@ -130,8 +163,11 @@ interface Spot {
   nasaSun: number | null;
   nasaEarth: number | null;
   score: number | null;
+  /** Index of the cell in the tile's grids. */
+  cell: number;
   /** Hard limits that fail at this cell (docs/criteria.csv). */
   failed: string[];
+  why: Why;
   hz: Horizon;
   series: Series;
   metrics: Metrics;
@@ -146,6 +182,28 @@ interface Marker {
   normal: Vector3;
   title: string;
   info: string;
+}
+
+/** Where to go: a site's tile, or a tile cut from the south-pole grid around a zone no site tile covers. */
+interface Dest {
+  site: Site;
+  /** Stereographic centre of a tile to cut from the south-pole grid. */
+  centre?: [number, number];
+  /** Landing point [lat, lon]; the site's own point if absent. */
+  spot?: [number, number];
+  zone?: ZoneRow;
+}
+
+/** A Goldilocks heat map that can be recoloured under other priorities. */
+interface ScoreMap {
+  /** The published score bytes (docs/INTERFACES.md section 10). */
+  raw: Uint8Array;
+  /** What the texture shows: the score where every hard limit passes, 255 elsewhere. */
+  shown: Uint8Array;
+  /** The score of every cell under the priorities in use. */
+  all: Uint8Array;
+  tex: DataTexture;
+  layers: () => Promise<Uint8Array[] | null>;
 }
 
 interface SiteScene {
@@ -163,10 +221,14 @@ interface SiteScene {
   geos: Record<number, BufferGeometry>;
   farGeos: Record<number, BufferGeometry>;
   overlays: Partial<Record<OverlayId, Texture>>;
+  scoreMap: ScoreMap | null;
+  zoneGroup: Group;
   group: Group;
   textures: Texture[];
 }
 
+const COARSE_NOTE = 'Terrain here is interpolated from the 430 m south-pole map: no 120 m tile and no slope map for this zone yet.';
+const VERDICT_COLOR = { good: 'ok', acceptable: 'sun', rejected: 'alert' } as const;
 const byteOrNull = (v: number) => (v === 255 ? null : v);
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const lerpAz = (a: number, b: number, t: number) => (((a + ((((b - a) % 360) + 540) % 360 - 180) * t) % 360) + 360) % 360;
@@ -176,7 +238,15 @@ export class ExperienceSystem extends createSystem({}) {
   private sites: Site[] = [];
   private eph!: Ephemeris;
   private pole!: SouthPole;
-  private zones: Zone[] = [];
+  /** Every zone, best first under the priorities in use. */
+  private zones: ZoneRow[] = [];
+  private criteria: CriterionRow[] = [];
+  private siteValues = new Map<string, Record<string, string>>();
+  private presets: Preset[] = FALLBACK_PRESETS;
+  private preset: Preset = FALLBACK_PRESETS[0];
+  private summary: Summary | null = null;
+  private poleLayers: Promise<Uint8Array[] | null> | null = null;
+  private poleScore: ScoreMap | null = null;
   private missions: Mission[] = [];
   private poleSuit: Suitability | null = null;
   private tiles = new Map<string, Promise<SiteTile>>();
@@ -191,7 +261,17 @@ export class ExperienceSystem extends createSystem({}) {
   private mode: Mode = 'loading';
   private message: string | null = 'Loading NASA terrain and ephemeris';
   private siteId: string | null = null;
+  private place: Site | null = null;
   private startIdx = 0;
+  /** The sample index of "now"; with no ?t= in the URL, each site opens at its next sunrise after it. */
+  private nowIdx = 0;
+  private autoTime = true;
+  private tour: { stop: number; caption: string; why: Why | null; playFrom: number | null } | null = null;
+  private showStats = false;
+  private showWhy = false;
+  private quality = new QualityGovernor();
+  private statsText = '';
+  private zoneObjs: Line[] = [];
   private tH = 0;
   private playing = false;
   private speed = 10;
@@ -224,7 +304,7 @@ export class ExperienceSystem extends createSystem({}) {
   private markers: Marker[] = [];
   private hovered: Marker | null = null;
   private rocket = makeRocket();
-  private flight: { t: number; from: Vector3; to: Vector3; siteId: string; spot?: [number, number] } | null = null;
+  private flight: { t: number; from: Vector3; to: Vector3; dest: Dest } | null = null;
   private scene3: SiteScene | null = null;
   private sun = sunDisc();
   private earth = earthBall();
@@ -313,14 +393,23 @@ export class ExperienceSystem extends createSystem({}) {
     for (const hand of ['left', 'right'] as Hand[]) {
       const ray = polyline([0, 0, 0, 0, 0, -1], PALETTE.text2, 0.8);
       ray.scale.z = 4;
+      ray.renderOrder = 30; // over the panel
       ray.visible = false;
       this.player.raySpaces[hand].add(ray);
       this.rays[hand] = ray;
     }
 
     this.actions = {
-      pickSite: (id) => this.flyTo(id),
-      pickZone: (rank) => this.pickZone(rank),
+      pickSite: (id) => this.pickSite(id),
+      pickZone: (id) => this.pickZone(id),
+      setPreset: (key) => this.setPreset(key),
+      tourStart: () => this.tourGo(1),
+      tourNext: () => this.tourNext(),
+      tourEnd: () => this.tourEnd(),
+      toggleStats: () => {
+        this.showStats = !this.showStats;
+        this.dirtyHud = true;
+      },
       setOverlay: (o) => this.setOverlayChoice(o),
       goOrbit: () => this.enterOrbit(),
       goLand: () => this.setMode('land'),
@@ -357,7 +446,7 @@ export class ExperienceSystem extends createSystem({}) {
   }
 
   private async load(params: URLSearchParams): Promise<void> {
-    const [sites, eph, pole, zones, missions, score, stars] = await Promise.all([
+    const [sites, eph, pole, zones, missions, score, stars, criteria, siteValues, presets, summary] = await Promise.all([
       loadSites(),
       loadEphemeris(),
       loadSouthPole(),
@@ -365,6 +454,10 @@ export class ExperienceSystem extends createSystem({}) {
       loadMissions(),
       loadPoleSuitability(1024),
       loadStars(),
+      loadCriteria(),
+      loadSiteValues(),
+      loadPresets(),
+      loadSummary(),
     ]);
     if (stars) {
       this.starData = stars;
@@ -375,20 +468,44 @@ export class ExperienceSystem extends createSystem({}) {
     this.sites = sites;
     this.eph = eph;
     this.pole = pole;
-    this.zones = zones ?? [];
+    this.criteria = criteria;
+    this.siteValues = siteValues;
+    this.presets = presets;
+    this.preset = presets[0];
+    this.summary = summary;
+    this.zones = rankAll(zones ?? [], this.preset.weights);
     this.missions = missions ?? [];
     this.poleSuit = score;
     const t = Date.parse(params.get('t') ?? '');
-    const when = Number.isFinite(t) ? t : Date.now();
-    this.startIdx = Math.max(0, Math.min(eph.n - WINDOW_H - 2, Math.round((when - eph.startMs) / (eph.stepS * 1000))));
+    this.autoTime = !Number.isFinite(t);
+    this.nowIdx = this.clampStart(Math.round(((this.autoTime ? Date.now() : t) - eph.startMs) / (eph.stepS * 1000)));
+    this.startIdx = this.nowIdx;
     this.buildOrbit();
     this.message = null;
     const site = params.get('site');
-    if (site && this.sites.some((s) => s.id === site && s.terrain === 'dem')) {
-      await this.enterLand(site);
+    const zone = this.zones.find((z) => z.id === Number(params.get('zone')));
+    const lat = Number(params.get('lat'));
+    const lon = Number(params.get('lon'));
+    if (params.get('demo') === '1') {
+      // The demo opens in Orbit with the Goldilocks heat map on.
+      if (this.poleScore) {
+        this.overlayOrbit = 'score';
+      }
+      this.enterOrbit();
+    } else if (zone) {
+      await this.enterLand(this.zoneDest(zone));
+    } else if (params.has('lat') && Number.isFinite(lat) && Number.isFinite(lon) && lat < -80 && lat >= -90) {
+      // A point chosen on the website's map (web/src/routes/xr.ts).
+      await this.enterLand(this.pointDest(lat, lon, 'Chosen point', POINT_ID));
+    } else if (site && this.sites.some((s) => s.id === site && s.terrain === 'dem')) {
+      await this.enterLand(this.siteDest(site)!);
     } else {
       this.enterOrbit();
     }
+  }
+
+  private clampStart(i: number): number {
+    return Math.max(0, Math.min(this.eph.n - WINDOW_H - 2, i));
   }
 
   private get inXR(): boolean {
@@ -425,24 +542,11 @@ export class ExperienceSystem extends createSystem({}) {
     this.poleOverlays.sun = byteTexture(this.pole.sun, grid.size);
     this.poleOverlays.earth = byteTexture(this.pole.earth, grid.size);
     if (this.poleSuit && grid.size === 1024) {
-      this.poleOverlays.score = byteTexture(this.poleSuit.passScore, grid.size);
+      this.poleScore = this.scoreMap(this.poleSuit, grid.size, () => (this.poleLayers ??= loadPoleLayers(grid.size)));
+      this.poleOverlays.score = this.poleScore.tex;
     }
 
-    const toWorld = (p: V3) => new Vector3(p[0], p[1], p[2]).multiplyScalar(POLE_SCALE).add(GLOBE_POS);
-    const groundH = (lat: number, lon: number) => {
-      const [x, y] = stereoXY(lat, lon);
-      const h = lat < -60 ? heightAt(grid, x, y) : NaN;
-      return Number.isNaN(h) ? 0 : h;
-    };
-    const add = (m: Omit<Marker, 'pos' | 'normal' | 'label'>, lat: number, lon: number, labelColor: number) => {
-      const pos = toWorld(latLonToScene(this.poleFrame, lat, lon, groundH(lat, lon)));
-      const n = dirToScene(this.poleFrame, unitOf(lat, lon));
-      const label = makeLabel(m.title, labelColor, 0.022);
-      m.obj.position.copy(pos);
-      label.sprite.position.copy(pos);
-      this.orbitMarkers.add(m.obj, label.sprite);
-      this.markers.push({ ...m, pos, normal: new Vector3(n[0], n[1], n[2]), label });
-    };
+    const add = this.addMarker.bind(this);
     for (const s of this.sites) {
       if (s.terrain !== 'dem') {
         continue;
@@ -469,22 +573,67 @@ export class ExperienceSystem extends createSystem({}) {
         outcomeColor[m.outcome],
       );
     });
-    // Goldilocks zones: a ring with the zone's area around its best cell (the heat map shows the true shapes).
+    this.rebuildOrbitZones();
+  }
+
+  /** Height of the south-pole relief at a latitude / longitude, metres (0 off the grid). */
+  private groundH(lat: number, lon: number): number {
+    const [x, y] = stereoXY(lat, lon);
+    const h = lat < -60 ? heightAt(this.pole.grid, x, y) : NaN;
+    return Number.isNaN(h) ? 0 : h;
+  }
+
+  /** Room position of a point of the Moon on the ORBIT relief. */
+  private globePos(lat: number, lon: number, liftM = 0): Vector3 {
+    const p = latLonToScene(this.poleFrame, lat, lon, this.groundH(lat, lon) + liftM);
+    return new Vector3(p[0], p[1], p[2]).multiplyScalar(POLE_SCALE).add(GLOBE_POS);
+  }
+
+  private addMarker(m: Omit<Marker, 'pos' | 'normal' | 'label'>, lat: number, lon: number, labelColor: number): void {
+    const pos = this.globePos(lat, lon);
+    const n = dirToScene(this.poleFrame, unitOf(lat, lon));
+    const label = makeLabel(m.title, labelColor, 0.022);
+    label.zoom(this.inXR ? 1.9 : 1);
+    m.obj.position.copy(pos);
+    label.sprite.position.copy(pos);
+    this.orbitMarkers.add(m.obj, label.sprite);
+    this.markers.push({ ...m, pos, normal: new Vector3(n[0], n[1], n[2]), label });
+  }
+
+  /** Goldilocks zones on the relief under the priorities in use: a ring with the zone's area around its best
+   *  cell for the best 40 (the heat map shows the true shapes), a marker for the best 10. */
+  private rebuildOrbitZones(): void {
+    for (const o of this.zoneObjs) {
+      this.orbitMarkers.remove(o);
+      o.geometry.dispose();
+    }
+    this.zoneObjs = [];
+    this.markers = this.markers.filter((m) => {
+      if (m.kind !== 'zone') {
+        return true;
+      }
+      this.orbitMarkers.remove(m.obj, m.label.sprite);
+      m.label.sprite.material.map?.dispose();
+      return false;
+    });
+    this.hovered = null;
     for (const z of this.zones.slice(0, ORBIT_ZONES)) {
       const pts: number[] = [];
       for (const [lat, lon] of zoneRing(z)) {
-        const p = toWorld(latLonToScene(this.poleFrame, lat, lon, groundH(lat, lon) + 400));
+        const p = this.globePos(lat, lon, 400);
         pts.push(p.x, p.y, p.z);
       }
-      this.orbitMarkers.add(polyline(pts, PALETTE.ok, Math.max(0.45, 1 - 0.03 * (z.rank - 1)), true));
+      const ring = polyline(pts, PALETTE.ok, Math.max(0.45, 1 - 0.03 * (z.rank - 1)), true);
+      this.zoneObjs.push(ring);
+      this.orbitMarkers.add(ring);
       if (z.rank <= LISTED_ZONES) {
-        add(
+        this.addMarker(
           {
             kind: 'zone',
-            id: String(z.rank),
+            id: String(z.id),
             obj: missionMarker(PALETTE.ok),
             title: `#${z.rank}`,
-            info: `Goldilocks zone #${z.rank}${z.near ? `, nearest region ${z.near}` : ''}: score ${z.score ?? '?'}, ${z.areaKm2.toFixed(1)} km2, NASA sunlight ${z.sunPct ?? '?'} %, Earth ${z.earthPct ?? '?'} %.`,
+            info: `Goldilocks zone #${z.rank} for "${this.preset.label}"${z.near ? `, nearest region ${z.near}` : ''}: score ${z.score}, ${z.areaKm2.toFixed(1)} km2, NASA sunlight ${z.row.sun_pct} %, Earth ${z.row.earth_pct} %.`,
           },
           z.lat,
           z.lon,
@@ -494,6 +643,57 @@ export class ExperienceSystem extends createSystem({}) {
     }
   }
 
+  /** A heat map of the published score that setPreset can recolour. */
+  private scoreMap(suit: Suitability, size: number, layers: () => Promise<Uint8Array[] | null>): ScoreMap {
+    const shown = Uint8Array.from(suit.passScore);
+    return { raw: suit.raw, shown, all: suit.raw.map((v) => (v <= 100 || v === 255 ? v : v - 101)), tex: byteTexture(shown, size), layers };
+  }
+
+  /** Recolours one heat map for the priorities in use (suitability.ts's mapScoreGrid on the published layers). */
+  private async rescoreMap(m: ScoreMap): Promise<void> {
+    const p = this.preset;
+    if (p.key === 'balanced') {
+      // The published grid is the balanced score.
+      for (let i = 0; i < m.raw.length; i++) {
+        const v = m.raw[i];
+        m.all[i] = v <= 100 || v === 255 ? v : v - 101;
+        m.shown[i] = v <= 100 ? v : 255;
+      }
+    } else {
+      const layers = await m.layers();
+      if (!layers || this.preset !== p) {
+        return;
+      }
+      rescore(layers, m.raw, p.weights, m.shown, m.all);
+    }
+    m.tex.needsUpdate = true;
+    const sp = this.spot;
+    if (sp && m === this.scene3?.scoreMap) {
+      sp.score = m.raw[sp.cell] === 255 ? null : m.all[sp.cell];
+    }
+    this.dirtyHud = true;
+  }
+
+  /** "Your priorities": re-rank the zones and recolour the Goldilocks maps. */
+  private setPreset(key: string): void {
+    const p = this.presets.find((k) => k.key === key);
+    if (!p || p === this.preset) {
+      return;
+    }
+    this.preset = p;
+    this.zones = rankAll(this.zones, p.weights);
+    this.rebuildOrbitZones();
+    if (this.scene3) {
+      this.rebuildSiteZones(this.scene3);
+    }
+    for (const m of [this.poleScore, this.scene3?.scoreMap]) {
+      if (m) {
+        void this.rescoreMap(m);
+      }
+    }
+    this.dirtyHud = true;
+  }
+
   private poleGeometry(step: number): BufferGeometry {
     return (this.poleGeos[step] ??= fieldGeometry(this.poleField, step));
   }
@@ -501,6 +701,8 @@ export class ExperienceSystem extends createSystem({}) {
   private enterOrbit(): void {
     this.mode = 'orbit';
     this.siteId = null;
+    this.place = null;
+    this.showWhy = false;
     this.spot = null;
     this.status = null;
     this.info = null;
@@ -514,48 +716,70 @@ export class ExperienceSystem extends createSystem({}) {
     this.syncUrl();
   }
 
-  private pickZone(rank: number): void {
-    const m = this.markers.find((k) => k.kind === 'zone' && k.id === String(rank));
-    const z = this.zones.find((k) => k.rank === rank);
-    if (!m || !z) {
-      return;
-    }
-    // A zone is shown on the tile of the nearest site that contains its centre.
-    let best: { id: string; d: number; lat: number; lon: number } | null = null;
-    const { lat, lon } = z;
-    const [zx, zy] = stereoXY(lat, lon);
+  private siteDest(id: string): Dest | null {
+    const site = this.sites.find((s) => s.id === id && s.terrain === 'dem');
+    return site ? { site } : null;
+  }
+
+  /** A point is shown on the 120 m tile of the nearest site that contains it, else on a tile cut from the pole grid. */
+  private pointDest(lat: number, lon: number, name: string, id: string, zone?: ZoneRow): Dest {
+    const [px, py] = stereoXY(lat, lon);
+    let best: { site: Site; d: number } | null = null;
     for (const s of this.sites) {
       if (s.terrain !== 'dem') {
         continue;
       }
       const [sx, sy] = stereoXY(s.lat, s.lon);
-      const d = Math.max(Math.abs(sx - zx), Math.abs(sy - zy));
-      if (d < 29000 && (!best || d < best.d)) {
-        best = { id: s.id, d, lat, lon };
+      const d = Math.max(Math.abs(sx - px), Math.abs(sy - py));
+      if (d < TILE_REACH_M && (!best || d < best.d)) {
+        best = { site: s, d };
       }
     }
+    const spot: [number, number] = [lat, lon];
     if (best) {
-      this.flyTo(best.id, [best.lat, best.lon]);
-    } else {
-      this.info = `Zone #${rank} is more than 30 km from every site tile; no 1:1 terrain for it yet.`;
-      this.dirtyHud = true;
+      return { site: best.site, spot, zone };
+    }
+    const site: Site = { id, name, group: 'artemis', lat, lon, terrain: 'dem', note: '' };
+    return { site, centre: [px, py], spot, zone };
+  }
+
+  private zoneDest(z: ZoneRow): Dest {
+    return this.pointDest(z.lat, z.lon, `Zone ${z.id}${z.near ? `, near ${z.near}` : ''}`, `zone-${z.id}`, z);
+  }
+
+  private zoneHasTile(z: ZoneRow): boolean {
+    return this.zoneDest(z).centre == null;
+  }
+
+  private pickSite(id: string): void {
+    const d = this.siteDest(id);
+    if (d) {
+      this.flyTo(d);
     }
   }
 
-  private flyTo(siteId: string, spot?: [number, number]): void {
-    const m = this.markers.find((k) => k.kind === 'site' && k.id === siteId);
-    if (!m || this.mode === 'flight') {
+  private pickZone(id: number): void {
+    const z = this.zones.find((k) => k.id === id);
+    if (z) {
+      this.flyTo(this.zoneDest(z));
+    }
+  }
+
+  private flyTo(dest: Dest): void {
+    if (this.mode === 'flight' || this.mode === 'loading') {
       return;
     }
     if (this.mode !== 'orbit') {
-      void this.enterLand(siteId, spot);
+      void this.enterLand(dest);
       return;
     }
-    void this.tile(siteId); // start the download during the flight
+    void this.tile(dest); // start the download during the flight
     this.mode = 'flight';
-    this.siteId = siteId;
+    this.siteId = dest.site.id;
+    this.place = dest.site;
     const from = this.v1.copy(GLOBE_POS).add(this.v2.set(0.9, 0.75, 0.5)).clone();
-    this.flight = { t: 0, from, to: m.pos.clone(), siteId, spot };
+    const [lat, lon] = dest.spot ?? [dest.site.lat, dest.site.lon];
+    this.flight = { t: 0, from, to: this.globePos(lat, lon), dest };
     this.rocket.visible = true;
     this.dirtyHud = true;
   }
@@ -585,38 +809,45 @@ export class ExperienceSystem extends createSystem({}) {
     if (f.t >= 1) {
       this.flight = null;
       this.rocket.visible = false;
-      void this.enterLand(f.siteId, f.spot);
+      void this.enterLand(f.dest);
     }
   }
 
   // ------------------------------------------------------------------------------------------------ LAND / STAND
 
-  private tile(siteId: string): Promise<SiteTile> {
-    let p = this.tiles.get(siteId);
+  private tile(dest: Dest): Promise<SiteTile> {
+    const id = dest.site.id;
+    let p = this.tiles.get(id);
     if (!p) {
-      p = loadSiteTile(siteId);
-      this.tiles.set(siteId, p);
+      p = dest.centre
+        ? Promise.resolve(tileFromPole(id, this.pole, this.poleSuit, dest.centre[0], dest.centre[1]))
+        : loadSiteTile(id);
+      this.tiles.set(id, p);
     }
     return p;
   }
 
-  private async enterLand(siteId: string, spotLatLon?: [number, number]): Promise<void> {
-    const site = this.sites.find((s) => s.id === siteId)!;
-    this.siteId = siteId;
-    if (this.scene3?.site.id !== siteId) {
+  private async enterLand(dest: Dest): Promise<void> {
+    const site = dest.site;
+    this.siteId = site.id;
+    this.place = site;
+    if (this.scene3?.site.id !== site.id) {
       this.message = `Loading the terrain around ${site.name}`;
       this.dirtyHud = true;
-      const tile = await this.tile(siteId);
+      const tile = await this.tile(dest);
       this.disposeSite();
       this.scene3 = this.buildSite(site, tile);
       this.message = null;
+      if (this.scene3.scoreMap && this.preset.key !== 'balanced') {
+        void this.rescoreMap(this.scene3.scoreMap);
+      }
     }
     const s = this.scene3!;
     const g = s.tile.grid;
     let row = (g.yMaxM - s.tile.site.y_m) / g.pixelM - 0.5;
     let col = (s.tile.site.x_m - g.xMinM) / g.pixelM - 0.5;
-    if (spotLatLon) {
-      const [x, y] = stereoXY(spotLatLon[0], spotLatLon[1]);
+    if (dest.spot) {
+      const [x, y] = stereoXY(dest.spot[0], dest.spot[1]);
       row = (g.yMaxM - y) / g.pixelM - 0.5;
       col = (x - g.xMinM) / g.pixelM - 0.5;
     }
@@ -624,7 +855,19 @@ export class ExperienceSystem extends createSystem({}) {
     this.siteRoot.visible = this.sky.visible = true;
     this.mode = 'land';
     this.info = null;
-    this.setSpot(row, col);
+    this.showWhy = false;
+    // "Why here?" for a zone or a site's own point uses the published row; any other point, what is known there.
+    const values = dest.zone?.row ?? (dest.spot ? undefined : this.siteValues.get(site.id));
+    this.setSpot(row, col, values ? { title: dest.zone ? `zone #${dest.zone.rank}` : site.name, row: values } : undefined);
+    if (this.autoTime || this.tour) {
+      // No time was asked for: open at the next time the whole Sun is up at this point (computeSeries on its skyline).
+      const up = nextSunUp(this.eph, this.spot!.hz, this.autoTime ? this.nowIdx : Math.floor(this.idx));
+      if (up != null) {
+        this.startIdx = this.clampStart(up);
+        this.tH = up - this.startIdx;
+        this.refreshSeries();
+      }
+    }
     this.applyOverlay();
     this.setMode('land');
     this.syncUrl();
@@ -638,14 +881,14 @@ export class ExperienceSystem extends createSystem({}) {
     const farField = buildField(tile.far, frame);
     const upTex = upTexture(field, this.floatLinear);
     const farUpTex = upTexture(farField, this.floatLinear);
-    const res = this.inXR ? 256 : 512;
+    const res = this.detail().shadowRes;
     const shadow = new ShadowPass(field, upTex, farField, farUpTex, res);
     const farShadow = new ShadowPass(farField, farUpTex, undefined, undefined, res);
     const mat = terrainMaterial({ field, upTex, shadowTex: shadow.texture });
     // The far mesh is not drawn where the 120 m tile covers it (minus a margin so the two overlap).
     const k = half / (tile.far.size * tile.far.pixelM) - 1.5 / tile.far.size;
     const farMat = terrainMaterial({ field: farField, upTex: farUpTex, shadowTex: farShadow.texture, hole: [0.5 - k, 0.5 - k, 0.5 + k, 0.5 + k] });
-    const step = this.inXR ? 2 : 1;
+    const step = this.detail().meshStep;
     const geos: Record<number, BufferGeometry> = { [step]: fieldGeometry(field, step) };
     const farGeos: Record<number, BufferGeometry> = { [step * 2]: fieldGeometry(farField, step * 2) };
     const mesh = new Mesh(geos[step], mat);
@@ -658,10 +901,42 @@ export class ExperienceSystem extends createSystem({}) {
       earth: byteTexture(tile.earth, g.size),
       slope: byteTexture(tile.slope, g.size),
     };
-    const suit = tile.suitability;
-    if (suit) {
-      overlays.score = byteTexture(suit.passScore, g.size);
+    let scoreMap: ScoreMap | null = null;
+    if (tile.suitability) {
+      let layers: Promise<Uint8Array[] | null> | null = null;
+      const centre: [number, number] = [g.xMinM + half, g.yMaxM - half];
+      scoreMap = this.scoreMap(tile.suitability, g.size, () =>
+        (layers ??= tile.coarse
+          ? (this.poleLayers ??= loadPoleLayers(this.pole.grid.size)).then(
+              (l) => l && l.map((b) => resampleBytes(b, this.pole.grid, centre[0], centre[1], g.size, g.pixelM)),
+            )
+          : loadSiteLayers(site.id, g.size)),
+      );
+      overlays.score = scoreMap.tex;
     }
+    const zoneGroup = new Group();
+    group.add(zoneGroup);
+    this.siteRoot.add(group);
+    const centre = groundAt(field, (g.yMaxM - tile.site.y_m) / g.pixelM - 0.5, (tile.site.x_m - g.xMinM) / g.pixelM - 0.5);
+    this.siteLabel.set(`${site.name} (${site.id})`);
+    this.siteLabel.sprite.position.set(centre.pos[0], centre.pos[1], centre.pos[2]);
+    const scene: SiteScene = {
+      site, tile, frame, field, farField, shadow, farShadow, mat, farMat, mesh, farMesh, geos, farGeos, overlays, scoreMap, zoneGroup, group,
+      textures: [upTex, farUpTex, ...Object.values(overlays)],
+    };
+    this.rebuildSiteZones(scene);
+    return scene;
+  }
+
+  /** Rings and rank labels of the zones on a site tile, under the priorities in use. */
+  private rebuildSiteZones(s: SiteScene): void {
+    for (const o of [...s.zoneGroup.children]) {
+      s.zoneGroup.remove(o);
+      (o as Line).geometry?.dispose();
+      (o as Label['sprite']).material?.map?.dispose();
+    }
+    const g = s.tile.grid;
+    const half = (g.size * g.pixelM) / 2;
     for (const z of this.zones) {
       const [zx, zy] = stereoXY(z.lat, z.lon);
       if (Math.abs(zx - (g.xMinM + half)) > half - 1500 || Math.abs(zy - (g.yMaxM - half)) > half - 1500) {
@@ -671,24 +946,16 @@ export class ExperienceSystem extends createSystem({}) {
       for (const [lat, lon] of zoneRing(z)) {
         const [x, y] = stereoXY(lat, lon);
         const h = heightAt(g, x, y);
-        pts.push(...latLonToScene(frame, lat, lon, (Number.isNaN(h) ? 0 : h) + 30));
+        pts.push(...latLonToScene(s.frame, lat, lon, (Number.isNaN(h) ? 0 : h) + 30));
       }
-      group.add(polyline(pts, PALETTE.ok, Math.max(0.45, 1 - 0.004 * (z.rank - 1)), true));
+      s.zoneGroup.add(polyline(pts, PALETTE.ok, Math.max(0.45, 1 - 0.004 * (z.rank - 1)), true));
       if (z.rank <= 100) {
         const label = makeLabel(`#${z.rank}`, PALETTE.ok, 0.02);
         const h = heightAt(g, zx, zy);
-        label.sprite.position.set(...latLonToScene(frame, z.lat, z.lon, (Number.isNaN(h) ? 0 : h) + 30));
-        group.add(label.sprite);
+        label.sprite.position.set(...latLonToScene(s.frame, z.lat, z.lon, (Number.isNaN(h) ? 0 : h) + 30));
+        s.zoneGroup.add(label.sprite);
       }
     }
-    this.siteRoot.add(group);
-    const centre = groundAt(field, (g.yMaxM - tile.site.y_m) / g.pixelM - 0.5, (tile.site.x_m - g.xMinM) / g.pixelM - 0.5);
-    this.siteLabel.set(`${site.name} (${site.id})`);
-    this.siteLabel.sprite.position.set(centre.pos[0], centre.pos[1], centre.pos[2]);
-    return {
-      site, tile, frame, field, farField, shadow, farShadow, mat, farMat, mesh, farMesh, geos, farGeos, overlays, group,
-      textures: [upTex, farUpTex, ...Object.values(overlays)],
-    };
   }
 
   private disposeSite(): void {
@@ -711,7 +978,7 @@ export class ExperienceSystem extends createSystem({}) {
   }
 
   /** Choose the landing point at fractional pixel (row, col) of the site tile and compute its numbers. */
-  private setSpot(row: number, col: number): void {
+  private setSpot(row: number, col: number, published?: { title: string; row: Record<string, string> }): void {
     const s = this.scene3!;
     const n = s.tile.grid.size;
     row = Math.max(1, Math.min(n - 2, row));
@@ -719,6 +986,7 @@ export class ExperienceSystem extends createSystem({}) {
     const hit = groundAt(s.field, row, col);
     const i = Math.round(row) * n + Math.round(col);
     const suit = s.tile.suitability;
+    const map = s.scoreMap;
     const hz = demHorizon(s.tile.grid, [this.pole.grid, s.tile.far], hit.lat, hit.lon, { observerHM: EYE_M, siteId: s.site.id });
     const series = computeSeries(this.eph, hz, this.startIdx, this.startIdx + WINDOW_H + 2);
     const metrics = computeMetrics(sliceSeries(series, 0, WINDOW_H));
@@ -728,7 +996,22 @@ export class ExperienceSystem extends createSystem({}) {
       slopeDeg: byteOrNull(s.tile.slope[i]),
       nasaSun: byteOrNull(s.tile.sun[i]),
       nasaEarth: byteOrNull(s.tile.earth[i]),
-      score: suit && suit.raw[i] !== 255 ? (suit.raw[i] <= 100 ? suit.raw[i] : suit.raw[i] - 101) : null,
+      score: map && map.raw[i] !== 255 ? map.all[i] : null,
+      cell: i,
+      why: published
+        ? whyFromRow(published.title, published.row, this.criteria)
+        : why(
+            'this landing point',
+            {
+              latDeg: hit.lat,
+              // No landing slope on a tile interpolated from the 430 m map: its heights are too smooth.
+              landingSlopeDeg: s.tile.coarse ? undefined : landingSlopeDeg(s.tile.grid, Math.round(row), Math.round(col)),
+              sunPct: byteOrNull(s.tile.sun[i]) ?? undefined,
+              earthPct: byteOrNull(s.tile.earth[i]) ?? undefined,
+              ...longRunMetrics(this.eph, hz),
+            },
+            this.criteria,
+          ),
       failed: suit && suit.raw[i] !== 255 && suit.raw[i] > 100 ? (suit.limits ? LIMIT_NAMES.filter(([bit]) => suit.limits![i] & bit).map(([, n]) => n) : ['a hard limit']) : [],
       hz,
       series,
@@ -744,6 +1027,16 @@ export class ExperienceSystem extends createSystem({}) {
     this.spotPin.position.copy(p);
     this.spotLabel.sprite.position.copy(p);
     this.dirtySun = this.dirtyHud = true;
+  }
+
+  /** Recompute the landing point's 30-day series after the window start moved. */
+  private refreshSeries(): void {
+    const sp = this.spot;
+    if (sp) {
+      sp.series = computeSeries(this.eph, sp.hz, this.startIdx, this.startIdx + WINDOW_H + 2);
+      sp.metrics = computeMetrics(sliceSeries(sp.series, 0, WINDOW_H));
+      this.dirtySun = this.dirtyHud = true;
+    }
   }
 
   private setMode(mode: 'land' | 'stand'): void {
@@ -790,10 +1083,20 @@ export class ExperienceSystem extends createSystem({}) {
 
   private syncUrl(): void {
     const p = new URLSearchParams(location.search);
+    p.delete('site');
+    p.delete('zone');
+    p.delete('lat');
+    p.delete('lon');
     if (this.siteId) {
+      p.delete('demo');
+    }
+    if (this.siteId?.startsWith('zone-')) {
+      p.set('zone', this.siteId.slice(5));
+    } else if (this.siteId === POINT_ID && this.spot) {
+      p.set('lat', this.spot.hit.lat.toFixed(5));
+      p.set('lon', this.spot.hit.lon.toFixed(5));
+    } else if (this.siteId) {
       p.set('site', this.siteId);
-    } else {
-      p.delete('site');
     }
     p.set('t', new Date(this.eph.startMs + this.startIdx * this.eph.stepS * 1000).toISOString().slice(0, 13) + ':00Z');
     history.replaceState(null, '', `${location.pathname}?${p.toString()}`);
@@ -1028,7 +1331,7 @@ export class ExperienceSystem extends createSystem({}) {
     if (this.mode === 'orbit') {
       const m = this.pickMarker(o, d);
       if (m?.kind === 'site') {
-        this.flyTo(m.id);
+        this.pickSite(m.id);
       } else if (m?.kind === 'zone') {
         this.pickZone(Number(m.id));
       } else if (m) {
@@ -1176,6 +1479,13 @@ export class ExperienceSystem extends createSystem({}) {
     else if (kind === 'raised') a.toggleRaised();
     else if (kind === 'enlarge') a.toggleEnlarge();
     else if (kind === 'exit') this.world.exitXR();
+    else if (kind === 'zone') a.pickZone(Number(arg));
+    else if (kind === 'preset') a.setPreset(arg);
+    else if (kind === 'tour') a.tourStart();
+    else if (kind === 'next') a.tourNext();
+    else if (kind === 'endtour') a.tourEnd();
+    else if (kind === 'stats') a.toggleStats();
+    else if (kind === 'why') this.showWhy = !this.showWhy;
     this.dirtyHud = true;
   }
 
@@ -1243,25 +1553,92 @@ export class ExperienceSystem extends createSystem({}) {
     for (const l of [this.sunLabel, this.earthLabel, this.spotLabel, this.siteLabel, ...this.markers.map((m) => m.label)]) {
       l.zoom(zoom);
     }
-    // Lower terrain detail in the headset: half the vertices per side (the lighting stays per pixel).
-    this.poleMesh.geometry = this.poleGeometry(xr ? 4 : 2);
-    const s = this.scene3;
-    if (s) {
-      const step = xr ? 2 : 1;
-      s.mesh.geometry = s.geos[step] ??= fieldGeometry(s.field, step);
-      s.farMesh.geometry = s.farGeos[step * 2] ??= fieldGeometry(s.farField, step * 2);
-    }
-    // Shadow maps at half resolution in the headset: a quarter of the work each time the Sun moves.
-    this.poleShadow.setResolution(xr ? 512 : 1024);
-    if (s) {
-      s.shadow.setResolution(xr ? 256 : 512);
-      s.farShadow.setResolution(xr ? 256 : 512);
-    }
+    this.quality.reset();
+    this.applyQuality();
     if (xr) {
       this.world.session?.updateTargetFrameRate?.(72)?.catch?.(() => undefined);
       this.standLift = 0;
     }
     this.dirtySun = this.dirtyHud = true;
+  }
+
+  /** Terrain and shadow detail: full on the laptop, the automatic level in the headset (perf.ts). */
+  private detail(): { meshStep: number; shadowRes: number; shadowEvery: number; foveation: number } {
+    return this.inXR ? LEVELS[this.quality.level] : { meshStep: 1, shadowRes: 512, shadowEvery: 1, foveation: 0 };
+  }
+
+  private applyQuality(): void {
+    const q = this.detail();
+    this.poleMesh.geometry = this.poleGeometry(q.meshStep * 2);
+    this.poleShadow.setResolution(q.shadowRes * 2);
+    const s = this.scene3;
+    if (s) {
+      s.mesh.geometry = s.geos[q.meshStep] ??= fieldGeometry(s.field, q.meshStep);
+      s.farMesh.geometry = s.farGeos[q.meshStep * 2] ??= fieldGeometry(s.farField, q.meshStep * 2);
+      s.shadow.setResolution(q.shadowRes);
+      s.farShadow.setResolution(q.shadowRes);
+    }
+    if (this.inXR) {
+      this.renderer.xr.setFoveation(q.foveation);
+    }
+    this.dirtySun = this.dirtyHud = true;
+  }
+
+  // ------------------------------------------------------------------------------------------------ tour
+
+  /** The guided tour: four stops, each with a caption made of numbers from the data, each waiting for "Next". */
+  private tourGo(stop: number): void {
+    if (this.mode === 'loading' || this.mode === 'flight') {
+      return;
+    }
+    const t = (this.tour = { stop, caption: '', why: null as Why | null, playFrom: null as number | null });
+    this.playing = false;
+    if (stop === 1) {
+      this.overlayOrbit = 'off';
+      this.cam.orbit = { az: 0.5, pol: 0.72, dist: 2.7 };
+      this.enterOrbit();
+      t.caption = captionPole(this.eph);
+    } else if (stop === 2) {
+      this.overlayOrbit = this.poleScore ? 'score' : 'sun';
+      this.enterOrbit();
+      t.caption = captionGoldilocks(this.summary);
+    } else if (stop === 3) {
+      const z = this.zones[0];
+      if (!z) {
+        this.tourEnd();
+        return;
+      }
+      t.why = whyFromRow(`zone #${z.rank}`, z.row, this.criteria);
+      t.caption = captionZone(z, this.preset.label, t.why);
+      this.overlaySite = 'score';
+      this.flyTo(this.zoneDest(z));
+    } else if (this.spot) {
+      this.overlaySite = 'off';
+      this.applyOverlay();
+      this.setMode('stand');
+      t.playFrom = Math.min(Math.floor(this.tH), WINDOW_H - TOUR_PLAY_H);
+      this.tH = t.playFrom;
+      t.caption = captionStand(sliceSeries(this.spot.series, t.playFrom, t.playFrom + TOUR_PLAY_H + 1), TOUR_PLAY_H);
+    }
+    this.dirtyHud = true;
+  }
+
+  private tourNext(): void {
+    const t = this.tour;
+    if (!t || this.mode === 'flight' || this.message) {
+      return; // still flying or loading: "Next" waits
+    }
+    if (t.stop >= TOUR_STOPS) {
+      this.tourEnd();
+    } else {
+      this.tourGo(t.stop + 1);
+    }
+  }
+
+  private tourEnd(): void {
+    this.tour = null;
+    this.playing = false;
+    this.enterOrbit();
   }
 
   private updateMarkers(): void {
@@ -1336,10 +1713,11 @@ export class ExperienceSystem extends createSystem({}) {
   }
 
   private hudModel(): HudModel {
-    const site = this.sites.find((s) => s.id === this.siteId);
+    const site = this.place;
     const inSite = this.mode === 'land' || this.mode === 'stand';
-    const overlays: OverlayId[] = inSite ? ['sun', 'earth', 'slope'] : ['sun', 'earth'];
-    if (inSite ? this.scene3?.tile.suitability : this.poleSuit) {
+    const coarse = inSite && this.scene3?.tile.coarse === true;
+    const overlays: OverlayId[] = !inSite || coarse ? ['sun', 'earth'] : ['sun', 'earth', 'slope'];
+    if (inSite ? this.scene3?.scoreMap : this.poleScore) {
       overlays.push('score');
     }
     overlays.push('off');
@@ -1347,12 +1725,20 @@ export class ExperienceSystem extends createSystem({}) {
     if (!info && this.mode === 'orbit' && this.missions.length) {
       info = 'Past landings: <span style="color:#8FC28A">landed</span>, <span style="color:#F6B93B">tipped</span>, <span style="color:#E0457B">crashed</span>. Point at one for its lesson.';
     }
+    if (!info && coarse) {
+      info = COARSE_NOTE;
+    }
     return {
+      presets: this.presets.map((p) => ({ key: p.key, label: p.label })),
+      preset: this.preset.key,
+      why: inSite ? (this.spot?.why ?? null) : null,
+      tour: this.tour ? { stop: this.tour.stop, of: TOUR_STOPS, caption: this.tour.caption, why: this.tour.why } : null,
+      stats: this.showStats ? this.statsText || 'measuring' : null,
       mode: this.mode,
       message: this.message,
       siteName: site?.name ?? null,
       sites: this.sites.filter((s) => s.terrain === 'dem').map((s) => ({ id: s.id, name: s.name, group: s.group })),
-      zones: this.zones.slice(0, LISTED_ZONES).map((z) => ({ rank: z.rank, name: z.near ? `near ${z.near}` : '', score: z.score, areaKm2: z.areaKm2 })),
+      zones: this.zones.slice(0, LISTED_ZONES).map((z) => ({ id: z.id, rank: z.rank, name: z.near ? `near ${z.near}` : '', score: z.score, areaKm2: z.areaKm2, detail: this.zoneHasTile(z) })),
       overlay: inSite ? this.overlaySite : this.overlayOrbit,
       overlays,
       spot: inSite ? this.spotView() : null,
@@ -1370,7 +1756,7 @@ export class ExperienceSystem extends createSystem({}) {
   }
 
   private panelModel(): PanelModel {
-    const site = this.sites.find((s) => s.id === this.siteId);
+    const site = this.place;
     const date = this.eph ? this.dateLabel() : '';
     const speedRow = [
       { id: 'play', label: this.playing ? 'Pause' : 'Play', on: this.playing },
@@ -1379,48 +1765,94 @@ export class ExperienceSystem extends createSystem({}) {
     if (this.mode === 'loading' || !this.eph) {
       return { title: 'Lunar Landing Site Navigator', subtitle: '', lines: [{ text: this.message ?? 'Loading' }], rows: [], timeFrac: null, credits: CREDITS };
     }
+    const stats: PanelModel['lines'] = this.showStats ? [{ text: this.statsText || 'measuring', color: 'text2' }] : [];
+    const statsButton = { id: 'stats', label: 'Stats', on: this.showStats };
+    const st = this.status;
+    const statusLines: PanelModel['lines'] = [];
+    if (st) {
+      const txt = statusText(st);
+      statusLines.push({ text: txt.sun, color: st.sunUp ? 'sun' : 'alert', big: true });
+      statusLines.push({ text: txt.earth, color: st.earthUp ? 'cloud' : 'alert', big: true });
+    }
+    const presetRow = this.presets.length > 1 ? [this.presets.map((p) => ({ id: `preset:${p.key}`, label: p.label, on: p === this.preset }))] : [];
+    const t = this.tour;
+    if (t) {
+      return {
+        title: `Tour: stop ${t.stop} of ${TOUR_STOPS}`,
+        subtitle: date,
+        lines: [
+          { text: this.mode === 'flight' ? `Flying to ${site?.name ?? ''}` : (this.message ?? t.caption), big: true },
+          ...(t.why?.lines.map((l) => ({ text: l.head, color: VERDICT_COLOR[l.verdict] })) ?? []),
+          ...(t.stop === TOUR_STOPS ? statusLines : []),
+          ...stats,
+        ],
+        rows: [[{ id: 'next', label: t.stop === TOUR_STOPS ? 'Finish' : 'Next', primary: true }, { id: 'endtour', label: 'End tour' }, statsButton]],
+        timeFrac: this.tH / WINDOW_H,
+        credits: CREDITS,
+      };
+    }
     if (this.mode === 'orbit' || this.mode === 'flight') {
       const dem = this.sites.filter((s) => s.terrain === 'dem');
-      const rows = [];
-      for (let i = 0; i < dem.length; i += 2) {
-        rows.push(dem.slice(i, i + 2).map((s) => ({ id: `site:${s.id}`, label: s.name, on: s.id === this.siteId })));
+      const rows = [[{ id: 'tour', label: 'Tour: 4 stops', primary: true }, statsButton, { id: 'exit', label: 'Exit VR' }]];
+      for (let i = 0; i < dem.length; i += 3) {
+        rows.push(dem.slice(i, i + 3).map((s) => ({ id: `site:${s.id}`, label: s.name, on: s.id === this.siteId })));
       }
-      const ov: OverlayId[] = this.poleSuit ? ['sun', 'earth', 'score', 'off'] : ['sun', 'earth', 'off'];
+      rows.push(...presetRow);
+      const top = this.zones.slice(0, LISTED_ZONES);
+      for (let i = 0; i < top.length; i += 2) {
+        rows.push(top.slice(i, i + 2).map((z) => ({ id: `zone:${z.id}`, label: `#${z.rank} ${z.near ? `near ${z.near}` : 'zone'}, score ${z.score}`, on: this.siteId === `zone-${z.id}` })));
+      }
+      const ov: OverlayId[] = this.poleScore ? ['sun', 'earth', 'score', 'off'] : ['sun', 'earth', 'off'];
       rows.push(ov.map((o) => ({ id: `ov:${o}`, label: o === 'off' ? 'Map off' : o === 'score' ? 'Goldilocks' : OVERLAYS[o].label, on: this.overlayOrbit === o })));
       return {
         title: this.mode === 'flight' ? `Flying to ${site?.name ?? ''}` : 'Choose a landing site',
         subtitle: date,
-        lines: [{ text: 'Point at a marker or a name and pull the trigger (or pinch).', color: 'text2' }],
+        lines: [{ text: 'Sites, then your priorities and the 10 best zones for them. Trigger or pinch to choose.', color: 'text2' }, ...stats],
         rows,
         timeFrac: this.tH / WINDOW_H,
         credits: CREDITS,
       };
     }
-    const lines: PanelModel['lines'] = [];
-    const st = this.status;
-    if (st) {
-      const txt = statusText(st);
-      lines.push({ text: txt.sun, color: st.sunUp ? 'sun' : 'alert', big: true });
-      lines.push({ text: txt.earth, color: st.earthUp ? 'cloud' : 'alert', big: true });
-    }
     const sp = this.spot;
+    if (this.showWhy && sp) {
+      return {
+        title: 'Why here?',
+        subtitle: sp.why.title,
+        lines: [
+          { text: sp.why.summary },
+          ...sp.why.lines.flatMap((l) => [
+            { text: l.head, color: VERDICT_COLOR[l.verdict] },
+            { text: l.detail, color: 'text2' as const, small: true },
+          ]),
+        ],
+        rows: [[{ id: 'why', label: 'Back', primary: true }]],
+        timeFrac: null,
+        credits: CREDITS,
+      };
+    }
+    const lines: PanelModel['lines'] = [...statusLines];
     if (sp) {
       const steep = sp.slopeDeg != null && sp.slopeDeg > 10;
       lines.push({
-        text: `Elevation ${Math.round(sp.hit.heightM)} m.  Slope ${sp.slopeDeg ?? '?'} deg${steep ? ': too steep to land' : ''}${sp.score == null ? '' : `.  Goldilocks ${sp.score}${sp.failed.length ? ' (fails a limit)' : ''}`}`,
+        text: `Elevation ${Math.round(sp.hit.heightM)} m.  Slope ${sp.slopeDeg == null ? 'no data' : `${sp.slopeDeg} deg`}${steep ? ': too steep to land' : ''}${sp.score == null ? '' : `.  Goldilocks map score ${sp.score}${sp.failed.length ? ' (fails a limit)' : ''}`}`,
         color: steep ? 'alert' : 'text',
       });
       lines.push({ text: `NASA map (18.6-year average): sunlit ${sp.nasaSun ?? '?'} %, Earth ${sp.nasaEarth ?? '?'} %`, color: 'text2' });
       lines.push({
         text: `Our model (these 30 days): sunlit ${Math.round(sp.metrics.sunPct)} %, Earth ${Math.round(sp.metrics.earthPct)} %, dark up to ${Math.round(sp.metrics.longestDarkH)} h`,
       });
+      lines.push({ text: sp.why.summary, color: 'text2' });
     }
-    const ovs: OverlayId[] = this.scene3?.tile.suitability ? ['sun', 'earth', 'slope', 'score', 'off'] : ['sun', 'earth', 'slope', 'off'];
+    const coarse = this.scene3?.tile.coarse === true;
+    if (coarse) {
+      lines.push({ text: COARSE_NOTE, color: 'text2', small: true });
+    }
+    const ovs: OverlayId[] = ['sun', 'earth', ...(coarse ? [] : ['slope' as const]), ...(this.scene3?.scoreMap ? ['score' as const] : []), 'off'];
     const short: Record<OverlayId, string> = { sun: 'Sunlight', earth: 'Earth', slope: 'Slope', score: 'Goldilocks', off: 'Off' };
     return {
       title: site?.name ?? '',
       subtitle: date,
-      lines,
+      lines: [...lines, ...stats],
       rows: [
         [
           { id: 'orbit', label: 'Orbit' },
@@ -1428,7 +1860,9 @@ export class ExperienceSystem extends createSystem({}) {
           { id: 'enlarge', label: `Enlarge ${ENLARGE}x`, on: this.enlarge },
           { id: 'exit', label: 'Exit VR' },
         ],
+        [{ id: 'why', label: 'Why here?' }, statsButton],
         ovs.map((o) => ({ id: `ov:${o}`, label: short[o], on: this.overlaySite === o })),
+        ...presetRow,
         speedRow,
       ],
       timeFrac: this.tH / WINDOW_H,
@@ -1454,8 +1888,23 @@ export class ExperienceSystem extends createSystem({}) {
       if (this.tH >= WINDOW_H) {
         this.tH = 0;
       }
+    } else if (this.tour?.playFrom != null && this.mode === 'stand') {
+      // Tour stop 4: the same two days, again and again.
+      this.tH += delta * TOUR_PLAY_RATE;
+      if (this.tH > this.tour.playFrom + TOUR_PLAY_H) {
+        this.tH = this.tour.playFrom;
+      }
     }
     const xr = this.inXR;
+    const before = this.quality.meanMs;
+    if (this.quality.sample(delta * 1000, xr)) {
+      this.applyQuality();
+    }
+    if (this.quality.meanMs !== before) {
+      const q = this.quality;
+      this.statsText = `${q.fps.toFixed(0)} fps, ${q.meanMs.toFixed(1)} ms per frame. Detail: ${xr ? `${LEVELS[q.level].name} (automatic)` : 'full'}`;
+      this.dirtyHud ||= this.showStats;
+    }
     if (xr) {
       this.updateXRInput(delta);
     }
@@ -1465,8 +1914,8 @@ export class ExperienceSystem extends createSystem({}) {
       this.screenRay(this.pointer.x, this.pointer.y, this.v1, this.v2);
       this.updateHover(this.v1.clone(), this.v2.clone());
     }
-    // Shadows are recomputed when time moves; in the headset at most every third frame.
-    if (this.dirtySun || (Math.abs(this.idx - this.lastSunIdx) > 0.004 && (!xr || this.frameNo % 3 === 0))) {
+    // Shadows are recomputed when time moves; in the headset every few frames (perf.ts).
+    if (this.dirtySun || (Math.abs(this.idx - this.lastSunIdx) > 0.004 && this.frameNo % this.detail().shadowEvery === 0)) {
       this.dirtySun = false;
       this.lastSunIdx = this.idx;
       this.updateSun();

@@ -1,5 +1,6 @@
 // The laptop interface: plain DOM over the canvas, Earthrise palette. In VR the same actions are on the
 // floating panel (vrpanel.ts).
+import type { Why } from './guide.js';
 import { OVERLAYS, type OverlayId } from './terrain.js';
 
 export const CREDITS =
@@ -31,7 +32,14 @@ export interface HudModel {
   message: string | null;
   siteName: string | null;
   sites: { id: string; name: string; group: string }[];
-  zones: { rank: number; name: string; score: number | null; areaKm2: number }[];
+  /** The best zones under the priorities in use; `id` is the published rank, `detail` false = ~430 m terrain only. */
+  zones: { id: number; rank: number; name: string; score: number; areaKm2: number; detail: boolean }[];
+  presets: { key: string; label: string }[];
+  preset: string;
+  why: Why | null;
+  tour: { stop: number; of: number; caption: string; why: Why | null } | null;
+  /** Frame rate line, or null when "Stats" is off. */
+  stats: string | null;
   overlay: OverlayId;
   overlays: OverlayId[];
   spot: SpotView | null;
@@ -49,7 +57,12 @@ export interface HudModel {
 
 export interface Actions {
   pickSite(id: string): void;
-  pickZone(rank: number): void;
+  pickZone(id: number): void;
+  setPreset(key: string): void;
+  tourStart(): void;
+  tourNext(): void;
+  tourEnd(): void;
+  toggleStats(): void;
   setOverlay(o: OverlayId): void;
   goOrbit(): void;
   goLand(): void;
@@ -98,6 +111,18 @@ html, body { margin:0; height:100%; background:#000; overflow:hidden; }
 #side .steep { color:var(--eclipse); font-weight:600; }
 #side .okc { color:var(--lichen); }
 #side .note { color:var(--ash); font-size:13px; margin-top:8px; }
+#side .why { margin:0; padding:0; list-style:none; font-size:13px; color:var(--ash); }
+#side .why li { padding:5px 0; border-top:1px solid var(--rim); }
+#side .why b { display:block; font-size:14px; font-weight:600; }
+#hud .good { color:var(--lichen); } #hud .acceptable { color:var(--sunlight); } #hud .rejected { color:var(--eclipse); }
+#tour { position:absolute; left:50%; bottom:150px; transform:translateX(-50%); width:min(760px, calc(100% - 24px)); padding:14px 16px; }
+#tour .cap { font-size:19px; line-height:1.35; margin:6px 0 10px; }
+#tour .step { font:600 13px var(--head); color:var(--ash); text-transform:uppercase; letter-spacing:.08em; }
+#tour ul { margin:0 0 10px; padding:0; list-style:none; columns:2; font-size:14px; font-weight:600; }
+#tour .row { display:flex; gap:8px; }
+#tour:empty { display:none; }
+#stats { padding:8px 12px; font-variant-numeric:tabular-nums; color:var(--ash); }
+#stats:empty { display:none; }
 #side .legend { display:flex; align-items:center; gap:8px; margin-top:8px; color:var(--ash); font-size:13px; }
 #side .ramp { flex:1; height:8px; border-radius:2px; }
 #status { position:absolute; top:64px; left:50%; transform:translateX(-50%); display:flex; gap:8px; }
@@ -114,6 +139,7 @@ html, body { margin:0; height:100%; background:#000; overflow:hidden; }
 #info:empty, #status:empty { display:none; }
 #msg { position:absolute; left:50%; top:45%; transform:translate(-50%,-50%); padding:14px 18px; font:600 16px var(--head); }
 #hud.embed #top .title { display:none; }
+@media (max-width: 720px) { #tour { bottom:138px; } #tour ul { columns:1; } }
 @media (max-width: 720px) { #side { width:calc(100% - 24px); max-height:38%; } #info { display:none; } #status { top:auto; bottom:150px; } }
 `;
 
@@ -146,6 +172,9 @@ export class Hud {
   private lastSide = '';
   private lastNav = '';
   private lastStatus = '';
+  private tour!: HTMLElement;
+  private stats!: HTMLElement;
+  private lastTour = '';
 
   constructor(private actions: Actions, embed: boolean) {
     const style = document.createElement('style');
@@ -159,12 +188,14 @@ export class Hud {
       <div id="top">
         <div class="box title"><h1>Lunar Landing Site Navigator</h1><span class="crumbs"></span></div>
         <div class="spacer"></div>
+        <div id="stats" class="box"></div>
         <div class="nav"></div>
       </div>
       <div id="side" class="box"></div>
       <div id="status"></div>
       <div id="info" class="box"></div>
       <div id="msg" class="box"></div>
+      <div id="tour" class="box"></div>
       <div id="time" class="box">
         <div class="line"><span class="date"></span>
           <button data-a="play" aria-label="Play or pause time">Play</button>
@@ -186,6 +217,8 @@ export class Hud {
     this.range = q('input[type=range]');
     this.play = q('[data-a=play]');
     this.timeBox = q('#time');
+    this.tour = q('#tour');
+    this.stats = q('#stats');
     this.speeds = [...this.root.querySelectorAll<HTMLButtonElement>('[data-s]')];
     this.range.addEventListener('input', () => actions.setTime(Number(this.range.value)));
     this.root.addEventListener('click', (e) => {
@@ -196,6 +229,11 @@ export class Hud {
       const d = b.dataset;
       if (d.site) actions.pickSite(d.site);
       else if (d.zone) actions.pickZone(Number(d.zone));
+      else if (d.preset) actions.setPreset(d.preset);
+      else if (d.a === 'tour') actions.tourStart();
+      else if (d.a === 'next') actions.tourNext();
+      else if (d.a === 'endtour') actions.tourEnd();
+      else if (d.a === 'stats') actions.toggleStats();
       else if (d.ov) actions.setOverlay(d.ov as OverlayId);
       else if (d.s) actions.setSpeed(Number(d.s));
       else if (d.a === 'play') actions.togglePlay();
@@ -217,6 +255,7 @@ export class Hud {
     const nav =
       (m.mode === 'land' || m.mode === 'stand' ? '<button class="box" data-a="orbit">Back to orbit</button>' : '') +
       (m.mode === 'stand' ? '<button class="box" data-a="land">Back to the map</button>' : '') +
+      `<button class="box${m.stats == null ? '' : ' on'}" data-a="stats">Stats</button>` +
       (m.xrOffered ? '<button class="box primary" data-a="vr">Enter VR</button>' : '');
     if (nav !== this.lastNav) {
       this.nav.innerHTML = this.lastNav = nav;
@@ -227,24 +266,43 @@ export class Hud {
     this.win.textContent = m.windowLabel;
     this.info.innerHTML = m.info ?? '';
 
+    const whyList = (w: Why) =>
+      `<ul class="why">${w.lines.map((l) => `<li><b class="${l.verdict}">${esc(l.head)}</b>${esc(l.detail)}</li>`).join('')}</ul>`;
+    let tour = '';
+    if (m.tour) {
+      const t = m.tour;
+      tour = `<div class="step">Tour, stop ${t.stop} of ${t.of}</div><div class="cap">${esc(t.caption)}</div>${
+        t.why ? `<ul>${t.why.lines.map((l) => `<li class="${l.verdict}">${esc(l.head)}</li>`).join('')}</ul>` : ''
+      }<div class="row"><button class="primary" data-a="next">${t.stop === t.of ? 'Finish' : 'Next'}</button><button data-a="endtour">End tour</button></div>`;
+    }
+    if (tour !== this.lastTour) {
+      this.tour.innerHTML = this.lastTour = tour;
+    }
+    this.stats.textContent = m.stats ?? '';
+    const presetButtons = () =>
+      m.presets.length > 1
+        ? `<h2>Your priorities</h2><div class="row">${m.presets
+            .map((p) => `<button data-preset="${p.key}" class="${p.key === m.preset ? 'on' : ''}">${esc(p.label)}</button>`)
+            .join('')}</div>`
+        : '';
     let html = '';
     const overlayButtons = () =>
       `<h2>Heat map</h2><div class="row">${m.overlays
         .map((o) => `<button data-ov="${o}" class="${o === m.overlay ? 'on' : ''}">${o === 'off' ? 'Off' : OVERLAYS[o].label}</button>`)
         .join('')}</div>${this.legend(m.overlay)}`;
     if (m.mode === 'orbit' || m.mode === 'flight') {
-      html += `<h2>Choose a landing site</h2><div class="list">${m.sites
+      html += `<div class="row"><button class="primary" data-a="tour">Tour: 4 stops</button></div><h2>Choose a landing site</h2><div class="list">${m.sites
         .map((s) => `<button data-site="${s.id}"><span>${esc(s.name)}</span><small>${s.group === 'artemis' ? 'Artemis' : 'IM-2, 2025'}</small></button>`)
         .join('')}</div>`;
-      html += overlayButtons();
+      html += overlayButtons() + presetButtons();
       if (m.zones.length) {
-        html += `<h2>Best Goldilocks zones</h2><div class="list">${m.zones
-          .map((z) => `<button data-zone="${z.rank}"><span>#${z.rank} ${esc(z.name)}</span><small>${z.score == null ? '' : `score ${Math.round(z.score)}, `}${z.areaKm2.toFixed(1)} km2</small></button>`)
+        html += `<h2>Top ${m.zones.length} zones for these priorities</h2><div class="list">${m.zones
+          .map((z) => `<button data-zone="${z.id}"><span>#${z.rank} ${esc(z.name)}</span><small>score ${z.score}, ${z.areaKm2.toFixed(1)} km2${z.detail ? '' : ', 430 m terrain'}</small></button>`)
           .join('')}</div>`;
       }
       html += `<p class="note">Relief: NASA LOLA, 440 km across, lit by the Sun's real direction at the chosen time. Drag to turn, scroll to zoom, click a marker.</p>`;
     } else if (m.mode === 'land' || m.mode === 'stand') {
-      html += overlayButtons();
+      html += overlayButtons() + presetButtons();
       if (m.spot) {
         const s = m.spot;
         const steep = s.slopeDeg != null && s.slopeDeg > 10;
@@ -253,7 +311,7 @@ export class Hud {
             <tr><td>Position</td><td>${esc(s.latLon)}</td></tr>
             <tr><td>Elevation</td><td>${Math.round(s.elevationM).toLocaleString('en-US')} m</td></tr>
             <tr><td>Slope</td><td class="${steep ? 'steep' : 'okc'}">${s.slopeDeg == null ? 'no data' : `${s.slopeDeg}&deg;`}${steep ? ' too steep to land' : ''}</td></tr>
-            ${s.scorePct == null ? '' : `<tr><td>Goldilocks score</td><td class="${s.failed.length ? 'steep' : 'okc'}">${Math.round(s.scorePct)}${s.failed.length ? `, fails: ${esc(s.failed.join(', '))}` : ', passes every limit'}</td></tr>`}
+            ${s.scorePct == null ? '' : `<tr><td>Goldilocks map score</td><td class="${s.failed.length ? 'steep' : 'okc'}">${Math.round(s.scorePct)}${s.failed.length ? `, fails: ${esc(s.failed.join(', '))}` : ', passes every limit'}</td></tr>`}
           </table>
           <table style="margin-top:10px">
             <tr><th></th><th>NASA map</th><th>Our model</th></tr>
@@ -267,6 +325,9 @@ export class Hud {
       html += m.mode === 'land' ? '<button class="primary" data-a="stand">Stand here</button>' : '';
       html += `<button data-a="enlarge" class="${m.enlarge ? 'on' : ''}">Enlarge Sun and Earth ${m.enlargeFactor}x for visibility</button></div>`;
       html += `<p class="note">${m.mode === 'land' ? 'Click the ground to choose the exact landing point. Drag to turn, scroll to zoom.' : 'You are 2 m above the surface at true scale. Drag to look around, scroll to zoom. Sun and Earth are at their real size (0.53 and about 1.9 deg) unless enlarged.'}</p>`;
+    }
+    if ((m.mode === 'land' || m.mode === 'stand') && m.why) {
+      html += `<h2>Why here? ${esc(m.why.title)}</h2><p class="note" style="margin:0 0 6px">${esc(m.why.summary)}</p>${whyList(m.why)}`;
     }
     if (html !== this.lastSide) {
       this.side.innerHTML = this.lastSide = html;

@@ -14,7 +14,7 @@ import {
 import { FONT } from './objects.js';
 
 const W = 1024;
-const H = 800;
+const H = 1024;
 export const PANEL_W_M = 0.82;
 export const PANEL_H_M = (PANEL_W_M * H) / W;
 
@@ -41,7 +41,8 @@ export interface PanelButton {
 export interface PanelModel {
   title: string;
   subtitle: string;
-  lines: { text: string; color?: PanelColor; big?: boolean }[];
+  /** Every line is wrapped over as many rows as it needs. */
+  lines: { text: string; color?: PanelColor; big?: boolean; small?: boolean }[];
   rows: PanelButton[][];
   /** 0..1 position in the 30-day window, or null to hide the time bar. */
   timeFrac: number | null;
@@ -83,7 +84,8 @@ export class VrPanel {
     this.texture.colorSpace = SRGBColorSpace;
     this.mesh = new Mesh(
       new PlaneGeometry(PANEL_W_M, PANEL_H_M),
-      new MeshBasicMaterial({ map: this.texture, transparent: false }),
+      // Drawn after the floating labels (transparent pass, late order, no depth test), so they never cover it.
+      new MeshBasicMaterial({ map: this.texture, transparent: true, depthTest: false, depthWrite: false }),
     );
     this.mesh.renderOrder = 20;
   }
@@ -121,16 +123,18 @@ export class VrPanel {
     g.textAlign = 'left';
     y += 22;
     for (const line of m.lines) {
-      const size = line.big ? 34 : 26;
-      y += size + 10;
+      const size = line.big ? 32 : line.small ? 19 : 25;
       g.font = `${line.big ? 600 : 400} ${size}px ${FONT}`;
       g.fillStyle = C[line.color ?? 'text'];
-      g.fillText(line.text, pad, y, W - 2 * pad);
+      for (const part of this.wrap(line.text, W - 2 * pad)) {
+        y += size + (line.small ? 5 : 9);
+        g.fillText(part, pad, y, W - 2 * pad);
+      }
     }
-    y += 22;
-    const bh = 58;
+    y += 20;
+    const bh = 50;
     for (const row of m.rows) {
-      const gap = 12;
+      const gap = 10;
       const bw = (W - 2 * pad - gap * (row.length - 1)) / row.length;
       row.forEach((b, i) => {
         const r = { x: pad + i * (bw + gap), y, w: bw, h: bh };
@@ -144,12 +148,12 @@ export class VrPanel {
         g.fill();
         g.stroke();
         g.fillStyle = b.primary || b.on ? '#191612' : C.text;
-        g.font = `600 26px ${FONT}`;
+        g.font = `600 23px ${FONT}`;
         g.textAlign = 'center';
-        g.fillText(b.label, r.x + r.w / 2, r.y + bh / 2 + 9, r.w - 12);
+        g.fillText(b.label, r.x + r.w / 2, r.y + bh / 2 + 8, r.w - 12);
         g.textAlign = 'left';
       });
-      y += bh + 12;
+      y += bh + 10;
     }
     this.bar = null;
     if (m.timeFrac != null) {
@@ -170,20 +174,25 @@ export class VrPanel {
     // Credits, wrapped, at the bottom.
     g.fillStyle = C.text2;
     g.font = `400 18px ${FONT}`;
-    const words = m.credits.split(' ');
-    const linesOut: string[] = [];
+    const linesOut = this.wrap(m.credits, W - 2 * pad);
+    linesOut.forEach((l, i) => g.fillText(l, pad, H - pad - (linesOut.length - 1 - i) * 22 + 8));
+    this.texture.needsUpdate = true;
+  }
+
+  /** Splits text into rows no wider than `width` in the current font. */
+  private wrap(text: string, width: number): string[] {
+    const out: string[] = [];
     let cur = '';
-    for (const w of words) {
-      if (g.measureText(`${cur} ${w}`).width > W - 2 * pad && cur) {
-        linesOut.push(cur);
+    for (const w of text.split(' ')) {
+      if (cur && this.ctx.measureText(`${cur} ${w}`).width > width) {
+        out.push(cur);
         cur = w;
       } else {
         cur = cur ? `${cur} ${w}` : w;
       }
     }
-    linesOut.push(cur);
-    linesOut.forEach((l, i) => g.fillText(l, pad, H - pad - (linesOut.length - 1 - i) * 22 + 8));
-    this.texture.needsUpdate = true;
+    out.push(cur);
+    return out;
   }
 
   /** Where a world-space ray meets the panel, and what is under it. */

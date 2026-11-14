@@ -10,6 +10,7 @@ import {
   dirToScene,
   gridFrame,
   groundAt,
+  landingSlopeDeg,
   latLonToScene,
   raycastField,
   shadowMarginDeg,
@@ -119,5 +120,30 @@ describe('the scene agrees with the analysis library at Malapert (mma01)', () =>
     expect(sum / n).toBeLessThan(0.05);
     expect(worst).toBeLessThan(1.0);
     expect(flips / n).toBeLessThan(0.03);
+  });
+});
+
+describe('landingSlopeDeg', () => {
+  it('reproduces landing_slope_deg of zones.csv at the best cell of every zone on the Malapert tile', () => {
+    const meta = json('terrain/sites/mma01/tile.json');
+    const tile = parseHeightGrid(meta, bin('terrain/sites/mma01/height.u16'));
+    const lines = readFileSync(new URL('suitability/zones.csv', DATA), 'utf8').trim().split('\n');
+    const head = lines[0].split(',');
+    const ix = head.indexOf('x_m'), iy = head.indexOf('y_m'), is = head.indexOf('landing_slope_deg');
+    let n = 0;
+    let worst = 0;
+    for (const line of lines.slice(1)) {
+      const c = line.split(',');
+      const col = Math.round((Number(c[ix]) - tile.xMinM) / tile.pixelM - 0.5);
+      const row = Math.round((tile.yMaxM - Number(c[iy])) / tile.pixelM - 0.5);
+      const v = landingSlopeDeg(tile, row, col);
+      if (!Number.isNaN(v)) {
+        n++;
+        worst = Math.max(worst, Math.abs(v - Number(c[is])));
+      }
+    }
+    console.log(`landingSlopeDeg vs zones.csv on the mma01 tile: ${n} zones, worst difference ${worst.toFixed(3)} deg`);
+    expect(n).toBeGreaterThan(20);
+    expect(worst).toBeLessThan(0.2); // heights are stored in 16 bits and the csv is rounded to 0.1 deg
   });
 });

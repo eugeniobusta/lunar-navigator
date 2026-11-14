@@ -1,0 +1,43 @@
+{
+ "version": 1,
+ "site_id": "nr107",
+ "proj": "+proj=stere +lat_0=-90 +lat_ts=-90 +lon_0=0 +k=1 +x_0=0 +y_0=0 +R=1737400 +units=m +no_defs",
+ "size": 512,
+ "pixel_m": 120.0,
+ "x_min_m": 57360.0,
+ "y_max_m": 146760.0,
+ "height_min_m": -1732.0,
+ "height_max_m": 7026.0,
+ "site": {
+  "x_m": 88046.8,
+  "y_m": 116092.4,
+  "row": 255.063,
+  "col": 255.223,
+  "height_m": 6696.7
+ },
+ "far": {
+  "size": 512,
+  "pixel_m": 600.0,
+  "x_min_m": -65520.0,
+  "y_max_m": 269640.0,
+  "height_min_m": -4369.0,
+  "height_max_m": 7014.0
+ },
+ "files": {
+  "height": "height.u16",
+  "sun": "sun.u8",
+  "earth": "earth.u8",
+  "slope": "slope.u8",
+  "far": "far.u16"
+ },
+ "sources": [
+  {
+   "name": "LOLA LDEM_75S_120M (LRO Lunar Orbiter Laser Altimeter, PDS Geosciences Node)",
+   "url": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/float_img/"
+  },
+  {
+   "name": "NASA GSFC PGDA Lunar Polar Illumination, AVGVISIB_75S_120M_201608 (Sun and Earth)",
+   "url": "https://pgda.gsfc.nasa.gov/products/69"
+  }
+ ]
+}

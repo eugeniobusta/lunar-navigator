@@ -126,6 +126,37 @@ A 1024 x 1024 picture of the south pole for the 3D view (docs/INTERFACES.md sect
 Each pixel is the mean of the 120 m source over its ~430 m footprint, so sharp ridges are smoothed. The two
 visibility grids are resampled NASA data (cite Mazarico et al. 2011), not our own results.
 
+## terrain/sites/<site_id>/tile.json and its five binary grids
+
+A 512 x 512 close-up of the terrain around each site with `terrain = "dem"`, at the elevation map's own 120 m
+pixels (61.44 km across), for the VR view (docs/INTERFACES.md section 9).
+
+| Field | Type | Unit | Meaning |
+|-------|------|------|---------|
+| `version` | integer | | Format version (1). |
+| `site_id` | string | | The site this tile is centred on. |
+| `proj` | string | | PROJ string of the map projection (see Conventions). |
+| `size` | integer | px | Rows and columns: 512. |
+| `pixel_m` | number | m | Pixel size: 120. |
+| `x_min_m`, `y_max_m` | number | m | Outer edges of the tile. Centre of pixel (row, col): `x = x_min_m + (col + 0.5) * pixel_m`, `y = y_max_m - (row + 0.5) * pixel_m`. |
+| `height_min_m`, `height_max_m` | number | m | Height range used to scale `height.u16`. |
+| `site.x_m`, `site.y_m` | number | m | Site position in the map projection. |
+| `site.row`, `site.col` | number | px | Site position as fractional pixel indices (an integer is a pixel centre). |
+| `site.height_m` | number | m | Ground height at the site (full-resolution elevation map). |
+| `far.size`, `far.pixel_m`, `far.x_min_m`, `far.y_max_m`, `far.height_min_m`, `far.height_max_m` | number | px, m | The same grid fields for `far.u16`: 512 pixels of 600 m. |
+| `files.height`, `files.sun`, `files.earth`, `files.slope`, `files.far` | string | | Names of the five binary files. |
+| `sources[].name`, `sources[].url` | string | | Where the source data comes from. |
+
+| File | Encoding | Value |
+|------|----------|-------|
+| `height.u16` | 512 x 512 little-endian uint16, row-major, row 0 = northern edge (largest y), column 0 = smallest x | `height_m = height_min_m + v / 65535 * (height_max_m - height_min_m)`; the elevation map's own pixels, not resampled |
+| `sun.u8` | 512 x 512 uint8, same layout | NASA PGDA average sunlight at its native 120 m pixels, percent 0 to 100; 255 = no data |
+| `earth.u8` | 512 x 512 uint8, same layout | NASA PGDA average Earth visibility, percent 0 to 100; 255 = no data |
+| `slope.u8` | 512 x 512 uint8, same layout | Terrain slope in whole degrees, measured across 240 m; 255 = no data |
+| `far.u16` | 512 x 512 little-endian uint16, same layout, 600 m pixels | Heights of the wider surroundings (each pixel the mean of 5 x 5 elevation-map pixels), scaled with `far.height_min_m` and `far.height_max_m` |
+
+The two visibility grids are NASA data (cite Mazarico et al. 2011), not our own results.
+
 ## validation/jpl.csv
 
 Our Sun and Earth positions against JPL Horizons (docs/VALIDATION.md table 1). One row per site and body.

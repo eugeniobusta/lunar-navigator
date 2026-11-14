@@ -168,3 +168,47 @@ pixel (row, col) is at `x = x_min_m + (col + 0.5) * pixel_m`, `y = y_max_m - (ro
 Site `height_m` is the full-resolution DEM height (same as `surface_elev_m` in horizons/<id>.json).
 Each pixel is the mean of the source over its ~430 m footprint, so sharp ridges are smoothed: use the maps for
 display, and horizons/<id>.json or docs/VALIDATION.md for per-site numbers.
+
+---------------------------------------------------------------------------------------------------
+## 9. Site terrain tiles  (owner: Eugenio; consumer: the VR view in xr/) — web/public/data/terrain/sites/<id>/
+
+Written by `scripts/export_site_tiles.py` (part of `make data`) for every terrain="dem" site. A 512 x 512 tile at the
+DEM's native 120 m per pixel (61.44 km across, about 30 km around the site), same projection as section 8. The tile is
+cut on the DEM's own pixel grid, with no resampling, so the site lies within half a pixel of the tile centre
+(`site.row`, `site.col`). All grids: row-major, row 0 = northern edge (largest y), column 0 = smallest x.
+
+- `height.u16`: little-endian uint16, `height_m = height_min_m + v / 65535 * (height_max_m - height_min_m)`
+  (per-tile min/max, steps of about 0.1 m). 524,288 bytes.
+- `sun.u8`, `earth.u8`: NASA PGDA AVGVISIB_75S_120M_201608 Sun and Earth maps at their native 120 m pixels,
+  percent 0..100, 255 = no data. 262,144 bytes each.
+- `slope.u8`: slope in whole degrees from central differences of the DEM (240 m baseline), 255 = no data. 262,144 bytes.
+- `far.u16`: the surroundings for the far horizon, 512 x 512 at 600 m per pixel (each the mean of 5 x 5 DEM pixels,
+  +/- 153.6 km around the tile centre), encoded like `height.u16` with the `far` block's own min/max. 524,288 bytes.
+- `tile.json`:
+
+```json
+{
+  "version": 1,
+  "site_id": "mma01",
+  "proj": "+proj=stere +lat_0=-90 +lat_ts=-90 +lon_0=0 +k=1 +x_0=0 +y_0=0 +R=1737400 +units=m +no_defs",
+  "size": 512,
+  "pixel_m": 120.0,
+  "x_min_m": -32760.0,
+  "y_max_m": 153840.0,
+  "height_min_m": -2502.0,
+  "height_max_m": 5173.0,
+  "site": { "x_m": -2027.2, "y_m": 123071.7, "row": 255.902, "col": 255.607, "height_m": 4728.7 },
+  "far": { "size": 512, "pixel_m": 600.0, "x_min_m": -155640.0, "y_max_m": 276720.0,
+           "height_min_m": -5008.0, "height_max_m": 7008.0 },
+  "files": { "height": "height.u16", "sun": "sun.u8", "earth": "earth.u8", "slope": "slope.u8", "far": "far.u16" },
+  "sources": [ { "name": "LOLA LDEM_75S_120M ...", "url": "https://..." } ]
+}
+```
+`x_min_m` and `y_max_m` are outer edges; the centre of pixel (row, col) is at `x = x_min_m + (col + 0.5) * pixel_m`,
+`y = y_max_m - (row + 0.5) * pixel_m`. `site.row` / `site.col` are fractional pixel indices on that same convention
+(an integer is a pixel centre). `site.height_m` equals `surface_elev_m` in horizons/<id>.json.
+
+`web/src/lib/analysis/demHorizon.ts` turns these grids into a section-3 horizon at any point of the tile:
+`demHorizon(tile, [southPole, siteFar], lat, lon)` returns a `Horizon` for `computeSeries`. Heights come from the
+tile where it covers the sample, then from the section-8 grid, then from `far.u16`. At the 10 site centres it differs
+from horizons/<id>.json by 0.003 deg on average and 0.027 deg at most (web/src/lib/analysis/demHorizon.test.ts).

@@ -113,7 +113,7 @@
   },
   {
    "path": "index.json",
-   "bytes": 4966,
+   "bytes": 17167,
    "format": "JSON",
    "description": "This list: every published file with its size, format and description."
   },
@@ -122,6 +122,366 @@
    "bytes": 5433,
    "format": "JSON",
    "description": "Landing sites: coordinates, source and coordinate quality."
+  },
+  {
+   "path": "terrain/sites/dgr203/earth.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "NASA PGDA average Earth visibility around de Gerlache Rim 2, percent, 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/dgr203/far.u16",
+   "bytes": 524288,
+   "format": "binary, little-endian uint16",
+   "description": "Coarse terrain heights around de Gerlache Rim 2, 512 x 512 at 600 m per pixel (far horizon)."
+  },
+  {
+   "path": "terrain/sites/dgr203/height.u16",
+   "bytes": 524288,
+   "format": "binary, little-endian uint16",
+   "description": "Terrain heights around de Gerlache Rim 2, 512 x 512 at 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/dgr203/slope.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Terrain slope around de Gerlache Rim 2, degrees, 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/dgr203/sun.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "NASA PGDA average sunlight around de Gerlache Rim 2, percent, 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/dgr203/tile.json",
+   "bytes": 1038,
+   "format": "JSON",
+   "description": "Grid definition and sources for the 120 m terrain tile around de Gerlache Rim 2."
+  },
+  {
+   "path": "terrain/sites/hw02/earth.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "NASA PGDA average Earth visibility around Haworth, percent, 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/hw02/far.u16",
+   "bytes": 524288,
+   "format": "binary, little-endian uint16",
+   "description": "Coarse terrain heights around Haworth, 512 x 512 at 600 m per pixel (far horizon)."
+  },
+  {
+   "path": "terrain/sites/hw02/height.u16",
+   "bytes": 524288,
+   "format": "binary, little-endian uint16",
+   "description": "Terrain heights around Haworth, 512 x 512 at 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/hw02/slope.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Terrain slope around Haworth, degrees, 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/hw02/sun.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "NASA PGDA average sunlight around Haworth, percent, 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/hw02/tile.json",
+   "bytes": 1038,
+   "format": "JSON",
+   "description": "Grid definition and sources for the 120 m terrain tile around Haworth."
+  },
+  {
+   "path": "terrain/sites/im2/earth.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "NASA PGDA average Earth visibility around IM-2 Athena (Mons Mouton), Mar 2025, percent, 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/im2/far.u16",
+   "bytes": 524288,
+   "format": "binary, little-endian uint16",
+   "description": "Coarse terrain heights around IM-2 Athena (Mons Mouton), Mar 2025, 512 x 512 at 600 m per pixel (far horizon)."
+  },
+  {
+   "path": "terrain/sites/im2/height.u16",
+   "bytes": 524288,
+   "format": "binary, little-endian uint16",
+   "description": "Terrain heights around IM-2 Athena (Mons Mouton), Mar 2025, 512 x 512 at 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/im2/slope.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Terrain slope around IM-2 Athena (Mons Mouton), Mar 2025, degrees, 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/im2/sun.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "NASA PGDA average sunlight around IM-2 Athena (Mons Mouton), Mar 2025, percent, 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/im2/tile.json",
+   "bytes": 1033,
+   "format": "JSON",
+   "description": "Grid definition and sources for the 120 m terrain tile around IM-2 Athena (Mons Mouton), Mar 2025."
+  },
+  {
+   "path": "terrain/sites/mma01/earth.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "NASA PGDA average Earth visibility around Malapert Massif, percent, 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/mma01/far.u16",
+   "bytes": 524288,
+   "format": "binary, little-endian uint16",
+   "description": "Coarse terrain heights around Malapert Massif, 512 x 512 at 600 m per pixel (far horizon)."
+  },
+  {
+   "path": "terrain/sites/mma01/height.u16",
+   "bytes": 524288,
+   "format": "binary, little-endian uint16",
+   "description": "Terrain heights around Malapert Massif, 512 x 512 at 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/mma01/slope.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Terrain slope around Malapert Massif, degrees, 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/mma01/sun.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "NASA PGDA average sunlight around Malapert Massif, percent, 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/mma01/tile.json",
+   "bytes": 1039,
+   "format": "JSON",
+   "description": "Grid definition and sources for the 120 m terrain tile around Malapert Massif."
+  },
+  {
+   "path": "terrain/sites/mmo01/earth.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "NASA PGDA average Earth visibility around Mons Mouton, percent, 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/mmo01/far.u16",
+   "bytes": 524288,
+   "format": "binary, little-endian uint16",
+   "description": "Coarse terrain heights around Mons Mouton, 512 x 512 at 600 m per pixel (far horizon)."
+  },
+  {
+   "path": "terrain/sites/mmo01/height.u16",
+   "bytes": 524288,
+   "format": "binary, little-endian uint16",
+   "description": "Terrain heights around Mons Mouton, 512 x 512 at 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/mmo01/slope.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Terrain slope around Mons Mouton, degrees, 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/mmo01/sun.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "NASA PGDA average sunlight around Mons Mouton, percent, 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/mmo01/tile.json",
+   "bytes": 1037,
+   "format": "JSON",
+   "description": "Grid definition and sources for the 120 m terrain tile around Mons Mouton."
+  },
+  {
+   "path": "terrain/sites/mmp06/earth.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "NASA PGDA average Earth visibility around Mons Mouton Plateau, percent, 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/mmp06/far.u16",
+   "bytes": 524288,
+   "format": "binary, little-endian uint16",
+   "description": "Coarse terrain heights around Mons Mouton Plateau, 512 x 512 at 600 m per pixel (far horizon)."
+  },
+  {
+   "path": "terrain/sites/mmp06/height.u16",
+   "bytes": 524288,
+   "format": "binary, little-endian uint16",
+   "description": "Terrain heights around Mons Mouton Plateau, 512 x 512 at 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/mmp06/slope.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Terrain slope around Mons Mouton Plateau, degrees, 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/mmp06/sun.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "NASA PGDA average sunlight around Mons Mouton Plateau, percent, 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/mmp06/tile.json",
+   "bytes": 1033,
+   "format": "JSON",
+   "description": "Grid definition and sources for the 120 m terrain tile around Mons Mouton Plateau."
+  },
+  {
+   "path": "terrain/sites/nr107/earth.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "NASA PGDA average Earth visibility around Nobile Rim 1, percent, 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/nr107/far.u16",
+   "bytes": 524288,
+   "format": "binary, little-endian uint16",
+   "description": "Coarse terrain heights around Nobile Rim 1, 512 x 512 at 600 m per pixel (far horizon)."
+  },
+  {
+   "path": "terrain/sites/nr107/height.u16",
+   "bytes": 524288,
+   "format": "binary, little-endian uint16",
+   "description": "Terrain heights around Nobile Rim 1, 512 x 512 at 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/nr107/slope.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Terrain slope around Nobile Rim 1, degrees, 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/nr107/sun.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "NASA PGDA average sunlight around Nobile Rim 1, percent, 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/nr107/tile.json",
+   "bytes": 1037,
+   "format": "JSON",
+   "description": "Grid definition and sources for the 120 m terrain tile around Nobile Rim 1."
+  },
+  {
+   "path": "terrain/sites/nr208/earth.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "NASA PGDA average Earth visibility around Nobile Rim 2, percent, 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/nr208/far.u16",
+   "bytes": 524288,
+   "format": "binary, little-endian uint16",
+   "description": "Coarse terrain heights around Nobile Rim 2, 512 x 512 at 600 m per pixel (far horizon)."
+  },
+  {
+   "path": "terrain/sites/nr208/height.u16",
+   "bytes": 524288,
+   "format": "binary, little-endian uint16",
+   "description": "Terrain heights around Nobile Rim 2, 512 x 512 at 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/nr208/slope.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Terrain slope around Nobile Rim 2, degrees, 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/nr208/sun.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "NASA PGDA average sunlight around Nobile Rim 2, percent, 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/nr208/tile.json",
+   "bytes": 1035,
+   "format": "JSON",
+   "description": "Grid definition and sources for the 120 m terrain tile around Nobile Rim 2."
+  },
+  {
+   "path": "terrain/sites/pcb03/earth.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "NASA PGDA average Earth visibility around Peak near Cabeus B, percent, 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/pcb03/far.u16",
+   "bytes": 524288,
+   "format": "binary, little-endian uint16",
+   "description": "Coarse terrain heights around Peak near Cabeus B, 512 x 512 at 600 m per pixel (far horizon)."
+  },
+  {
+   "path": "terrain/sites/pcb03/height.u16",
+   "bytes": 524288,
+   "format": "binary, little-endian uint16",
+   "description": "Terrain heights around Peak near Cabeus B, 512 x 512 at 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/pcb03/slope.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Terrain slope around Peak near Cabeus B, degrees, 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/pcb03/sun.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "NASA PGDA average sunlight around Peak near Cabeus B, percent, 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/pcb03/tile.json",
+   "bytes": 1040,
+   "format": "JSON",
+   "description": "Grid definition and sources for the 120 m terrain tile around Peak near Cabeus B."
+  },
+  {
+   "path": "terrain/sites/sp07/earth.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "NASA PGDA average Earth visibility around Slater Plain, percent, 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/sp07/far.u16",
+   "bytes": 524288,
+   "format": "binary, little-endian uint16",
+   "description": "Coarse terrain heights around Slater Plain, 512 x 512 at 600 m per pixel (far horizon)."
+  },
+  {
+   "path": "terrain/sites/sp07/height.u16",
+   "bytes": 524288,
+   "format": "binary, little-endian uint16",
+   "description": "Terrain heights around Slater Plain, 512 x 512 at 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/sp07/slope.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Terrain slope around Slater Plain, degrees, 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/sp07/sun.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "NASA PGDA average sunlight around Slater Plain, percent, 120 m per pixel."
+  },
+  {
+   "path": "terrain/sites/sp07/tile.json",
+   "bytes": 1034,
+   "format": "JSON",
+   "description": "Grid definition and sources for the 120 m terrain tile around Slater Plain."
   },
   {
    "path": "terrain/south_pole.json",

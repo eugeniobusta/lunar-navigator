@@ -94,7 +94,7 @@ def main():
     (OUT / "south_pole.json").write_text(json.dumps(doc, indent=1))
 
     total = 0
-    for p in sorted(OUT.iterdir()):
+    for p in sorted(p for p in OUT.iterdir() if p.is_file()):
         total += p.stat().st_size
         print(f"{p.name:26s} {p.stat().st_size:>9,d} bytes")
     print(f"total {total / 1e6:.2f} MB; pixel {PIXEL_M} m; heights {h_min:.0f} .. {h_max:.0f} m; {len(sites)} sites")

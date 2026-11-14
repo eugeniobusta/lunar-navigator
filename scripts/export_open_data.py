@@ -66,6 +66,16 @@ def describe(rel, names):
         return f"Terrain horizons at 81 points (9 x 9, 500 m apart) around {names[stem[:-5]]}."
     if rel.startswith("horizons/"):
         return f"Terrain horizon (skyline elevation every 0.5 deg of azimuth) at {names[stem]}."
+    if rel.startswith("terrain/sites/"):
+        site = names[rel.split("/")[2]]
+        return {
+            "tile.json": f"Grid definition and sources for the 120 m terrain tile around {site}.",
+            "height.u16": f"Terrain heights around {site}, 512 x 512 at 120 m per pixel.",
+            "far.u16": f"Coarse terrain heights around {site}, 512 x 512 at 600 m per pixel (far horizon).",
+            "sun.u8": f"NASA PGDA average sunlight around {site}, percent, 120 m per pixel.",
+            "earth.u8": f"NASA PGDA average Earth visibility around {site}, percent, 120 m per pixel.",
+            "slope.u8": f"Terrain slope around {site}, degrees, 120 m per pixel.",
+        }[Path(rel).name]
     return {
         "terrain/south_pole.json": "Grid definition, site positions and sources for the south-pole terrain files.",
         "terrain/south_pole_height.u16": "South-pole terrain heights, 1024 x 1024, about 430 m per pixel.",

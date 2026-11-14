@@ -5,6 +5,8 @@ Update Sat 09:30: the build is split between two AI sessions so humans only do w
 - engine/**, scripts/**, tests/, web/public/data/ephemeris.json and horizons/** are built by Eugenio's local
   Claude Code (Fable 5.2), because only a laptop can reach the NASA/JPL servers (branches feat/kien-*).
 - The per-person table below still says who REVIEWS each area and answers questions about it.
+- Once the MVP is on main (real data for the 9 Artemis sites), the per-person table applies again for new
+  features: see docs/BACKLOG.md.
 
 
 | Path | Owner | Branch prefix |

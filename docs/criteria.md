@@ -159,3 +159,46 @@ IM-1 Odysseus (80.13 S) fails two: the slope across 120 m at its spot is 14.3 de
 - Sunlight and Earth averages are NASA's 18.6-year means for the ground itself; our time model uses a 2 m mast.
 - The temperature is a model 2 cm below the surface on a ~0.5 km mesh.
 - No dust, no thermal design, no descent trajectory, no launch windows, no science ranking.
+
+## 8. Traffic lights: green, amber, red
+
+The maps show three classes, not a ramp. Code: `web/src/lib/analysis/rag.ts` (shared with the VR view), tested in
+`rag.test.ts` at every boundary below.
+
+**Order of the rules**
+
+1. No data is grey. It is never green and never scored.
+2. A cell that fails a NASA hard limit (section 1) is red, hatched, and labelled "unsafe: fails" with the limit's
+   name. Nothing overrides this: not a high score, not a flipped direction, not the display settings.
+3. **One parameter shown by itself** uses its own ranges from the table in section 2 and docs/criteria.csv:
+   green at or beyond its ideal bound, red at or beyond its reject bound, amber in between.
+4. **Several parameters** use the weighted score of section 2 for what is ticked, then:
+
+| Class | Score | Meaning |
+|-------|-------|---------|
+| Green | 70 to 100 | On average, what you ticked is at least 70 % of the way from "reject" to "ideal" |
+| Amber | 40 to 69 | Acceptable: it passes, with clear weaknesses |
+| Red | 0 to 39 | On average closer to "reject" than to "ideal", by a clear margin |
+
+**Why 70 and 40 (team choice).** A sub-score of 1 is the ideal bound and 0 the reject bound, so the score reads as
+"how far towards ideal, on average". 70 asks for most of the way there on everything that was ticked; a spot
+cannot reach it on one strong parameter alone unless that is the only one ticked. 40 is set below the midpoint so
+that red means clearly poor, not merely average. On this build, of the 120 m cells that pass every hard limit,
+5.9 % are green, 84.7 % amber and 9.5 % red under "NASA-style balance", and 5.5 %, 93.4 % and 1.1 % under
+"Everything": green is rare, which is what the ground is like. These classes describe our score, not a NASA
+rating.
+
+**Preferred direction.** Each parameter has a default direction, read from its bounds: more is better for
+sunlight, Earth in view, walkable ground and temperature; less is better for the rest. Five can be turned round
+by the user, because a mission may want the opposite: landing slope, ice nearby, ice depth, temperature and hollow
+depth. Flipping swaps green and red for that parameter only, and turns its sub-score round in the combined score
+(s becomes 1 - s). The hard limits never flip: with "prefer steeper ground", 10 degrees or more is still unsafe.
+
+**Exactness.** Classes on the map are read from the published 8-bit layers. For the four parameters whose reject
+bound is a NASA limit (sunlight, Earth in view, landing slope, walkable ground) red is decided by the exact limit,
+not by the rounded byte. Elsewhere a class can be off within one step (0.4 % of the parameter's range) of a
+boundary: measured against the source values, 0.11 % to 0.23 % of map pixels per parameter (0.67 % for ice
+depth). The exact value is shown when a spot is clicked.
+
+**Display settings never change a score.** Opacity, the colour-blind palette and the zoom only change how a class
+is drawn. The classes and scores are computed before any of them is applied.

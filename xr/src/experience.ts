@@ -353,6 +353,7 @@ export class ExperienceSystem extends createSystem({}) {
   private colourBlind = false;
   /** The group of parameters that is open in the layer panel (one at a time). */
   private openGroup: string | null = null;
+  private layersCache: LayersModel | null = null;
   /** Tour stops that show bare ground. */
   private mapHidden = false;
   private enlarge = false;
@@ -2206,6 +2207,11 @@ export class ExperienceSystem extends createSystem({}) {
   /** The layer panel, the same for the laptop and the headset: presets, the four groups and their parameters,
    *  what the map shows and its legend, the display settings. */
   private layersModel(): LayersModel {
+    // The VR panel asks every frame; the model only changes when something marked the interface dirty.
+    return (this.layersCache ??= this.buildLayersModel());
+  }
+
+  private buildLayersModel(): LayersModel {
     const sel = this.selection;
     const counted = countedTerms(sel);
     const flips = flippedTerms(sel);
@@ -2533,6 +2539,7 @@ export class ExperienceSystem extends createSystem({}) {
     }
     if (this.dirtyHud) {
       this.dirtyHud = false;
+      this.layersCache = null;
       this.hud.render(this.hudModel());
     }
     if (xr) {

@@ -195,9 +195,11 @@ export class VrPanel {
           this.buttons.push({ id: b.id, r });
         }
         const hovered = !b.locked && this.hover === b.id;
-        g.fillStyle = b.primary ? C.sun : b.on ? C.text : hovered ? C.rim : C.panel;
-        g.strokeStyle = hovered ? C.text : C.rim;
-        g.lineWidth = 3;
+        // The main action is filled; a choice that is on has a bright edge and a line under its label (the
+        // website's look); the rest are quiet outlines.
+        g.fillStyle = b.primary ? C.text : hovered ? C.rim : C.panel;
+        g.strokeStyle = hovered || (b.on && b.check == null) ? C.text : C.rim;
+        g.lineWidth = b.on && b.check == null ? 4 : 3;
         g.beginPath();
         g.roundRect(r.x, r.y, r.w, r.h, 8);
         g.fill();
@@ -230,9 +232,13 @@ export class VrPanel {
           g.fillStyle = on && !b.locked ? C.text : C.text2;
           g.fillText(b.label, bx + box + 14, r.y + bh / 2 + 9, r.w - (bx - r.x) - box - 26);
         } else {
-          g.fillStyle = b.primary || b.on ? '#191612' : C.text;
+          g.fillStyle = b.primary ? '#191612' : C.text;
           g.textAlign = 'center';
           g.fillText(b.label, r.x + r.w / 2, r.y + bh / 2 + 8, r.w - 12);
+          if (b.on && !b.primary) {
+            const tw = Math.min(r.w - 12, g.measureText(b.label).width);
+            g.fillRect(r.x + (r.w - tw) / 2, r.y + bh / 2 + 15, tw, 3);
+          }
           g.textAlign = 'left';
         }
       });

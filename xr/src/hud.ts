@@ -139,7 +139,8 @@ html, body { margin:0; height:100%; background:#000; overflow:hidden; }
 #hud button:hover { border-color:var(--ash); }
 #hud button:focus-visible, #hud input:focus-visible { outline:2px solid var(--sunlight); outline-offset:2px; }
 #hud button.on { background:var(--bone); color:var(--dust); border-color:var(--bone); }
-#hud button.primary { background:var(--sunlight); color:#191612; border-color:var(--sunlight); font-weight:600; }
+#hud button.primary { background:var(--bone); color:#191612; border-color:var(--bone); font-weight:600; }
+#hud button.primary:hover { background:var(--cloud); border-color:var(--cloud); }
 #hud h1 { font:600 18px var(--head); margin:0; letter-spacing:.02em; }
 #hud h2 { font:600 16px var(--head); margin:18px 0 8px; color:var(--bone); }
 #hud h2:first-child { margin-top:0; }
@@ -156,13 +157,16 @@ html, body { margin:0; height:100%; background:#000; overflow:hidden; }
 #side .list button:hover { color:var(--sunlight); }
 #side .list small { color:var(--ash); }
 #side .row { display:flex; flex-wrap:wrap; gap:6px; }
-#side .seg { display:flex; margin-left:auto; }
-#side .seg button { border-radius:0; padding:6px 8px; }
-#side .seg button:first-child { border-radius:4px 0 0 4px; border-right:0; }
-#side .seg button:last-child { border-radius:0 4px 4px 0; }
-#side .row.opacity { align-items:center; margin-top:8px; gap:4px; color:var(--ash); font-size:13px; }
+/* Choices are words with a line under the one in use, as on the website: no boxes, no pills. */
+#side .seg { display:flex; gap:12px; margin-left:auto; align-items:baseline; }
+#side .seg button, #side .row.presets button, #side .row.opacity button { border:0; border-bottom:1px solid var(--rim); border-radius:0; padding:2px 0; color:var(--ash); background:none; }
+#side .seg button:hover, #side .row.presets button:hover, #side .row.opacity button:hover { color:var(--bone); }
+#side .seg button.on, #side .row.presets button.on, #side .row.opacity button.on { color:var(--bone); font-weight:600; border-bottom-color:var(--bone); background:none; }
+#side .row.presets { gap:4px 14px; }
+#side .row.top { align-items:center; }
+#side .row.opacity { align-items:baseline; margin-top:8px; gap:4px 12px; color:var(--ash); font-size:13px; }
+#side .row.opacity button { font-size:13px; }
 #side .row.opacity span { margin-right:4px; }
-#side .row.opacity button { padding:4px 7px; font-size:13px; }
 #side .tick { display:flex; align-items:flex-start; gap:8px; text-align:left; padding:5px 2px; color:var(--ash); border-color:transparent; background:transparent; width:100%; }
 #side .tick.ticked { color:var(--bone); }
 #side .tick.locked { color:var(--ash); }
@@ -177,8 +181,8 @@ html, body { margin:0; height:100%; background:#000; overflow:hidden; }
 #side .param { padding:2px 0 6px 22px; border-bottom:1px solid var(--rim); }
 #side .ctl { display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; padding:2px 0 4px 23px; color:var(--ash); font-size:13px; }
 #side .ctl .seg { margin-left:0; }
-#side .ctl button { padding:3px 8px; font-size:13px; }
-#side .ctl .seg button:not(:first-child):not(:last-child) { border-right:0; }
+#side .ctl .pair { display:flex; gap:10px; align-items:baseline; flex-basis:100%; }
+#side .ctl button { font-size:13px; }
 #side .ctl button:disabled { cursor:default; }
 #side .plain { border-color:transparent; color:var(--cloud); text-decoration:underline; padding-left:0 !important; }
 #side .ltitle { margin:12px 0 4px; color:var(--ash); font-size:14px; }
@@ -381,7 +385,7 @@ export class Hud {
     const chevron = (open: boolean) =>
       `<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="${open ? 'M2 4l4 4 4-4' : 'M4 2l4 4-4 4'}" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>`;
     const presetButtons = () =>
-      `<h2>What matters for your mission?</h2><div class="row">${L.presets
+      `<h2>What matters for your mission?</h2><div class="row presets">${L.presets
         .map((p) => `<button data-preset="${p.key}" class="${p.on ? 'on' : ''}">${esc(p.label)}</button>`)
         .join('')}</div><div class="layers"><div class="tick ticked locked">${box(true)}<span><b>NASA safety limits</b> <small>Always on: ground that fails one is hatched red.</small></span></div>${L.groups
         .map(
@@ -393,8 +397,8 @@ export class Hud {
                       (q) =>
                         `<div class="param"><button class="tick${q.on ? ' ticked' : ''}" data-term="${q.key}" role="checkbox" aria-checked="${q.on}">${box(q.on)}<span><b>${esc(q.label)}</b> <small>${esc(q.meaning)}</small></span></button>${
                           q.on
-                            ? `<div class="ctl">${q.flip ? `<span>Prefer</span>${seg(q.flip.words.map((w, i) => ({ attr: i === q.flip!.now ? 'disabled' : `data-flip="${q.key}"`, label: w, on: i === q.flip!.now })))}` : ''}${
-                                q.importance ? `<span>Importance</span>${seg((['low', 'normal', 'high'] as Importance[]).map((l) => ({ attr: `data-imp="${q.key}:${l}"`, label: l[0].toUpperCase() + l.slice(1), on: l === q.importance })))}` : ''
+                            ? `<div class="ctl">${q.flip ? `<span class="pair"><span>Prefer</span>${seg(q.flip.words.map((w, i) => ({ attr: i === q.flip!.now ? 'disabled' : `data-flip="${q.key}"`, label: w, on: i === q.flip!.now })))}</span>` : ''}${
+                                q.importance ? `<span class="pair"><span>Importance</span>${seg((['low', 'normal', 'high'] as Importance[]).map((l) => ({ attr: `data-imp="${q.key}:${l}"`, label: l[0].toUpperCase() + l.slice(1), on: l === q.importance })))}</span>` : ''
                               }${q.alone != null ? `<button class="plain" data-solo="${q.key}" aria-pressed="${q.alone}">${q.alone ? 'Back to the combined map' : 'Show alone on the map'}</button>` : ''}${
                                 q.zoneOnly ? '<small>Known at the zones, not at every point: it re-ranks the zones.</small>' : ''
                               }</div>`
@@ -420,7 +424,7 @@ export class Hud {
             .map((l) => `<li>${l.mark == null ? '' : `<i class="sw${l.mark === 'unsafe' ? ' hatch' : ''}" style="background-color:${L.colors[l.mark === 'unsafe' ? 'red' : l.mark]}"></i>`}${esc(l.text)}</li>`)
             .join('')}</ul>${opacity('map', 'Map opacity', L.opacity.map)}${opacity('limits', 'Unsafe ground', L.opacity.limits)}<div class="row"><button class="tick${L.colourBlind ? ' ticked' : ''}" data-a="cb" role="checkbox" aria-checked="${L.colourBlind}">${box(L.colourBlind)}<span>Colour-blind palette</span></button></div><p class="note">Opacity only changes how the map looks. It never changes a score.</p>`;
     if (m.mode === 'orbit' || m.mode === 'flight') {
-      html += `<div class="row"><button class="primary" data-a="tour">Tour: 4 stops</button><span class="seg"><button data-a="whole" class="${m.view === 'moon' ? 'on' : ''}">Whole Moon</button><button data-a="pole" class="${m.view === 'pole' ? 'on' : ''}">South pole</button></span></div>` + presetButtons() + mapControls();
+      html += `<div class="row top"><button class="primary" data-a="tour">Tour: 4 stops</button><span class="seg"><button data-a="whole" class="${m.view === 'moon' ? 'on' : ''}">Whole Moon</button><button data-a="pole" class="${m.view === 'pole' ? 'on' : ''}">South pole</button></span></div>` + presetButtons() + mapControls();
       if (m.zones.length) {
         html += `<h2>Top ${m.zones.length} zones for what is ticked</h2><div class="list">${m.zones
           .map((z) => `<button data-zone="${z.id}"><span><i class="sw" style="background-color:${L.colors[z.rag]}"></i>#${z.rank} ${esc(z.name)}</span><small>score ${z.score}, ${RAG_WORD[z.rag].toLowerCase()}, ${z.areaKm2.toFixed(1)} km2${z.detail ? '' : ', 430 m terrain'}</small></button>`)

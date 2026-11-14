@@ -44,7 +44,7 @@ which the whole Sun is above its skyline (`nextSunUp` in `guide.ts`, a search wi
 | `globe.ts` | Loads the CGI Moon Kit maps (2K in a headset, 4K elsewhere), the globe's material, the fade between scenes. | the globe's look |
 | `perf.ts` | Automatic quality in the headset: the three detail levels and the rule that lowers them. Tested. | frame rate on the Quest |
 | `objects.ts` | Lander, rocket, Sun disc, Earth, stars, labels, sight lines, markers. | models and labels |
-| `hud.ts` | Laptop interface (plain DOM and CSS, Earthrise tokens) and the credits line. | laptop UI text and layout |
+| `hud.ts` | Laptop interface (plain DOM and CSS, Earthrise tokens, the website's "mission chart" look: sentence case, choices as words with a line under the one in use, one filled button for the main action, traffic-light colours only for suitability) and the credits line. | laptop UI text and layout |
 | `vrpanel.ts` | The floating panel in VR (a canvas on a plane; buttons are rectangles hit by the app's own ray). | VR UI |
 
 `iwsdk.config.json` holds the WebXR settings (VR, hand tracking, emulator device). `public/scenes/` is an empty

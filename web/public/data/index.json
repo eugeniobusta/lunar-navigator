@@ -119,7 +119,7 @@
   },
   {
    "path": "index.json",
-   "bytes": 39588,
+   "bytes": 39786,
    "format": "JSON",
    "description": "This list: every published file with its size, format and description."
   },
@@ -542,6 +542,12 @@
    "bytes": 1048576,
    "format": "binary, uint8",
    "description": "Sub-score layer for walkable ground of the south pole, 1024 x 1024: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/site_values.csv",
+   "bytes": 1193,
+   "format": "CSV",
+   "description": "The landing criteria values at each site with modelled terrain, for the 'Why here?' box."
   },
   {
    "path": "suitability/sites/dgr203_limits.u8",

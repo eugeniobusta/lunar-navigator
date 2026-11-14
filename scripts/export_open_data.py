@@ -99,6 +99,7 @@ def describe(rel, names):
         "suitability/summary.json": "Headline numbers of the suitability analysis.",
         "suitability/weights.json": "The scoring layers, their bounds, and the weight presets (balanced, power, radio, ice).",
         "suitability/zones_layers.csv": "The six layer values at each zone's best cell, for re-ranking zones under other weights.",
+        "suitability/site_values.csv": "The landing criteria values at each site with modelled terrain, for the 'Why here?' box.",
         "suitability/artemis_points.csv": "The nine Artemis points: layer values, model numbers, score and rank under each preset.",
         "terrain/south_pole.json": "Grid definition, site positions and sources for the south-pole terrain files.",
         "terrain/south_pole_height.u16": "South-pole terrain heights, 1024 x 1024, about 430 m per pixel.",

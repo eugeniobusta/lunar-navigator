@@ -22,6 +22,10 @@ test("the app loads real data and the skyline explains itself", async ({ page })
   const errors = watchErrors(page);
   await openApp(page);
   await expect(page.getByText("Showing mock data")).toHaveCount(0);
+  // "Why here?" on Overview: one sentence per criterion for the selected site.
+  await expect(page.getByRole("heading", { name: /^Why here\? Malapert Massif/ })).toBeVisible();
+  await expect(page.locator(".why li")).toHaveCount(9);
+  await expect(page.locator(".why")).toContainText("Earth in view 100% of the time: good.");
   await expect(page.getByText("You are standing at")).toBeVisible();
   await expect(page.locator("svg.sky")).toContainText("Earth now");
   await expect(page.locator("svg.sky")).toContainText("Sun now");
@@ -69,6 +73,8 @@ test("Where to land shows the map, a zone and the criteria", async ({ page }) =>
   await expect(page.getByRole("heading", { name: /^Zone 1:/ })).toBeVisible();
   await page.getByRole("button", { name: /^Zone 3,/ }).click();
   await expect(page.getByRole("heading", { name: /^Zone 3:/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^Why here\? Zone 3/ })).toBeVisible();
+  await expect(page.locator(".why")).toContainText("Passes every hard limit");
   // "Your priorities": another preset re-scores the map and re-ranks the zones, so the selected zone moves.
   await page.getByRole("button", { name: "Ice science first", exact: true }).click();
   await expect(page.getByRole("button", { name: "Ice science first", exact: true })).toHaveAttribute("aria-pressed", "true");

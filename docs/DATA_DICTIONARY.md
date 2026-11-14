@@ -249,6 +249,16 @@ Each soft criterion as its own layer, so the score can be recomputed under any w
 | `rank` | The zone's rank in zones.csv. |
 | `sunlight`, `earth`, `landing_slope`, `shadow`, `walkable`, `temperature` | The six layer values (0 to 255) at the zone's best cell. |
 
+`suitability/site_values.csv`, one row per site with modelled terrain (the numbers behind "Why here?" on Overview):
+
+| Column | Meaning |
+|--------|---------|
+| `id`, `name`, `lat`, `lon` | The site (as in sites.json). |
+| `passes_hard_limits`, `failed_limits` | Whether the 120 m cell at the site passes every hard limit, and which it fails. |
+| `map_score` | Map score at the site, 0 to 100 (balanced weights). |
+| `elevation_m`, `landing_slope_deg`, `eva_slope_deg`, `eva_walkable_pct`, `sun_pct`, `earth_pct`, `psr_distance_km`, `temp_avg_k` | The criteria values at the site; same meaning as in zones.csv. |
+| `longest_dark_h`, `longest_no_earth_h`, `longest_sun_and_earth_h` | Our model at the site, Nov 2026 to Dec 2029, hours. |
+
 `suitability/artemis_points.csv`, one row per Artemis candidate point:
 
 | Column | Meaning |

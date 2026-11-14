@@ -167,6 +167,14 @@ table.compare { border-collapse: collapse; margin-top: 20px; min-width: min(560p
 .mark.mission::before { content: "×"; position: absolute; inset: -7px 0 0 0; color: var(--eclipse); font-size: 18px; font-weight: 600; line-height: 1.4; text-align: center; }
 .outcome { color: var(--eclipse); white-space: nowrap; }
 .outcome.ok { color: var(--lichen); }
+.why { margin-top: 24px; max-width: 86ch; }
+.why ul { margin: 8px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--rim); }
+.why li { padding: 8px 0; border-bottom: 1px solid var(--rim); color: var(--ash); }
+.why li strong { color: var(--bone); font-weight: 600; }
+.why-verdict { font-weight: 600; }
+.why-verdict.good { color: var(--lichen); }
+.why-verdict.acceptable { color: var(--bone); }
+.why-verdict.rejected { color: var(--eclipse); }
 .xr-frame { display: block; width: 100%; height: min(72vh, 720px); min-height: 420px; border: 1px solid var(--rim); border-radius: var(--r); background: var(--void); }
 .xr-bar { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
 

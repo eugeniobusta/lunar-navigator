@@ -316,6 +316,32 @@ def write_layers(dem, sl, g, q, source, sites, zones, sun_dir, earth_km):
               + "  ".join(f"{row[f'score_{p}']:3d}, rank {row[f'rank_{p}']:<8d}" for p in C.PRESETS))
 
 
+SITE_VALUE_COLUMNS = ["id", "name", "lat", "lon", "passes_hard_limits", "failed_limits", "map_score", "elevation_m",
+                      "landing_slope_deg", "eva_slope_deg", "eva_walkable_pct", "sun_pct", "earth_pct", "psr_distance_km",
+                      "temp_avg_k", "longest_dark_h", "longest_no_earth_h", "longest_sun_and_earth_h"]
+
+
+def write_site_values(dem, sl, g, sites, sun_dir, earth_km):
+    """suitability/site_values.csv: the criteria values at every terrain="dem" site, for the "Why here?" box."""
+    rows = []
+    for s in sites:
+        if s["terrain"] != "dem":
+            continue
+        sx, sy = dem.xy(s["lat"], s["lon"])
+        c = round(float(sx) / dem.scale_m + dem.sample_offset) - sl[1].start
+        r = round(dem.line_offset - float(sy) / dem.scale_m) - sl[0].start
+        mm = model_metrics(dem, s["lat"], s["lon"], sun_dir, earth_km)
+        rows.append({"id": s["id"], "name": s["name"], "lat": s["lat"], "lon": s["lon"],
+                     "passes_hard_limits": "yes" if g["passes"][r, c] else "no",
+                     "failed_limits": " ".join(name for name, bit in LIMIT_BITS.items() if g["fails"][r, c] & bit),
+                     "map_score": round(float(g["score"][r, c])), **values_at(g, r, c),
+                     **{k: mm[k] for k in ("longest_dark_h", "longest_no_earth_h", "longest_sun_and_earth_h")}})
+    with open(OUT / "site_values.csv", "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=SITE_VALUE_COLUMNS, lineterminator="\n")
+        w.writeheader()
+        w.writerows(rows)
+
+
 def polar_missions(dem, sl, main, sun_dir, earth_km):
     """Fill the criteria columns of docs/missions.csv for landing attempts inside the computed area."""
     path = DOCS / "missions.csv"
@@ -389,6 +415,7 @@ def main():
     write_zones(zones)
     q, _ = C.quantise_layers(g)
     write_layers(dem, sl, g, q, source, sites, zones, sun_dir, earth_km)
+    write_site_values(dem, sl, g, sites, sun_dir, earth_km)
     polar_missions(dem, sl, g, sun_dir, earth_km)
 
     px_km2 = (dem.scale_m / 1000.0) ** 2

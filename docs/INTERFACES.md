@@ -324,3 +324,10 @@ to three layers are moved by a single step (0.4 % of their range).
   layer values at each zone's best cell, in the row order of zones.csv.
 - `suitability/artemis_points.csv`: the nine Artemis points with their layer values, model numbers, and for each
   preset `score_<preset>` and `rank_<preset>` (1 + the number of confirmed zones that score higher).
+- `suitability/site_values.csv`: the criteria values at every terrain="dem" site, with the zones.csv column names
+  (`landing_slope_deg`, `eva_walkable_pct`, `sun_pct`, `earth_pct`, `psr_distance_km`, `temp_avg_k`,
+  `longest_dark_h`, `longest_no_earth_h`, ...) plus `passes_hard_limits` and `failed_limits`.
+
+**"Why here?"** `web/src/lib/analysis/explain.ts` (pure TypeScript, importable from `xr/`):
+`explain(valuesFromRow(row), criteriaRows)` turns a row of zones.csv or site_values.csv into one sentence per
+criterion: value, verdict (`good` / `acceptable` / `rejected`), the range, and the reason from criteria.csv.

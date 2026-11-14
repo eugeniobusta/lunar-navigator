@@ -17,7 +17,7 @@ Each link opens the app in exactly that state.
    red poor for what you tick; hatched red is unsafe and says which limit fails. Tick a group or a single
    parameter, or pick "Power first", "Radio link" or "Ice science": the classes and the ranking follow. One
    parameter by itself reads in real units, as [sunlight alone](https://claudes-plan-lunar-navigator.vercel.app/?tab=map&pick=sunlight).
-2. **Click a spot.** [The best zone for everything](https://claudes-plan-lunar-navigator.vercel.app/?tab=map&spot=-84.01732,23.42168):
+2. **Click a spot.** [The best zone for everything](https://claudes-plan-lunar-navigator.vercel.app/?tab=map&spot=-84.01724,23.42232):
    its measurements, what is good and what is weak there, how sure the numbers are, and four next steps.
 3. **See its sky.** [Malapert Massif, January 2027](https://claudes-plan-lunar-navigator.vercel.app/?site=mma01&date=2027-01-09&days=14&tab=overview).
    The chart is the whole horizon unrolled, with the real skyline. Drag the time slider: the Sun skims the ridges

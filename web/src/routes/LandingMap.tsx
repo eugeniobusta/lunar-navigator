@@ -170,11 +170,13 @@ export function LandingMap() {
 
   // The clicked spot: a grid cell, and the zone whose best cell it is, if any.
   const spotCell = mapSpot ? cellAt(...latLonToXY(mapSpot[0], mapSpot[1])) : -1;
-  const spotZone = useMemo(() => {
-    if (!mapSpot) return null;
-    const i = zones.findIndex((z) => Math.abs(+z.lat - mapSpot[0]) < 1e-4 && Math.abs(+z.lon - mapSpot[1]) < 1e-4);
-    return i < 0 ? null : i + 1;
-  }, [mapSpot, zones]);
+  // A spot in the map cell that holds a zone's best 120 m square is that zone (the best-ranked one, if several).
+  const zoneOfCell = useMemo(() => {
+    const m = new Map<number, number>();
+    zones.forEach((z, i) => { const c = cellAt(...latLonToXY(+z.lat, +z.lon)); if (!m.has(c)) m.set(c, i + 1); });
+    return m;
+  }, [zones]);
+  const spotZone = spotCell >= 0 ? zoneOfCell.get(spotCell) ?? null : null;
   const spot = useMemo<Spot | null>(() => {
     if (!mapSpot || spotCell < 0 || !layers || !limits || !config || limits[spotCell] === NO_DATA) return null;
     const [lat, lon] = mapSpot;

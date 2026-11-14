@@ -322,8 +322,10 @@ def write_layers(dem, sl, g, q, source, sites, zones, sun_dir, earth_km):
                         "reject": C.DARK_REJECT_H, "ideal": C.DARK_IDEAL_H},
                        {"key": "no_earth", "label": C.LAYER_LABELS["no_earth"], "column": "longest_no_earth_h",
                         "unit": "h", "reject": C.NO_EARTH_REJECT_H, "ideal": 0.0}],
-        "default": "balanced",
-        "presets": [{"key": k, "label": label, "weights": w} for k, (label, w) in C.PRESETS.items()],
+        "default": C.DEFAULT_PRESET,
+        "importance": C.IMPORTANCE,
+        "presets": [{"key": k, "label": label, "ticked": C.PRESET_TICKS[k], "weights": w}
+                    for k, (label, w) in C.PRESETS.items()],
         "confirmed_zones": len(confirmed),
     }, indent=1))
     print(f"layers: {len(C.LAYER_KEYS)} x (1 south-pole grid + {sum(s['terrain'] == 'dem' for s in sites)} site tiles); "

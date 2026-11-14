@@ -313,14 +313,23 @@ to three layers are moved by a single step (0.4 % of their range).
                 "ideal": 70.0, "file": "layers/south_pole_sunlight.u8", "site_file": "layers/sites/<id>_sunlight.u8" } ],
   "zone_terms": [ { "key": "darkness", "label": "Short nights", "column": "longest_dark_h", "unit": "h",
                     "reject": 354.0, "ideal": 85.0 } ],
-  "default": "balanced",
-  "presets": [ { "key": "balanced", "label": "Balanced",
-                 "weights": { "sunlight": 42, "earth": 28, "landing_slope": 28, "shadow": 21, "walkable": 14,
-                              "temperature": 7, "ice": 0, "hollow": 0, "darkness": 30, "no_earth": 30 } } ],
+  "default": "everything",
+  "importance": { "low": 1, "normal": 2, "high": 4 },
+  "presets": [ { "key": "power", "label": "Power first", "ticked": ["sunlight", "darkness"],
+                 "weights": { "sunlight": 2, "earth": 0, "landing_slope": 0, "shadow": 0, "walkable": 0,
+                              "temperature": 0, "ice": 0, "hollow": 0, "darkness": 2, "no_earth": 0 } } ],
   "confirmed_zones": 4224
 }
 ```
-  Presets: `balanced` (docs/criteria.md), `power`, `radio`, `ice`.
+  **Selections.** What a user asks for is a selection: the ticked parameters, each with an importance (low 0.5,
+  normal 1, high 2, stored as 1, 2, 4). Its weights are the importance of each ticked parameter and 0 for the
+  rest, so the score is the weighted mean of the ticked parameters. `suitability.ts` has `Selection`,
+  `selectionWeights`, `presetSelection`, `rankZonesFor`, `toggleTerm`, `setImportance`.
+  Presets, in file order: `balanced` ("NASA-style balance": the weights of docs/criteria.md, which reproduce the
+  published scores and are not a plain selection; it stays first so a reader that takes the first preset keeps the
+  published ranking), `everything` (all ten; the website's default, named in `default`), `power` (sunlight, short
+  nights), `radio` (Earth in view, never out of contact), `ice` (ice nearby = `shadow`, ice depth = `ice`).
+  `presets[].weights` is always present, so a reader that only knows weights keeps working.
 - `suitability/zones_layers.csv`: `rank, sunlight, earth, landing_slope, shadow, walkable, temperature, ice, hollow,
   ice_depth_m, hollow_depth_m`: the layer values at each zone's best cell, in the row order of zones.csv, then the
   two newer criteria as plain values (`ice_depth_m` empty = no stable ice).

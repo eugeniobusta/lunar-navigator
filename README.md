@@ -20,8 +20,9 @@ Each link opens the app in exactly that state.
    then "Find landing days". A 14-day mission at Malapert works on 32 days of the next 12 months, three days a month.
 4. **Ask where to land.** [Where to land](https://claudes-plan-lunar-navigator.vercel.app/?tab=land). Every 120 m
    square within 6° of the pole, tested against NASA's Artemis III landing requirements: 14.3 % passes, in 5,297
-   zones. Pick "Radio link first" or "Ice science first" and the ranking changes; switch to **Layers** and click
-   any spot to see each criterion by itself. "Why here?" explains a zone in plain sentences.
+   zones. Tick what matters for your mission, or pick "Power first", "Radio link" or "Ice science": the map and the
+   ranking follow. Tick a single box to see that parameter by itself, as [sunlight alone](https://claudes-plan-lunar-navigator.vercel.app/?tab=land&pick=sunlight).
+   "Click any spot" gives any point's numbers, and "Why here?" explains a zone in plain sentences.
 5. **Stand on the Moon.** [3D / VR](https://claudes-plan-lunar-navigator.vercel.app/xr/): the same data as a
    place you can stand in, on a laptop or a Meta Quest 3.
 6. **Check us.** The [Data tab](https://claudes-plan-lunar-navigator.vercel.app/?tab=data) lists every source with

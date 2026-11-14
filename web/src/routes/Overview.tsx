@@ -2,8 +2,8 @@
 import { Timeline } from "../charts/Timeline";
 import { MetricGrid, Stat } from "../components/ui";
 import { WhyHere } from "../components/ui/WhyHere";
-import { explain, valuesFromRow } from "../lib/analysis/explain";
-import { useCriteriaTables } from "../state/criteria";
+import { explainFor, valuesFromRow } from "../lib/analysis/explain";
+import { useCriteriaTables, useTickedTerms } from "../state/criteria";
 import { fmtDate, fmtHours, idxToMs, useSiteView } from "../state/derived";
 import { useStore } from "../state/store";
 import { verdict } from "./verdict";
@@ -16,10 +16,11 @@ export function Overview() {
   const site = useStore((s) => s.sites.find((x) => x.id === s.siteId));
   const view = useSiteView(siteId);
   const tables = useCriteriaTables();
+  const ticked = useTickedTerms(tables);
   if (!view || !eph || !site) return <p className="note">Loading the site…</p>;
 
   const siteRow = tables?.siteValues.find((r) => r.id === site.id);
-  const why = tables && siteRow ? explain(valuesFromRow(siteRow), tables.criteria) : [];
+  const why = tables && siteRow ? explainFor(valuesFromRow(siteRow), tables.criteria, ticked) : [];
 
   // Countdowns from the cursor, not from the window start.
   const s = view.series, k = Math.min(cursor, s.sunlit.length - 1);
@@ -54,8 +55,8 @@ export function Overview() {
         <>
           <WhyHere title={`Why here? ${site.name} against the landing criteria`} list={why} />
           <p className="note">
-            Long-run values at the site's own 120 m square, not for the dates chosen above. How they are measured is
-            on the Where to land tab.
+            NASA's limits, and the parameters ticked on the Where to land tab. Long-run values at the site's own
+            120 m square, not for the dates chosen above.
           </p>
         </>
       )}

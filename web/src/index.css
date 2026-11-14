@@ -137,6 +137,32 @@ table.compare { border-collapse: collapse; margin-top: 20px; min-width: min(560p
 .priorities { margin: 20px 0 4px; padding: 16px; background: var(--dust); border: 1px solid var(--rim); border-radius: var(--r); }
 .priorities h3 { margin-top: 0; }
 .priorities .presets { margin: 12px 0; }
+.ticks { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2px 28px; margin: 12px 0 4px; padding: 0; list-style: none; }
+.tick label { display: flex; gap: 10px; align-items: flex-start; padding: 7px 0; cursor: pointer; color: var(--ash); font-size: 0.875rem; line-height: 1.35; }
+.tick input { margin: 2px 0 0; flex: none; width: 16px; height: 16px; }
+.tick b { display: block; color: var(--bone); font-size: 0.9375rem; font-weight: 600; }
+.tick:not(.on):not(.locked) b { color: var(--ash); }
+.ticks.compact { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0 16px; }
+.ticks.compact .why-line:not(.always) { display: none; }
+.ticks.compact .tick label { padding: 5px 0; }
+.explain-toggle { display: block; margin: 2px 0 10px; font-size: 0.875rem; color: var(--ash); }
+.tick.locked { grid-column: 1 / -1; border-bottom: 1px solid var(--rim); margin-bottom: 4px; }
+.tick.locked label { cursor: default; }
+.chip-colour { flex: none; width: 14px; height: 14px; margin-top: 3px; border-radius: 3px; }
+.chip-colour.limits { background: var(--bone); }
+.chip-colour.small { display: inline-block; width: 10px; height: 10px; margin: 0 6px 0 0; vertical-align: baseline; }
+.tick:not(.on):not(.locked) .chip-colour { opacity: 0.45; }
+.levels { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 6px 24px; }
+.levels fieldset { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; margin: 0; padding: 0; border: none; font-size: 0.875rem; color: var(--ash); }
+.levels legend { float: left; width: 100%; padding: 0; color: var(--bone); }
+.levels label { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; }
+.levels input { accent-color: var(--bone); margin: 0; }
+.answer { margin: 16px 0 0; max-width: 86ch; font-size: 1.0625rem; }
+.key.legend { margin-top: 12px; }
+.swatch.ramp { width: 36px; border: 1px solid var(--rim); }
+.compare tr.unticked th, .compare tr.unticked td { opacity: 0.55; }
+.compare.ranked tr.on td, .compare.ranked tr.on th { color: var(--bone); font-weight: 600; }
+button.link { background: none; border: none; padding: 0; color: var(--bone); text-decoration: underline; text-decoration-color: var(--ash); text-underline-offset: 3px; cursor: pointer; }
 .weights summary { cursor: pointer; width: fit-content; padding: 4px 0; color: var(--ash); font-size: 0.875rem; }
 .weights[open] summary { margin-bottom: 8px; }
 .sliders { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px 24px; }

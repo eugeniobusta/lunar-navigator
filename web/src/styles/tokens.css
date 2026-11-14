@@ -14,6 +14,14 @@
   --cloud: #DCE8FF;     /* Earth as small text and highlights: earth blue is too dark for AA on small text */
   --eclipse: #E0457B;
   --lichen: #8FC28A;
+  /* One colour per landing parameter ("Where to land"). Sunlight, Earth in view, never out of contact (cloud),
+     landing slope (lichen) and hollow depth (regolith) reuse the colours above; these five are their own. */
+  --p-nights: #E8862A;
+  --p-walkable: #5E9C76;
+  --p-ice-near: #B49CF0;
+  --p-ice-depth: #7D5BD6;
+  --p-temperature: #C9774A;
+  --p-hollow: #A39888;
   /* Colour-blind palette for the maps in "Where to land" (a switch, off by default): a dark blue to yellow ramp
      that stays readable with red-green colour blindness. The blue here is a map scale, not Earth. */
   --cb-low: #00204D;

@@ -238,8 +238,11 @@ Each soft criterion as its own layer, so the score can be recomputed under any w
 | `layers[].reject`, `layers[].ideal` | Values that map to 0 and to 255. |
 | `layers[].file`, `layers[].site_file` | Paths of the layer grids, relative to `suitability/`. |
 | `zone_terms[].key`, `zone_terms[].label`, `zone_terms[].column`, `zone_terms[].unit`, `zone_terms[].reject`, `zone_terms[].ideal` | The two terms known only at zone best cells: longest darkness and longest time without Earth, with their bounds in hours. |
-| `default` | Key of the default preset: `balanced`. |
-| `presets[].key`, `presets[].label`, `presets[].weights` | Weight presets. Weights are relative: only their ratios matter. |
+| `default` | Key of the default preset: `everything`. |
+| `importance` | The weight of a ticked parameter by importance: `low` 1, `normal` 2, `high` 4 (that is 0.5, 1 and 2). |
+| `presets[].key`, `presets[].label` | The presets: `everything`, `power`, `radio`, `ice`, and `balanced` ("NASA-style balance", the weights of the published scores). |
+| `presets[].ticked` | The parameters the preset ticks. |
+| `presets[].weights` | The weights that follow (normal importance = 2), or for `balanced` its own exact weights. Only ratios matter. |
 | `confirmed_zones` | Number of zones whose 6.5-day stay window our model confirms; Artemis ranks are among these. |
 
 `suitability/zones_layers.csv`, one row per zone in the order of zones.csv:
@@ -271,8 +274,8 @@ Each soft criterion as its own layer, so the score can be recomputed under any w
 | `failed_limits` | The limits it fails: `landing_slope`, `eva_slope`, `sunlight`, `earth`, `latitude`. |
 | `sunlight`, `earth`, `landing_slope`, `shadow`, `walkable`, `temperature`, `ice`, `hollow` | Layer values (0 to 255) at the point. |
 | `longest_dark_h`, `longest_no_earth_h`, `longest_sun_and_earth_h` | Our model at the point, Nov 2026 to Dec 2029, hours. |
-| `score_balanced`, `score_power`, `score_radio`, `score_ice` | The point scored like a zone under each preset, 0 to 100. |
-| `rank_balanced`, `rank_power`, `rank_radio`, `rank_ice` | 1 + the number of confirmed zones that score higher under that preset. |
+| `score_everything`, `score_power`, `score_radio`, `score_ice`, `score_balanced` | The point scored like a zone under each preset, 0 to 100. |
+| `rank_everything`, `rank_power`, `rank_radio`, `rank_ice`, `rank_balanced` | 1 + the number of confirmed zones that score higher under that preset. |
 
 ## criteria.csv
 

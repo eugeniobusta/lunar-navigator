@@ -35,8 +35,9 @@ will it have sunlight for power, and will it see Earth for a direct radio link?
   in 13 short clusters at most 3 days long.
 - **Where to land.** Every 120 m square within 6 degrees of the pole is tested against NASA's Artemis III landing
   requirements. 14.3 % of the ground passes all of them (14,928 of 104,184 km2), in 5,297 "Goldilocks zones",
-  ranked by a 0 to 100 score. "Your priorities" re-ranks them live for a power-first, radio-first or ice-science
-  mission; "Layers" shows each criterion by itself; "Why here?" explains any zone in plain sentences.
+  ranked by a 0 to 100 score. Tick boxes say what matters for the mission (or pick Power first, Radio link, Ice
+  science) and the map and the ranking follow; one box ticked shows that parameter by itself; "Why here?" explains
+  any zone in plain sentences.
 - **Battery.** Does a given solar array and battery survive the dark hours of the chosen window?
 - **3D / VR.** The same data as a place: choose a site from orbit, land, and stand 2 m above the ground under the
   real Sun and Earth. Works on a laptop and on a Meta Quest 3.
@@ -61,8 +62,8 @@ matches the Python reference to 0.00022 degrees.
 - Two weeks matter: the launch-slip example above.
 - Our filter does not simply rediscover NASA's nine candidate regions: 1 of our top 20 zones is near one. But 6 of
   the 9 candidate points pass every limit, and 8 of the 9 have a passing zone within 12.5 km. Which region is best
-  depends on the mission: among 4,224 confirmed zones, Malapert Massif ranks 6th when the radio link comes first,
-  and Mons Mouton 30th when power comes first.
+  depends on the mission: among 4,224 confirmed zones, Malapert Massif ranks 1st for the radio link (Earth always
+  in view), and Mons Mouton 29th for power.
 - An honest limit: the spot where the IM-2 lander came down in 2025 passes every one of our limits on a 120 m map.
   It fell into a crater 20 m across. Passing means "worth a closer look with finer data", not "safe to land".
 
@@ -137,6 +138,6 @@ Artemis coordinates. No AI-generated images, video or audio are in the project, 
   percentage points).
 - Every threshold in the landing criteria carries its source with a quotation; the ones we chose ourselves are
   marked "team choice".
-- Every change went through a pull request with automated tests: 53 Python tests, 96 browser-maths tests and 5
+- Every change went through a pull request with automated tests: 53 Python tests, 108 browser-maths tests and 5
   end-to-end browser tests.
 - The app, the README and the Data tab each state that the project was built with AI assistance.

@@ -291,3 +291,37 @@ export function cellValues(q: ArrayLike<number>, limitBits: number, latDeg: numb
 
 /** One word for each class. */
 export const RAG_WORD: Record<Rag, string> = { green: "Good", amber: "Acceptable", red: "Poor", grey: "No data" };
+
+/** One place judged from its published values (a site, a zone): each ticked parameter, and the score they give. */
+export interface Assessment {
+  /** Weighted mean of the ticked parameters' sub-scores, 0..100; null if nothing is ticked. */
+  score: number | null;
+  rag: Rag;
+  terms: { term: TermKey; value: number | undefined; subscore: number; rag: Rag }[];
+}
+
+/**
+ * Scores a place from real values instead of layer bytes: the same sub-scores (0 at reject, 1 at ideal, turned
+ * round if flipped) and the same weights. A ticked parameter with no value counts as 0 and is grey: missing data
+ * never raises a score. Hard limits are not judged here; the caller knows which fail.
+ */
+export function assessValues(values: PointValues, sel: Selection): Assessment {
+  const w = selectionWeights(sel), flips = flippedTerms(sel);
+  let num = 0, den = 0;
+  const terms = countedTerms(sel).map((term) => {
+    const value = values[valueKey(term)], flipped = flips.includes(term), b = BOUNDS[term];
+    const known = value !== undefined && value !== null && !Number.isNaN(value);
+    let s = known ? Math.min(1, Math.max(0, ((Number.isFinite(value) ? value : b.reject) - b.reject) / (b.ideal - b.reject))) : 0;
+    if (known && flipped) s = 1 - s;
+    num += w[term] * s; den += w[term];
+    return { term, value: known ? value : undefined, subscore: s, rag: classifyValue(term, value, flipped) };
+  });
+  const score = den > 0 ? Math.round((100 * num) / den) : null;
+  return { score, rag: score === null ? "grey" : classifyScore(score), terms };
+}
+
+/** Names of the hard limits in a `failed_limits` column ("latitude sunlight") of the published tables. */
+export function failedLimitTokens(text: string): string[] {
+  const order = ["landing_slope", "eva_slope", "sunlight", "earth", "latitude"];
+  return text.split(" ").filter(Boolean).map((t) => HARD_LIMITS[order.indexOf(t)]?.name ?? t);
+}

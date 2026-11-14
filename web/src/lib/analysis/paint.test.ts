@@ -72,3 +72,22 @@ describe("a cell's bytes as values and words", () => {
     expect(ok.some((e) => e.key === "longestDarkH")).toBe(false); // not known at a cell
   });
 });
+
+describe("judging a place from its published values", () => {
+  it("is the weighted mean of the ticked sub-scores, flips included, and missing data never raises it", async () => {
+    const { assessValues, failedLimitTokens } = await import("./rag");
+    const { toggleFlip } = await import("./suitability");
+    const values = { sunPct: 70, earthPct: 25, tempK: 130 };
+    expect(assessValues(values, { ticked: ["sunlight", "earth"] })).toMatchObject({ score: 50, rag: "amber" });
+    expect(assessValues(values, { ticked: ["sunlight"] })).toMatchObject({ score: 100, rag: "green" });
+    expect(assessValues(values, { ticked: ["sunlight", "temperature"] }).score).toBe(75);
+    expect(assessValues({ sunPct: 70, tempK: 110 }, toggleFlip({ ticked: ["sunlight", "temperature"] }, "temperature")).score).toBe(100);
+    // Walkable ground is ticked but unknown here: it counts as zero and is grey, so the score falls.
+    const gap = assessValues(values, { ticked: ["sunlight", "walkable"] });
+    expect(gap.score).toBe(50);
+    expect(gap.terms[1]).toMatchObject({ term: "walkable", rag: "grey", subscore: 0 });
+    expect(assessValues(values, { ticked: [] })).toMatchObject({ score: null, rag: "grey" });
+    expect(failedLimitTokens("latitude sunlight")).toEqual(["within 6° of the pole", "sunlight for the whole stay"]);
+    expect(failedLimitTokens("")).toEqual([]);
+  });
+});

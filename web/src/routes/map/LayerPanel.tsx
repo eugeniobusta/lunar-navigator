@@ -119,9 +119,10 @@ export function LayerPanel(p: Props) {
                             )}
                             {layer ? (
                               <div className="draw">
-                                <button className="plain" aria-pressed={p.solo === k} onClick={() => p.setSolo(p.solo === k ? null : (k as LayerKey))}>
+                                {(p.solo === k || !alone) && <button className="plain" aria-pressed={p.solo === k} onClick={() => p.setSolo(p.solo === k ? null : (k as LayerKey))}>
                                   {p.solo === k ? "Back to the combined map" : "Show alone on the map"}
-                                </button>
+                                </button>}
+                                {alone && p.solo !== k && <span>Shown alone on the map: it is the only ticked parameter with a map.</span>}
                                 {alone && <Opacity id={p.labelOf(k)} label="Opacity" value={p.opacity[k] ?? 1} onChange={(v) => p.setOpacity(k, v)} />}
                               </div>
                             ) : (

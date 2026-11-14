@@ -62,7 +62,7 @@ test("every page renders something and logs no errors", async ({ page }) => {
   const errors = watchErrors(page);
   await openApp(page);
   const names = await page.getByRole("tab").allTextContents();
-  expect(names).toEqual(["Map", "Site sky", "Window Finder", "Compare", "Battery", "Data", "Method"]);
+  expect(names).toEqual(["Map", "Site sky", "Window finder", "Compare", "Battery", "Data", "Method"]);
   for (const name of names) {
     await test.step(`page: ${name}`, async () => {
       await page.getByRole("tab", { name, exact: true }).click();
@@ -81,7 +81,7 @@ test("every page renders something and logs no errors", async ({ page }) => {
 test("Window Finder returns a calendar", async ({ page }) => {
   const errors = watchErrors(page);
   await openApp(page);
-  await page.getByRole("tab", { name: "Window Finder", exact: true }).click();
+  await page.getByRole("tab", { name: "Window finder", exact: true }).click();
   await page.getByRole("button", { name: "Find landing days" }).click();
   await expect(page.getByRole("heading", { name: /\d+ of \d+ days have a landing time that works/ })).toBeVisible();
   const grid = page.getByRole("grid");
@@ -187,7 +187,9 @@ test("Map: click a spot for its numbers, zoom and pan, then go on to its sky, la
   await expect(scale).toHaveText(whole);
   // Colour-blind palette keeps the words.
   await page.getByLabel("Colour-blind palette").check();
-  await expect(page.locator(".map-legend")).toContainText("Green, good");
+  await expect(page.locator(".map-legend")).toContainText("Yellow, good");
+  await expect(page.locator(".map-legend")).toContainText("Dark blue, poor");
+  await page.getByLabel("Colour-blind palette").uncheck();
   // On to the site pages, and back.
   await page.getByRole("button", { name: "See its sky" }).click();
   await expect(page.getByRole("tab", { name: "Site sky", exact: true })).toHaveAttribute("aria-selected", "true");
@@ -195,11 +197,16 @@ test("Map: click a spot for its numbers, zoom and pan, then go on to its sky, la
   await page.getByRole("button", { name: "Back to the map" }).click();
   await expect(page.locator(".verdict-line")).toContainText("Good");
   await page.getByRole("button", { name: "Find landing days" }).first().click();
-  await expect(page.getByRole("tab", { name: "Window Finder", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tab", { name: "Window finder", exact: true })).toHaveAttribute("aria-selected", "true");
   await page.getByRole("tab", { name: "Map", exact: true }).click();
   await page.getByLabel("Compare with another site").selectOption("hw02");
   await expect(page.getByRole("tab", { name: "Compare", exact: true })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByLabel("Compare with")).toHaveValue("hw02");
+  // Compare also judges both as landing sites, by the same rules as the map, and says which is better for what.
+  await expect(page.getByRole("heading", { name: "As landing sites, for what you ticked on the map" })).toBeVisible();
+  await expect(page.locator(".compare.criteria tbody tr")).toHaveCount(11);
+  await expect(page.locator(".compare.criteria .overall")).toContainText(/(Good|Acceptable|Poor), score \d+|Unsafe: fails/);
+  await expect(page.locator(".reasons-line")).toHaveCount(2);
   expect(errors).toEqual([]);
 });
 

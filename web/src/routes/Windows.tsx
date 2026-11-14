@@ -57,9 +57,9 @@ export function Windows() {
   return (
     <section className="panel">
       <p className="lede">Describe the mission. Every UTC day is checked hour by hour for a landing time whose whole mission meets these needs at {site?.name}.</p>
-      <div className="presets">
+      <div className="preset-row" role="group" aria-label="Mission presets">
         {PRESETS.map(([name, p]) => (
-          <button key={name} className={JSON.stringify(p) === JSON.stringify(spec) ? "chip on" : "chip"} onClick={() => setSpec(p)}>{name}</button>
+          <button key={name} className={JSON.stringify(p) === JSON.stringify(spec) ? "preset on" : "preset"} onClick={() => setSpec(p)}>{name}</button>
         ))}
       </div>
       <div className="controls">
@@ -104,7 +104,7 @@ export function Windows() {
               </div>
             ))}
           </div>
-          <p className="note">Green days work. Stronger green means more safety margin above the mission's needs. Choose a day to open that mission in Overview.</p>
+          <p className="note">Green days work. Stronger green means more safety margin above the mission's needs. Choose a day to open that mission in Site sky.</p>
         </>
       )}
     </section>

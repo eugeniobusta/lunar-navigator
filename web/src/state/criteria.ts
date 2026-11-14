@@ -1,7 +1,7 @@
 // The landing criteria table and the criteria values at each site, loaded once and shared.
 import { useEffect, useState } from "react";
 import type { CriterionRow } from "../lib/analysis/explain";
-import { EVERYTHING, countedTerms, presetSelection, type Preset, type TermKey } from "../lib/analysis/suitability";
+import { EVERYTHING, countedTerms, presetSelection, type Preset, type Selection, type TermKey } from "../lib/analysis/suitability";
 import { parseCsv } from "../lib/data/csv";
 import { useStore } from "./store";
 
@@ -32,11 +32,16 @@ export function useCriteriaTables(): CriteriaTables | null {
   return tables;
 }
 
-/** The parameters ticked in "Where to land" (a preset or hand-set ticks), for views outside that tab. */
-export function useTickedTerms(tables: CriteriaTables | null): TermKey[] {
+/** What is ticked on the Map page (a preset or hand-set ticks, with any flipped directions), for the other pages. */
+export function useLandSelection(tables: CriteriaTables | null): Selection {
   const landPreset = useStore((s) => s.landPreset);
   const landSelection = useStore((s) => s.landSelection);
-  if (landSelection) return countedTerms(landSelection);
+  if (landSelection) return landSelection;
   const preset = tables?.presets.find((p) => p.key === landPreset) ?? tables?.presets.find((p) => p.key === tables.defaultPreset);
-  return countedTerms(preset ? presetSelection(preset) : EVERYTHING);
+  return preset ? presetSelection(preset) : EVERYTHING;
+}
+
+/** The parameters ticked on the Map page. */
+export function useTickedTerms(tables: CriteriaTables | null): TermKey[] {
+  return countedTerms(useLandSelection(tables));
 }

@@ -21,7 +21,7 @@ const Data = lazy(() => import("./routes/Data").then((m) => ({ default: m.Data }
 const gridModule = Object.values(import.meta.glob<{ Grid: ComponentType }>("./routes/Grid.tsx"))[0];
 const Grid = gridModule ? lazy(() => gridModule().then((m) => ({ default: m.Grid }))) : null;
 
-const TABS: [Tab, string][] = [["map", "Map"], ["overview", "Site sky"], ["windows", "Window Finder"], ["compare", "Compare"],
+const TABS: [Tab, string][] = [["map", "Map"], ["overview", "Site sky"], ["windows", "Window finder"], ["compare", "Compare"],
   ...(Grid ? [["grid", "Move the lander"] as [Tab, string]] : []),
   ["power", "Battery"], ["data", "Data"], ["method", "Method"]];
 /** The pages about one site and one time window: they show the site controls and the sky panorama. */

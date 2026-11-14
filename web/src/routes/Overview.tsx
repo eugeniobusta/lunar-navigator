@@ -3,7 +3,8 @@ import { Timeline } from "../charts/Timeline";
 import { MetricGrid, Stat } from "../components/ui";
 import { WhyHere } from "../components/ui/WhyHere";
 import { explainFor, valuesFromRow } from "../lib/analysis/explain";
-import { useCriteriaTables, useTickedTerms } from "../state/criteria";
+import { flippedTerms } from "../lib/analysis/suitability";
+import { useCriteriaTables, useLandSelection, useTickedTerms } from "../state/criteria";
 import { fmtDate, fmtHours, idxToMs, useSiteView } from "../state/derived";
 import { useStore } from "../state/store";
 import { verdict } from "./verdict";
@@ -17,10 +18,11 @@ export function Overview() {
   const view = useSiteView(siteId);
   const tables = useCriteriaTables();
   const ticked = useTickedTerms(tables);
+  const flips = flippedTerms(useLandSelection(tables));
   if (!view || !eph || !site) return <p className="note">Loading the site…</p>;
 
   const siteRow = tables?.siteValues.find((r) => r.id === site.id);
-  const why = tables && siteRow ? explainFor(valuesFromRow(siteRow), tables.criteria, ticked) : [];
+  const why = tables && siteRow ? explainFor(valuesFromRow(siteRow), tables.criteria, ticked, flips) : [];
 
   // Countdowns from the cursor, not from the window start.
   const s = view.series, k = Math.min(cursor, s.sunlit.length - 1);

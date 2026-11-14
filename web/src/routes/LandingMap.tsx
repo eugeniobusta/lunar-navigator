@@ -138,7 +138,7 @@ export function LandingMap() {
   const style = useMemo<PaintStyle>(() => {
     void tokens;
     const c = (plain: string, cb: string) => cssColour(colourBlind ? cb : plain);
-    return { red: c("--stop", "--cb-low"), amber: c("--caution", "--cb-mid"), green: c("--go", "--cb-high"), grey: cssColour("--nodata"),
+    return { red: c("--stop", "--cb-low"), amber: c("--caution", "--cb-mid"), green: c("--go", "--cb-high"), grey: cssColour(colourBlind ? "--void" : "--nodata"),
       opacity: opacity[showing] ?? 1, unsafeOpacity: opacity.limits ?? 1 };
   }, [colourBlind, opacity, showing, tokens]);
   const setOpacity = (key: string, value: number) => setOpacityState((o) => ({ ...o, [key]: value }));
@@ -153,8 +153,11 @@ export function LandingMap() {
   /** A zone's class: with one parameter ticked, that parameter's own range; otherwise the class of its score. */
   const zoneRag = (id: number, score: number): Rag => {
     if (counted.length !== 1) return counted.length ? classifyScore(score) : "grey";
-    const v = zoneValues(zones[id - 1], zoneLayers[id - 1])[VALUE_KEY[counted[0]]];
-    return classifyValue(counted[0], v, flips.includes(counted[0]));
+    // A parameter with a map layer is judged from the zone's layer byte, as the map and the score are; the two
+    // terms of our time model are judged from their hours.
+    const term = counted[0], layer = (LAYER_KEYS as readonly string[]).indexOf(term);
+    if (layer >= 0) return classifyByte(term as LayerKey, +zoneLayers[id - 1][term], 0, flips.includes(term));
+    return classifyValue(term, zoneValues(zones[id - 1], zoneLayers[id - 1])[VALUE_KEY[term]], flips.includes(term));
   };
   const zoneMarks = useMemo<ZoneMark[]>(() => ranked.slice(0, SHOWN_ZONES).map((z) => {
     const row = zones[z.id - 1], [x, y] = km(+row.lat, +row.lon);
@@ -272,7 +275,7 @@ export function LandingMap() {
         <h2>Where can a lander touch down at the Moon's south pole?</h2>
         <p>
           <strong>{summary.pass_pct_of_region}% of the ground within 6° of the pole passes every NASA Artemis III limit.</strong>{" "}
-          Green is good, amber acceptable, red poor for what you tick; hatched red is unsafe.{" "}
+          {colourBlind ? "Yellow is good, grey acceptable, dark blue poor for what you tick; hatched is unsafe." : "Green is good, amber acceptable, red poor for what you tick; hatched red is unsafe."}{" "}
           {counted.length > 0 && <>Best zone now: <button className="link" onClick={() => pickZone(best.id, true)}>zone {best.id}</button>, score {best.score} ({RAG_WORD[bestRag].toLowerCase()}), at {(-bestRow.lat).toFixed(2)}° S, {Math.abs(+bestRow.lon).toFixed(2)}° {+bestRow.lon < 0 ? "W" : "E"}.</>}
         </p>
       </div>
@@ -291,13 +294,13 @@ export function LandingMap() {
             <ul>
               {mode.kind !== "limits" ? (
                 <>
-                  <li><span className={cls("green")} />Green, good: {lg.green}</li>
-                  <li><span className={cls("amber")} />Amber, acceptable: {lg.amber}</li>
-                  <li><span className={cls("red")} />Red, poor: {lg.red}</li>
+                  <li><span className={cls("green")} />{colourBlind ? "Yellow" : "Green"}, good: {lg.green}</li>
+                  <li><span className={cls("amber")} />{colourBlind ? "Grey" : "Amber"}, acceptable: {lg.amber}</li>
+                  <li><span className={cls("red")} />{colourBlind ? "Dark blue" : "Red"}, poor: {lg.red}</li>
                 </>
               ) : <li>Clear ground passes every NASA limit. Tick a parameter to score it.</li>}
               <li><span className="cls unsafe" />Hatched: unsafe, fails a NASA limit</li>
-              <li><span className="cls grey" />Grey: no data</li>
+              <li><span className="cls grey" />{colourBlind ? "Black" : "Grey"}: no data</li>
               <li>Beyond the 84° S circle: more than 6° from the pole, outside NASA's limit</li>
               <li><span className="key-mark zone" />Best zones (rank)</li>
               <li><span className="key-mark artemis" />Artemis candidate</li>

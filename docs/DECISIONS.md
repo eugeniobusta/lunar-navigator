@@ -22,3 +22,4 @@
 - Sat 10:30, Claude (local): PGDA comparison reports centre-of-disc (what the app shows) and, separately, PGDA's own definitions and a 0 m observer. Why: the 2 m mast and the any-part rule explain the gaps and should be visible, not hidden.
 - Sat 11:15, Claude (local): Test files are excluded from the app's tsc build; a root vercel.json builds web/ for Git deploys. Why: Vercel uploads only web/ from the CLI, so a test importing ../tests/fixtures broke the production build.
 - Sat 11:40, Claude (local): Pitch numbers come from scripts/pitch_numbers.py only; the mma01 landing-day count was cross-checked against the app's findWindows (same 32 days). Why: stage numbers must match what the demo shows.
+- Sat 12:10, Eugenio: INTERFACES.md section 8 added (3D terrain export, 1024 x 1024, 220 km half-width). Why: data for Ahmed's 3D view; each pixel is an area mean, so it is for display, not per-site numbers.

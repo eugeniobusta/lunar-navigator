@@ -1,0 +1,97 @@
+{
+ "version": 1,
+ "proj": "+proj=stere +lat_0=-90 +lat_ts=-90 +lon_0=0 +k=1 +x_0=0 +y_0=0 +R=1737400 +units=m +no_defs",
+ "size": 1024,
+ "pixel_m": 429.6875,
+ "x_min_m": -220000.0,
+ "y_max_m": 220000.0,
+ "height_min_m": -5709.0,
+ "height_max_m": 7018.0,
+ "files": {
+  "height": "south_pole_height.u16",
+  "sun": "south_pole_sun.u8",
+  "earth": "south_pole_earth.u8"
+ },
+ "sites": [
+  {
+   "id": "pcb03",
+   "name": "Peak near Cabeus B",
+   "x_m": -181424.5,
+   "y_m": 72561.3,
+   "height_m": 4496.9
+  },
+  {
+   "id": "hw02",
+   "name": "Haworth",
+   "x_m": -35832.8,
+   "y_m": 89955.1,
+   "height_m": 1812.7
+  },
+  {
+   "id": "mma01",
+   "name": "Malapert Massif",
+   "x_m": -2027.2,
+   "y_m": 123071.7,
+   "height_m": 4728.7
+  },
+  {
+   "id": "mmp06",
+   "name": "Mons Mouton Plateau",
+   "x_m": 83112.0,
+   "y_m": 141364.0,
+   "height_m": 4947.2
+  },
+  {
+   "id": "mmo01",
+   "name": "Mons Mouton",
+   "x_m": 73391.5,
+   "y_m": 118135.3,
+   "height_m": 6443.8
+  },
+  {
+   "id": "nr107",
+   "name": "Nobile Rim 1",
+   "x_m": 88046.8,
+   "y_m": 116092.4,
+   "height_m": 6696.7
+  },
+  {
+   "id": "nr208",
+   "name": "Nobile Rim 2",
+   "x_m": 156525.3,
+   "y_m": 98525.8,
+   "height_m": 819.8
+  },
+  {
+   "id": "dgr203",
+   "name": "de Gerlache Rim 2",
+   "x_m": -53529.2,
+   "y_m": 17707.8,
+   "height_m": 472.2
+  },
+  {
+   "id": "sp07",
+   "name": "Slater Plain",
+   "x_m": 68712.5,
+   "y_m": -53408.5,
+   "height_m": 265.2
+  },
+  {
+   "id": "im2",
+   "name": "IM-2 Athena (Mons Mouton), Mar 2025",
+   "x_m": 77106.7,
+   "y_m": 138363.0,
+   "height_m": 5312.4
+  }
+ ],
+ "sources": [
+  {
+   "name": "LOLA LDEM_75S_120M (LRO Lunar Orbiter Laser Altimeter, PDS Geosciences Node)",
+   "url": "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/float_img/"
+  },
+  {
+   "name": "NASA GSFC PGDA Lunar Polar Illumination, AVGVISIB_75S_120M_201608 (Sun and Earth)",
+   "url": "https://pgda.gsfc.nasa.gov/products/69"
+  }
+ ]
+}

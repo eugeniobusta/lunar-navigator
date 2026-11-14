@@ -134,3 +134,37 @@ EARTH,<az_deg>,<el_deg>,<vis 0|1>
 HELLO            (board replies "MOONBOX,<version>")
 ```
 The app sends one SUN and one EARTH line per animation frame (max 20 Hz).
+
+---------------------------------------------------------------------------------------------------
+## 8. 3D terrain export  (owner: Eugenio; consumer: Ahmed's 3D view) — web/public/data/terrain/
+
+Written by `scripts/export_terrain.py` (part of `make data`). A square 1024 x 1024 grid centred on the south pole,
+half-width 220 km, in the same polar stereographic projection as docs/SCIENCE.md section 3 (lon 0 towards +y,
+lon 90 E towards +x). Resampled from data/ldem_75s_120m_float.img.
+
+- `south_pole_height.u16`: little-endian uint16, row-major, row 0 = northern edge (largest y), column 0 = smallest x.
+  `height_m = height_min_m + v / 65535 * (height_max_m - height_min_m)`. 2,097,152 bytes.
+- `south_pole_sun.u8` and `south_pole_earth.u8`: NASA PGDA AVGVISIB_75S_120M_201608 Sun and Earth maps resampled to
+  the same grid, value = percent 0..100, 255 = no data. 1,048,576 bytes each.
+- `south_pole.json`:
+
+```json
+{
+  "version": 1,
+  "proj": "+proj=stere +lat_0=-90 +lat_ts=-90 +lon_0=0 +k=1 +x_0=0 +y_0=0 +R=1737400 +units=m +no_defs",
+  "size": 1024,
+  "pixel_m": 429.6875,
+  "x_min_m": -220000.0,
+  "y_max_m": 220000.0,
+  "height_min_m": -5709.0,
+  "height_max_m": 7018.0,
+  "files": { "height": "south_pole_height.u16", "sun": "south_pole_sun.u8", "earth": "south_pole_earth.u8" },
+  "sites": [ { "id": "mma01", "name": "Malapert Massif", "x_m": -2027.2, "y_m": 123071.7, "height_m": 4728.7 } ],
+  "sources": [ { "name": "LOLA LDEM_75S_120M ...", "url": "https://..." } ]
+}
+```
+`sites` has every terrain="dem" site. `x_min_m` and `y_max_m` are the outer edges of the grid; the centre of
+pixel (row, col) is at `x = x_min_m + (col + 0.5) * pixel_m`, `y = y_max_m - (row + 0.5) * pixel_m`.
+Site `height_m` is the full-resolution DEM height (same as `surface_elev_m` in horizons/<id>.json).
+Each pixel is the mean of the source over its ~430 m footprint, so sharp ridges are smoothed: use the maps for
+display, and horizons/<id>.json or docs/VALIDATION.md for per-site numbers.

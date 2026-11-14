@@ -30,12 +30,10 @@ Start every feature with:
    horizontal scroll for the panorama, stacked controls."
 4. Human job: Vercel project (root `web`, build `npm run build`, output `dist`), test the live URL on phones.
 
-## Ahmed (power, MoonBox)
-1. Human job: build MoonBox (firmware/moonbox/README.md). Flash, test with the Serial Monitor, then the app.
-2. `feat/ahmed-lander-presets`: "Add lander presets to the Battery tab (small CLPS lander, Griffin-class,
-   crewed lander) with panel area, efficiency, battery and load, each with a source note. Mark estimates as estimates."
-3. `feat/ahmed-elevation-led` (only if MoonBox works): "Use LED brightness or a second colour to show how close the Sun
-   is to the skyline (margin), in both the sketch and the on-screen ring."
+## Ahmed (3D Moon)
+TODO(Eugenio): the 3D items for Ahmed go here.
+Starting point: `web/src/routes/Moon3D.tsx` (placeholder, Ahmed replaces this file) and the terrain files in
+`web/public/data/terrain/` (format: docs/INTERFACES.md section 8).
 
 ## Luke (story)
 1. `feat/luke-explain` (Haiku 5.5): "Add short plain-language explainers in web/src/content/ for each tab (2-3 sentences:

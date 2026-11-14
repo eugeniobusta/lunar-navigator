@@ -1,0 +1,7 @@
+site_id,site_name,lat_deg,lon_east_deg,body,n_times,max_abs_elevation_error_deg,max_abs_azimuth_error_deg,max_abs_azimuth_error_on_sky_deg
+mma01,Malapert Massif,-85.9425,-0.94365,sun,20,0.00068,0.00004,0.00004
+mma01,Malapert Massif,-85.9425,-0.94365,earth,20,0.00004,0.00002,0.00002
+hw02,Haworth,-86.8076,-21.7194,sun,20,0.00069,0.00004,0.00004
+hw02,Haworth,-86.8076,-21.7194,earth,20,0.00004,0.00001,0.00001
+apollo11,Apollo 11,0.6741,23.473,sun,20,0.00067,0.00009,0.00003
+apollo11,Apollo 11,0.6741,23.473,earth,20,0.00002,0.00006,0.00002

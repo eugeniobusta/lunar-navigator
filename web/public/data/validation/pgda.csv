@@ -1,0 +1,10 @@
+site_id,site_name,our_sun_pct_centre,pgda_sun_pct,sun_diff_points,our_earth_pct_centre,pgda_earth_pct,earth_diff_points,our_sun_pct_disc_fraction,our_earth_pct_any_part,our_sun_pct_disc_fraction_observer_0m,our_earth_pct_any_part_observer_0m
+pcb03,Peak near Cabeus B,51.5,49.3,2.2,71.8,70.3,1.5,51.5,78.3,48.8,71.8
+hw02,Haworth,46.9,46.8,0.1,57.6,59.3,-1.7,46.8,62.4,40.7,58.4
+mma01,Malapert Massif,45.5,45.1,0.4,100.0,100.0,0.0,45.5,100.0,45.1,100.0
+mmp06,Mons Mouton Plateau,12.6,14.1,-1.5,49.2,52.9,-3.8,12.6,53.7,12.1,53.5
+mmo01,Mons Mouton,70.9,69.7,1.2,58.5,56.2,2.3,71.0,63.4,66.8,59.4
+nr107,Nobile Rim 1,52.9,49.8,3.1,57.5,60.1,-2.6,52.9,62.3,49.2,60.5
+nr208,Nobile Rim 2,30.8,30.6,0.2,52.8,55.0,-2.2,30.7,57.4,29.6,56.8
+dgr203,de Gerlache Rim 2,56.7,56.8,-0.2,54.3,55.8,-1.5,56.7,58.9,52.2,56.0
+sp07,Slater Plain,49.3,52.8,-3.5,42.3,46.6,-4.3,49.3,47.0,48.6,46.9

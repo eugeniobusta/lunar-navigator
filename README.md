@@ -39,6 +39,21 @@ find the landing days that meet a mission's needs, and check whether the battery
 Raw NASA data (~520 MB) is not in git: `make download` puts it in `data/`. Download once, share by USB.
 Sources and validation: docs/DATA.md, docs/SCIENCE.md, docs/VALIDATION.md.
 
+## Open data
+
+Live app: https://claudes-plan-lunar-navigator.vercel.app (open the **Data** tab).
+
+- **What we use**: NASA LOLA LDEM_75S_120M (PDS Geosciences Node), NASA Goddard PGDA lunar polar illumination maps
+  (product 69), the JPL Horizons API, JPL DE421 and NAIF lunar kernels via Skyfield, and the Artemis candidate points
+  of Wueller et al. 2026. Each provider's terms are quoted in DATA_LICENSE.md and on the Data tab.
+- **What we publish**: every file in `web/public/data/` (hourly ephemeris, terrain horizons, 9 x 9 grids, the
+  south-pole terrain export, and our validation tables as CSV), listed with sizes in `web/public/data/index.json`
+  and downloadable from the Data tab. Every field is described in docs/DATA_DICTIONARY.md.
+- **Licences**: code MIT (LICENSE); our derived data CC BY 4.0 (DATA_LICENSE.md); NASA and JPL source data keeps
+  its own terms.
+- **Rebuild it yourself**: `git clone https://github.com/eugeniobusta/lunar-navigator.git && cd lunar-navigator`,
+  then `make download` (about 380 MB, about 3 minutes on our laptop) and `make data` (about 7 seconds).
+
 ## Team: Claude's Plan
 
 Eugenio Busta (lead) · Kien · Chinh · Rahan · Ahmed Diallo · Luke

@@ -1,0 +1,163 @@
+{
+ "version": 1,
+ "licence": "CC BY 4.0 (see DATA_LICENSE.md); NASA source data keeps its own terms",
+ "dictionary": "https://github.com/eugeniobusta/lunar-navigator/blob/main/docs/DATA_DICTIONARY.md",
+ "files": [
+  {
+   "path": "ephemeris.json",
+   "bytes": 1687832,
+   "format": "JSON",
+   "description": "Hourly Sun direction and Earth position seen from the Moon's centre, MOON_ME frame, Nov 2026 to Dec 2029."
+  },
+  {
+   "path": "horizons/apollo11.json",
+   "bytes": 3043,
+   "format": "JSON",
+   "description": "Terrain horizon (skyline elevation every 0.5 deg of azimuth) at Apollo 11."
+  },
+  {
+   "path": "horizons/bg1.json",
+   "bytes": 3036,
+   "format": "JSON",
+   "description": "Terrain horizon (skyline elevation every 0.5 deg of azimuth) at Blue Ghost 1 (Mare Crisium)."
+  },
+  {
+   "path": "horizons/ce4.json",
+   "bytes": 3042,
+   "format": "JSON",
+   "description": "Terrain horizon (skyline elevation every 0.5 deg of azimuth) at Chang'e-4 (far side)."
+  },
+  {
+   "path": "horizons/ch3.json",
+   "bytes": 3039,
+   "format": "JSON",
+   "description": "Terrain horizon (skyline elevation every 0.5 deg of azimuth) at Chandrayaan-3 Vikram."
+  },
+  {
+   "path": "horizons/dgr203.json",
+   "bytes": 4889,
+   "format": "JSON",
+   "description": "Terrain horizon (skyline elevation every 0.5 deg of azimuth) at de Gerlache Rim 2."
+  },
+  {
+   "path": "horizons/hw02.json",
+   "bytes": 4800,
+   "format": "JSON",
+   "description": "Terrain horizon (skyline elevation every 0.5 deg of azimuth) at Haworth."
+  },
+  {
+   "path": "horizons/hw02_grid.json",
+   "bytes": 367270,
+   "format": "JSON",
+   "description": "Terrain horizons at 81 points (9 x 9, 500 m apart) around Haworth."
+  },
+  {
+   "path": "horizons/im2.json",
+   "bytes": 4597,
+   "format": "JSON",
+   "description": "Terrain horizon (skyline elevation every 0.5 deg of azimuth) at IM-2 Athena (Mons Mouton), Mar 2025."
+  },
+  {
+   "path": "horizons/mma01.json",
+   "bytes": 4724,
+   "format": "JSON",
+   "description": "Terrain horizon (skyline elevation every 0.5 deg of azimuth) at Malapert Massif."
+  },
+  {
+   "path": "horizons/mma01_grid.json",
+   "bytes": 385624,
+   "format": "JSON",
+   "description": "Terrain horizons at 81 points (9 x 9, 500 m apart) around Malapert Massif."
+  },
+  {
+   "path": "horizons/mmo01.json",
+   "bytes": 4821,
+   "format": "JSON",
+   "description": "Terrain horizon (skyline elevation every 0.5 deg of azimuth) at Mons Mouton."
+  },
+  {
+   "path": "horizons/mmp06.json",
+   "bytes": 4421,
+   "format": "JSON",
+   "description": "Terrain horizon (skyline elevation every 0.5 deg of azimuth) at Mons Mouton Plateau."
+  },
+  {
+   "path": "horizons/nr107.json",
+   "bytes": 4681,
+   "format": "JSON",
+   "description": "Terrain horizon (skyline elevation every 0.5 deg of azimuth) at Nobile Rim 1."
+  },
+  {
+   "path": "horizons/nr107_grid.json",
+   "bytes": 377113,
+   "format": "JSON",
+   "description": "Terrain horizons at 81 points (9 x 9, 500 m apart) around Nobile Rim 1."
+  },
+  {
+   "path": "horizons/nr208.json",
+   "bytes": 4438,
+   "format": "JSON",
+   "description": "Terrain horizon (skyline elevation every 0.5 deg of azimuth) at Nobile Rim 2."
+  },
+  {
+   "path": "horizons/pcb03.json",
+   "bytes": 4918,
+   "format": "JSON",
+   "description": "Terrain horizon (skyline elevation every 0.5 deg of azimuth) at Peak near Cabeus B."
+  },
+  {
+   "path": "horizons/sp07.json",
+   "bytes": 4734,
+   "format": "JSON",
+   "description": "Terrain horizon (skyline elevation every 0.5 deg of azimuth) at Slater Plain."
+  },
+  {
+   "path": "index.json",
+   "bytes": 4966,
+   "format": "JSON",
+   "description": "This list: every published file with its size, format and description."
+  },
+  {
+   "path": "sites.json",
+   "bytes": 5433,
+   "format": "JSON",
+   "description": "Landing sites: coordinates, source and coordinate quality."
+  },
+  {
+   "path": "terrain/south_pole.json",
+   "bytes": 1954,
+   "format": "JSON",
+   "description": "Grid definition, site positions and sources for the south-pole terrain files."
+  },
+  {
+   "path": "terrain/south_pole_earth.u8",
+   "bytes": 1048576,
+   "format": "binary, uint8",
+   "description": "NASA PGDA average Earth visibility, percent, on the same grid."
+  },
+  {
+   "path": "terrain/south_pole_height.u16",
+   "bytes": 2097152,
+   "format": "binary, little-endian uint16",
+   "description": "South-pole terrain heights, 1024 x 1024, about 430 m per pixel."
+  },
+  {
+   "path": "terrain/south_pole_sun.u8",
+   "bytes": 1048576,
+   "format": "binary, uint8",
+   "description": "NASA PGDA average sunlight, percent, on the same grid."
+  },
+  {
+   "path": "validation/jpl.csv",
+   "bytes": 539,
+   "format": "CSV",
+   "description": "Largest differences between our Sun and Earth positions and JPL Horizons."
+  },
+  {
+   "path": "validation/pgda.csv",
+   "bytes": 872,
+   "format": "CSV",
+   "description": "Our long-run sunlight and Earth visibility against NASA's PGDA maps, per Artemis site."
+  }
+ ]
+}

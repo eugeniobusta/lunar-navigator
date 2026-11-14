@@ -1,5 +1,5 @@
 // App shell: header controls, the sky panorama, then one tab at a time.
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { SkyPanorama } from "./charts/SkyPanorama";
 import { SiteSelect } from "./components/ui";
 import { Compare } from "./routes/Compare";
@@ -11,8 +11,12 @@ import { Windows } from "./routes/Windows";
 import { fmtDate, idxToMs, useSiteView } from "./state/derived";
 import { useStore, type Tab } from "./state/store";
 
+// Loaded on demand so their code stays out of the main bundle.
+const Moon3D = lazy(() => import("./routes/Moon3D").then((m) => ({ default: m.Moon3D })));
+const Data = lazy(() => import("./routes/Data").then((m) => ({ default: m.Data })));
+
 const TABS: [Tab, string][] = [["overview", "Overview"], ["compare", "Compare sites"], ["windows", "Window Finder"],
-  ["power", "Battery"], ["moonbox", "MoonBox"], ["method", "Method"]];
+  ["power", "Battery"], ["moonbox", "MoonBox"], ["method", "Method"], ["moon3d", "3D Moon"], ["data", "Data"]];
 
 export default function App() {
   const st = useStore();
@@ -84,6 +88,10 @@ export default function App() {
         {st.tab === "power" && <Power />}
         {st.tab === "moonbox" && <MoonBox />}
         {st.tab === "method" && <Method />}
+        <Suspense fallback={<p className="note">Loading…</p>}>
+          {st.tab === "moon3d" && <Moon3D />}
+          {st.tab === "data" && <Data />}
+        </Suspense>
       </main>
 
       <footer className="foot">

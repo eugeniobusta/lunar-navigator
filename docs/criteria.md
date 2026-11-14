@@ -125,8 +125,11 @@ Not as its top picks.
 
 - **1 of our top 20 zones** lies inside or within 5 km of an Artemis candidate region (Malapert Massif, rank 13).
 - **6 of the 9 Artemis points pass every hard limit at the point itself.** The three that fail: Peak near Cabeus B
-  and Nobile Rim 2, whose tabulated points lie at 83.56 S and 83.91 S, just outside 6 deg; and Mons Mouton Plateau,
-  whose point has only 14 % sunlight (it sits in a hollow, flagged in docs/SITES.md).
+  and Nobile Rim 2, whose points lie at 83.56 S and 83.91 S, just outside 6 deg; and Mons Mouton Plateau, whose
+  point has only 14 % sunlight (it sits in a hollow). All nine coordinates are verified against Wueller et al. 2026
+  (docs/research/artemis_coordinates.md): these three are what the authors published. The paper picked its sites
+  by slope and by the longest run of sunlit days in midsummer, and the Mons Mouton Plateau point for access to a
+  cold permanent shadow, which is not what our limits test.
 - **8 of the 9 regions have passing zones nearby**, ranked between 13 and 192. Only Peak near Cabeus B has none,
   because its point is outside the 6 deg circle.
 - Ground near the nine points is 3.3 % of the area searched and 5.9 % of the ground that passes: 1.8 times its share.

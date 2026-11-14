@@ -5,26 +5,14 @@ import { describe, expect, it } from 'vitest';
 import { computeSeries, type Ephemeris } from '../../web/src/lib/analysis';
 import { demHorizon, heightAt, parseHeightGrid, stereoXY } from '../../web/src/lib/analysis/demHorizon';
 import type { CriterionRow } from '../../web/src/lib/analysis/explain';
-import {
-  EVERYTHING,
-  LAYER_KEYS,
-  mapScore,
-  PARAMETERS,
-  presetSelection,
-  sameSelection,
-  selectionWeights,
-  TERM_KEYS,
-  toggleTerm,
-  type Preset,
-  type Selection,
-} from '../../web/src/lib/analysis/suitability';
+import { paintClasses } from '../../web/src/lib/analysis/paint';
+import { classGrid, classRanges, classifyScore } from '../../web/src/lib/analysis/rag';
+import { EVERYTHING, LAYER_KEYS, presetSelection, sameSelection, type Preset, type Selection } from '../../web/src/lib/analysis/suitability';
 import { parseCsv } from '../../web/src/lib/data/csv';
 import { resampleBytes, tileFromPole, type SouthPole } from './data';
 import {
-  FLAT_BYTE,
-  LIMITS_COLOR,
-  PARAM_COLOR,
-  SINGLE_MAX,
+  CB_COLOR,
+  RAG_COLOR,
   TOUR_PLAY_H,
   answer,
   buildZones,
@@ -32,17 +20,17 @@ import {
   captionPole,
   captionStand,
   captionZone,
-  isPublished,
   longRunMetrics,
-  mapKind,
+  mapLegend,
   nextSunUp,
-  paint,
+  paintStyle,
   poleSunMaxDeg,
   priorities,
   rankAll,
-  rescore,
+  showingKey,
+  shownSelection,
   whyFromRow,
-  zoneShade,
+  zoneRag,
 } from './guide';
 
 const DATA = new URL('../../web/public/data/', import.meta.url);
@@ -98,9 +86,21 @@ describe('demo start', () => {
   });
 });
 
-describe('priorities', () => {
-  it('balanced weights give the published order and scores', () => {
-    const ranked = rankAll(zones(), presets.find((p) => p.key === 'balanced')!.weights);
+describe('layers: presets, ranking, classes', () => {
+  const prio = priorities(json('suitability/weights.json'));
+  const only = (...ticked: Selection['ticked']): Selection => ({ ticked });
+  const preset = (key: string) => presetSelection(presets.find((p) => p.key === key)!);
+
+  it('opens with everything ticked; the presets are the website\'s', () => {
+    expect(sameSelection(prio.initial, EVERYTHING)).toBe(true);
+    expect(prio.presets.map((p) => p.key)).toEqual(['balanced', 'everything', 'power', 'radio', 'ice']);
+    expect(prio.labels.darkness).toBe('Short nights');
+    // Without the file there is only the published ranking.
+    expect(sameSelection(priorities(null).initial, preset('balanced'))).toBe(true);
+  });
+
+  it('NASA-style balance gives the published order and scores', () => {
+    const ranked = rankAll(zones(), preset('balanced'));
     expect(ranked.length).toBeGreaterThan(1000);
     expect(ranked.every((z, i) => z.rank === i + 1 && z.id === i + 1)).toBe(true);
     expect(ranked.every((z) => z.score === Number(z.row.score))).toBe(true);
@@ -108,7 +108,7 @@ describe('priorities', () => {
 
   it('every other preset is a re-ranking: a permutation, confirmed stays first, best score first', () => {
     for (const p of presets.filter((k) => k.key !== 'balanced')) {
-      const ranked = rankAll(zones(), p.weights);
+      const ranked = rankAll(zones(), presetSelection(p));
       expect(new Set(ranked.map((z) => z.id)).size).toBe(ranked.length);
       const ok = ranked.filter((z) => z.stayOk);
       expect(ranked.slice(0, ok.length).every((z) => z.stayOk)).toBe(true);
@@ -117,133 +117,125 @@ describe('priorities', () => {
     }
   });
 
-  it('rescore keeps the hard limits and agrees with mapScore cell by cell', () => {
-    const raw = u8('suitability/sites/mma01_score.u8');
-    const layers = LAYER_KEYS.map((k) => u8(`suitability/layers/sites/mma01_${k}.u8`));
-    const shown = new Uint8Array(raw.length);
-    const all = new Uint8Array(raw.length);
-    const power = presets.find((p) => p.key === 'power')!.weights;
-    rescore(layers, raw, power, shown, all);
-    let pass = 0;
-    for (let i = 0; i < raw.length; i += 97) {
-      expect(all[i]).toBe(mapScore(layers.map((l) => l[i]), power));
-      expect(shown[i]).toBe(raw[i] <= 100 ? all[i] : 255);
-      pass += raw[i] <= 100 ? 1 : 0;
-    }
-    expect(pass).toBeGreaterThan(0);
-    // With the balanced weights the layers reproduce the published score to within one point.
-    rescore(layers, raw, presets.find((p) => p.key === 'balanced')!.weights, shown, all);
-    let worst = 0;
-    for (let i = 0; i < raw.length; i++) {
-      if (raw[i] <= 100) {
-        worst = Math.max(worst, Math.abs(all[i] - raw[i]));
-      }
-    }
-    console.log('balanced layers vs published score, worst difference:', worst);
-    expect(worst).toBeLessThanOrEqual(1);
-  });
-});
-
-describe('tick boxes', () => {
-  const prio = priorities(json('suitability/weights.json'));
-  const only = (...ticked: Selection['ticked']): Selection => ({ ticked });
-
-  it('opens with everything ticked, and the presets are the website\'s selections', () => {
-    expect(sameSelection(prio.initial, EVERYTHING)).toBe(true);
-    expect(prio.presets.map((p) => p.key)).toEqual(['balanced', 'everything', 'power', 'radio', 'ice']);
-    expect(isPublished(presetSelection(prio.presets[0]))).toBe(true);
-    expect(isPublished(EVERYTHING)).toBe(false);
-    // Without the file there is only the published ranking.
-    expect(isPublished(priorities(null).initial)).toBe(true);
+  it('turning a direction round re-ranks: the zone that was best for cold ground is not best for warm', () => {
+    const cold = rankAll(zones(), only('temperature'))[0].id;
+    const warm = rankAll(zones(), { ticked: ['temperature'], flipped: ['temperature'] });
+    expect(warm[0].id).not.toBe(cold);
+    expect(warm.every((z, i) => !z.stayOk || i === 0 || !warm[i - 1].stayOk || warm[i - 1].score >= z.score)).toBe(true);
   });
 
-  it('every parameter has the colour of the website\'s token', () => {
+  it('the class colours are the website\'s tokens', () => {
     const css = readFileSync(new URL('../../web/src/styles/tokens.css', import.meta.url), 'utf8');
-    for (const p of PARAMETERS) {
-      expect(PARAM_COLOR[p.key]).toMatch(/^#[0-9A-F]{6}$/i);
-      expect(css).toContain(`${p.token}: ${PARAM_COLOR[p.key]}`);
+    const pairs: [string, string][] = [
+      ['--go', RAG_COLOR.green], ['--caution', RAG_COLOR.amber], ['--stop', RAG_COLOR.red], ['--nodata', RAG_COLOR.grey],
+      ['--cb-high', CB_COLOR.green], ['--cb-mid', CB_COLOR.amber], ['--cb-low', CB_COLOR.red], ['--void', CB_COLOR.grey],
+    ];
+    for (const [token, hex] of pairs) {
+      expect(css).toContain(`${token}: ${hex}`);
     }
-    expect(css).toContain(`--bone: ${LIMITS_COLOR}`);
-    expect(new Set(PARAMETERS.map((p) => p.key))).toEqual(new Set(TERM_KEYS));
+    const st = paintStyle(false, 0.5, 0.25);
+    expect(st.green).toEqual([0x6f, 0xbf, 0x73]);
+    expect(st.opacity).toBe(0.5);
+    expect(st.unsafeOpacity).toBe(0.25);
+    expect(paintStyle(true, 1, 1).green).toEqual([0xfd, 0xe7, 0x37]);
   });
 
-  it('mapKind: one layer by itself, the combined score for two or more, flat with nothing known everywhere', () => {
-    expect(mapKind(only())).toEqual({ kind: 'flat' });
-    expect(mapKind(only('darkness'))).toEqual({ kind: 'flat' });
-    expect(mapKind(only('darkness', 'no_earth'))).toEqual({ kind: 'flat' });
-    expect(mapKind(only('ice'))).toEqual({ kind: 'single', layer: 'ice' });
-    expect(mapKind(only('sunlight', 'darkness'))).toEqual({ kind: 'combined' });
-    expect(mapKind(toggleTerm(only('sunlight', 'earth'), 'earth'))).toEqual({ kind: 'single', layer: 'sunlight' });
-    expect(mapKind(EVERYTHING)).toEqual({ kind: 'combined' });
-  });
-
-  it('paint: one parameter shows its layer everywhere there is data; flat and combined keep the hard limits', () => {
-    const raw = u8('suitability/sites/mma01_score.u8');
+  it('opacity and palette never change a class or a score', () => {
+    const limits = u8('suitability/sites/mma01_limits.u8');
     const layers = LAYER_KEYS.map((k) => u8(`suitability/layers/sites/mma01_${k}.u8`));
-    const shown = new Uint8Array(raw.length);
-    const all = new Uint8Array(raw.length);
-    const sun = layers[LAYER_KEYS.indexOf('sunlight')];
-    paint(layers, raw, only('sunlight'), shown, all);
-    let fails = 0;
-    for (let i = 0; i < raw.length; i += 89) {
-      if (raw[i] === 255) {
-        expect(shown[i]).toBe(255);
-        continue;
-      }
-      expect(shown[i]).toBe(Math.round(SINGLE_MAX * (sun[i] / 255) ** 0.75));
-      expect(shown[i]).toBeLessThanOrEqual(SINGLE_MAX);
-      expect(all[i]).toBe(Math.floor((200 * sun[i] + 255) / 510)); // the layer as a 0..100 score, half up
-      fails += raw[i] > 100 ? 1 : 0;
+    const score = new Uint8Array(limits.length);
+    const codes = classGrid(layers, limits, EVERYTHING, undefined, score);
+    const before = [Uint8Array.from(codes), Uint8Array.from(score)];
+    const a = paintClasses(codes, paintStyle(false, 1, 1));
+    const b = paintClasses(codes, paintStyle(true, 0.25, 0));
+    expect(codes).toEqual(before[0]);
+    expect(score).toEqual(before[1]);
+    expect(a).not.toEqual(b); // the pictures differ; the classes do not
+    // Opacity 0 for both: nothing is drawn anywhere.
+    const none = paintClasses(codes, paintStyle(false, 0, 0));
+    let drawn = 0;
+    for (let i = 3; i < none.length; i += 4) {
+      drawn += none[i];
     }
-    expect(fails).toBeGreaterThan(0);
-    paint(layers, raw, only('darkness'), shown, all);
-    for (let i = 0; i < raw.length; i += 89) {
-      expect(shown[i]).toBe(raw[i] <= 100 ? FLAT_BYTE : 255);
-    }
-    const w = selectionWeights(EVERYTHING);
-    paint(layers, raw, EVERYTHING, shown, all);
-    for (let i = 0; i < raw.length; i += 89) {
-      expect(all[i]).toBe(mapScore(layers.map((l) => l[i]), w));
-      expect(shown[i]).toBe(raw[i] <= 100 ? all[i] : 255);
-    }
+    expect(drawn).toBe(0);
   });
 
-  it('zoneShade colours the rings only for a zone-only parameter by itself', () => {
-    const z = zones()[0];
-    expect(zoneShade(EVERYTHING, z, prio)).toBeNull();
-    expect(zoneShade(only('sunlight'), z, prio)).toBeNull();
-    const b = prio.bounds.darkness!;
-    const sh = zoneShade(only('darkness'), z, prio)!;
-    expect(sh.key).toBe('darkness');
-    expect(sh.s).toBeCloseTo(Math.min(1, Math.max(0, (z.darkH - b.reject) / (b.ideal - b.reject))) ** 0.75, 12);
+  it('shownSelection: one ticked parameter alone, with its direction; the ticks otherwise', () => {
+    const sel: Selection = { ticked: ['sunlight', 'temperature', 'darkness'], flipped: ['temperature'] };
+    expect(shownSelection(sel, null)).toBe(sel);
+    expect(shownSelection(sel, 'temperature')).toEqual({ ticked: ['temperature'], flipped: ['temperature'] });
+    expect(shownSelection(sel, 'ice')).toBe(sel); // not ticked: nothing to show alone
+    expect(showingKey(shownSelection(sel, 'temperature'))).toBe('temperature');
+    expect(showingKey(sel)).toBe('combined');
+    expect(showingKey(only('darkness', 'no_earth'))).toBe('limits');
+    expect(showingKey(only())).toBe('limits');
   });
 
-  it('the sentence names what is ticked, in the list order, with the number of zones', () => {
+  it('the legend says what the website says', () => {
+    const page = readFileSync(new URL('../../web/src/routes/LandingMap.tsx', import.meta.url), 'utf8');
+    // The page builds its lines from these pieces, one set per palette.
+    for (const words of ['"Yellow" : "Green"}, good: {lg.green}', '"Grey" : "Amber"}, acceptable: {lg.amber}', '"Dark blue" : "Red"}, poor: {lg.red}',
+      'Hatched: unsafe, fails a NASA limit', '"Black" : "Grey"}: no data',
+      'Clear ground passes every NASA limit. Tick a parameter to score it.', 'Combined score of all ten parameters', 'NASA safety limits only']) {
+      expect(page).toContain(words);
+    }
+    const cb = mapLegend(EVERYTHING, prio, true);
+    expect(cb.lines.map((l) => l.text.split(/[,:]/)[0])).toEqual(['Yellow', 'Grey', 'Dark blue', 'Hatched', 'Black']);
+    const all = mapLegend(EVERYTHING, prio);
+    expect(all.what).toBe('Combined score of all ten parameters');
+    expect(all.lines.map((l) => l.mark)).toEqual(['green', 'amber', 'red', 'unsafe', 'grey']);
+    expect(all.lines[0].text).toBe('Green, good: score 70 to 100');
+    expect(all.lines[2].text).toBe('Red, poor: score under 40');
+    expect(all.lines[3].text).toBe('Hatched: unsafe, fails a NASA limit');
+    const sun = mapLegend(only('sunlight'), prio);
+    expect(sun.what).toBe('Sunlight alone');
+    expect(sun.lines[0].text).toBe(`Green, good: ${classRanges('sunlight').green}`);
+    expect(sun.lines[0].text).toContain('70');
+    expect(mapLegend(only('sunlight', 'darkness', 'earth'), prio).what).toBe('Combined score of Sunlight + Earth in view');
+    const none = mapLegend(only('darkness'), prio);
+    expect(none.what).toBe('NASA safety limits only');
+    expect(none.lines.map((l) => l.mark)).toEqual([null, 'unsafe', 'grey']);
+  });
+
+  it('zoneRag: the class of the score, or of the one ticked parameter at the zone', () => {
+    const all = zones();
+    const best = rankAll(all, EVERYTHING)[0];
+    expect(zoneRag(best, EVERYTHING)).toBe(classifyScore(best.score));
+    expect(zoneRag(best, only())).toBe('grey');
+    const z = all[0];
+    expect(zoneRag(z, only('sunlight'))).toBe(Number(z.row.sun_pct) >= 70 ? 'green' : Number(z.row.sun_pct) < 25 ? 'red' : 'amber');
+    const dark = Number(z.row.longest_dark_h);
+    expect(zoneRag(z, only('darkness'))).toBe(dark <= 85 ? 'green' : dark >= 354 ? 'red' : 'amber');
+  });
+
+  it('the answer names what is ticked, counts when the list is long, and gives the best zone\'s class', () => {
     const all = zones();
     const n = all.length.toLocaleString('en-US');
-    const best = (sel: Selection) => rankAll(all, selectionWeights(sel))[0];
+    const best = (sel: Selection) => rankAll(all, sel)[0];
     const two = only('sunlight', 'darkness');
-    expect(answer(two, prio, all.length, best(two)).text).toMatch(new RegExp(`^Best landing spots for Sunlight \\+ Short nights: ${n} zones; the best`));
-    expect(answer(only('earth', 'sunlight', 'landing_slope'), prio, all.length, best(two)).text).toContain('for Sunlight + Earth in view + Landing slope:');
+    const b2 = best(two);
+    expect(answer(two, prio, all.length, b2)).toBe(
+      `Best landing spots for Sunlight + Short nights: ${n} zones. The best scores ${b2.score} of 100 (${zoneRag(b2, two) === 'green' ? 'good' : zoneRag(b2, two) === 'amber' ? 'acceptable' : 'poor'})${b2.near ? `, near ${b2.near}` : ''}.`,
+    );
     const every = answer(EVERYTHING, prio, all.length, best(EVERYTHING));
-    expect(every.text).toContain(`Best landing spots for everything on the list: ${n} zones`);
-    expect(every.text).toContain(`scores ${best(EVERYTHING).score} of 100`);
-    const one = answer(only('sunlight'), prio, all.length, best(only('sunlight')));
-    expect(one.text).toContain('Showing Sunlight by itself: 25 % of time (dark) to 70 % of time or more (full colour)');
-    expect(one.note).toBeNull();
-    expect(answer(only('no_earth'), prio, all.length, best(only('no_earth'))).note).toContain('known at the zones');
-    expect(answer(only(), prio, all.length, all[0]).text).toBe(`Nothing is ticked, so nothing is ranked. The map shows where the NASA safety limits pass: ${n} zones.`);
-    console.log(every.text);
-    console.log(answer(two, prio, all.length, best(two)).text);
+    expect(every).toContain(`Best landing spots for everything on the list: ${n} zones.`);
+    expect(answer(preset('balanced'), prio, all.length, best(preset('balanced')))).toContain('for 8 of 10 parameters:');
+    expect(answer(only(), prio, all.length, all[0])).toBe(`Nothing is ticked, so nothing is ranked. Clear ground passes every NASA limit: ${n} zones.`);
+    console.log(every);
+    console.log(answer(two, prio, all.length, b2));
   });
 
-  it('"Why here?" keeps the hard limits and leaves out what is not ticked', () => {
+  it('"Why here?" keeps the hard limits, leaves out what is not ticked, and follows a turned-round direction', () => {
     const z = zones()[0];
     const full = whyFromRow('zone', z.row, criteria);
     const power = whyFromRow('zone', z.row, criteria, ['sunlight', 'darkness']);
     expect(power.lines.length).toBeLessThan(full.lines.length);
     expect(power.lines.some((l) => l.head.startsWith('Landing slope'))).toBe(true); // a NASA limit: always there
     expect(power.lines.some((l) => /temperature/i.test(l.head))).toBe(false);
+    const usual = whyFromRow('zone', z.row, criteria, ['temperature']).lines.find((l) => /temperature/i.test(l.head))!;
+    const turned = whyFromRow('zone', z.row, criteria, ['temperature'], ['temperature']).lines.find((l) => /temperature/i.test(l.head))!;
+    const swap = { good: 'rejected', acceptable: 'acceptable', rejected: 'good' } as const;
+    expect(turned.verdict).toBe(swap[usual.verdict]);
     console.log('why lines: everything', full.lines.length, ', power', power.lines.length);
   });
 });

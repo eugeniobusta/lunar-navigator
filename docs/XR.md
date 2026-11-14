@@ -2,7 +2,7 @@
 
 A game-like simulation where every number is real data: start at the whole Moon, come down to the south pole,
 choose an Artemis site or a ranked zone, fly there, see 1:1
-terrain about 30 km around it with heat maps, choose the exact landing point, then stand there 2 m above the
+terrain about 30 km around it with the traffic-light map, choose the exact landing point, then stand there 2 m above the
 ground and watch the real Sun and Earth move over the real skyline. Works on a laptop and in a Meta Quest 3.
 Live at `/xr/` on the project site; the website can embed it with `/xr/?site=<id>&t=<ISO time>&embed=1`.
 
@@ -25,8 +25,8 @@ Driving the emulator from Claude Code or a shell, with the dev server running (f
 by the IWSDK scaffolder) explain the rest. If you start Claude Code inside `xr/`, the same tools load as MCP servers.
 
 URL parameters: `site` (a site id with terrain, e.g. `mma01`), `zone` (a zone's published rank, e.g. `1`), `lat` and `lon` (any point within 10 degrees of the pole, as the website's map sends),
-`t` (UTC start of the 30-day window, e.g. `2026-11-24T00:00Z`), `demo=1` (opens Orbit with the Goldilocks heat map
-on), `embed=1` (hides the title box), `detail=high|medium|low` (the headset's detail level on the laptop view, for
+`t` (UTC start of the 30-day window, e.g. `2026-11-24T00:00Z`), `demo=1` (opens Orbit;
+kept for old links), `embed=1` (hides the title box), `detail=high|medium|low` (the headset's detail level on the laptop view, for
 measuring: see "Frame rate"). Without `t`, Orbit shows now, and a site or zone opens at the next hour at
 which the whole Sun is above its skyline (`nextSunUp` in `guide.ts`, a search with `computeSeries`).
 
@@ -39,7 +39,7 @@ which the whole Sun is above its skyline (`nextSunUp` in `guide.ts`, a search wi
 | `terrain.ts` | Terrain material (lighting, heat-map ramps, palette), the GPU shadow pass, mesh builder, the depth scheme. | look of the ground, heat-map colours, shadow quality |
 | `geo.ts` | Frames: MOON_ME to the scene, fields of true 3D positions (curvature included), picking a ground point, CPU copy of the shadow test. Tested. | never, unless the maths is wrong |
 | `data.ts` | Loaders for everything in `/data/`, including optional files (zones, missions, score, layers, presets, criteria); `tileFromPole` cuts a tile from the south-pole grid for a zone no site tile covers. | a data file changes shape |
-| `guide.ts` | What the view says and ranks: demo start time, "Why here?" lines, the tick boxes (which map to show, re-rank, the sentence), the tour's four captions. Only calls `explain.ts`, `suitability.ts` and `computeSeries`. Tested. | tour text, a new preset or criterion |
+| `guide.ts` | What the view says and ranks: demo start time, "Why here?" lines, the layer panel (what the map shows, its legend, the ranking, the sentence under it), the tour's four captions. Only calls `explain.ts`, `suitability.ts` and `computeSeries`. Tested. | tour text, a new preset or criterion |
 | `moon.ts` | The whole-Moon view as pure maths: the pole frame, the globe's mesh and heights, the cap's edge, the compass, the zoom from the whole Moon to the pole. Tested. | zoom, compass, cap edge |
 | `globe.ts` | Loads the CGI Moon Kit maps (2K in a headset, 4K elsewhere), the globe's material, the fade between scenes. | the globe's look |
 | `perf.ts` | Automatic quality in the headset: the three detail levels and the rule that lowers them. Tested. | frame rate on the Quest |
@@ -67,8 +67,8 @@ IWSDK scene: everything is generated from data at run time.
     the grid's plane, so at the outer edge of this ring distances are stretched by up to 10 %: display only.
   - The rest: a sphere raised by the kit's LOLA heights, coloured by the kit's LROC WAC colour map and shaded by
     slopes derived from LOLA, with the same Sun direction and display curve. No cast shadows there.
-  - The ground colour of all three is the LROC colour map. The heat map is drawn over the cap only, with the
-    opacity the user chooses.
+  - The ground colour of all three is the LROC colour map. The traffic-light map is drawn over the cap only, out
+    to the 84 S circle, with the opacity the user chooses.
   - Source: NASA's Scientific Visualization Studio, CGI Moon Kit (https://svs.gsfc.nasa.gov/4720), public domain.
     `scripts/export_moon_globe.py` writes `xr/public/moon/` (7 MB) and checks the kit's heights against our grid:
     on the 86 S circle the mean difference is 5.7 m and the rms 135 m (the kit is 1.9 km per pixel, ours 430 m).
@@ -92,27 +92,32 @@ IWSDK scene: everything is generated from data at run time.
   there: latitude, the NASA sunlight and Earth pixels, the landing slope (the formula of `engine/criteria.py` on
   the tile's heights; within 0.105 deg of zones.csv at 235 zones) and the longest darkness and time without Earth
   from `computeSeries` over the whole ephemeris (at Malapert: 404 h and 0 h, the same as site_values.csv).
-- "What matters for your mission?": the website's tick boxes, through the selection API of
-  `web/src/lib/analysis/suitability.ts` (`toggleTerm`, `presetSelection`, `selectionWeights`, `rankZones`). The
-  presets of `suitability/weights.json` are buttons; the view opens on its default, "Everything". The colours are
-  the website's tokens (`guide.test.ts` checks them against `web/src/styles/tokens.css`). "NASA safety limits" is
-  a locked row: the hard limits always apply.
-  - The tick boxes are the only thing that chooses the map. "Map opacity" (off, 25, 50, 75, 100 %) fades it over
-    the ground; standing on the surface shows bare ground.
-  - One parameter ticked: its own layer as a heat map in its colour, dark at its reject bound and full colour at
-    its ideal (the website's 0.75 power), everywhere there is data.
-  - Two or more: the combined Goldilocks map (`mapScoreGrid` on the published layers; cells that fail a hard limit
-    stay uncoloured), the zones re-ranked, the top 10 listed, and the sentence "Best landing spots for A + B: N
-    zones".
-  - "Short nights" and "Never out of contact" are known at the zones, not at every point. Ticked by themselves,
-    the map shows where the limits pass in one flat green and the zone rings carry the parameter's colour.
-  - Nothing ticked: nothing is ranked, no zones are listed, the map shows where the limits pass.
-  - "Why here?" shows the ticked parameters plus every NASA hard limit (`explainFor`).
-  - In VR the tick boxes are a page of the panel ("What matters?"): each box is 5 cm high and 38 cm wide on the
-    82 cm panel, and the sentence is drawn under the boxes so they do not move when it changes.
-  - `?preset=<key>` and `?pick=sunlight,earth` in the URL open with that choice (the website's own parameters).
-  - "Score for what is ticked" in the landing-point panel is the map score of that cell; a zone's score also
-    counts its longest darkness and time without Earth, so the two differ.
+- "What matters for your mission?": the website's layer panel, on the same shared code
+  (`web/src/lib/analysis/rag.ts`, `suitability.ts`, `paint.ts`), so the VR and the website's map cannot disagree.
+  - Presets, the locked "NASA safety limits" row, and the four groups (Safe ground, Power and heat, Radio link, Ice
+    and science). A group's tick ticks all its parameters; a group opens to its parameters and closes again (one
+    open at a time). A ticked parameter has its direction where it can be turned round ("Prefer colder"), its
+    importance (low, normal, high) and "Show alone on the map".
+  - The map is traffic lights (`classGrid`): green good, amber acceptable, red poor for what is shown; ground that
+    fails a NASA limit is red and hatched (never colour alone); grey is no data. One parameter alone uses its own
+    ranges; several use the combined score (green from 70, amber from 40). The legend uses the website's words
+    (`guide.test.ts` checks them against `LandingMap.tsx`) and the real-unit ranges of `rag.ts`.
+  - Colours are painted by the website's `paintClasses`. "Map opacity", "Unsafe ground" opacity and the
+    colour-blind palette only change the picture, never a class or a score (tested). The map follows the layers
+    and nothing else; standing on the surface shows bare ground.
+  - Zones are ranked with `rankZonesFor` (weights and turned-round directions); the rings and the top-10 list carry
+    each zone's class. Parameters known only at the zones ("Short nights", "Never out of contact") re-rank the
+    zones and do not colour the map.
+  - "Why here?" shows the ticked parameters plus every NASA hard limit (`explainFor`), with a turned-round
+    direction read the other way. For a point that is not a zone or a site, the values are those of its map cell
+    (`cellValues`), with our model's longest night and longest time without Earth at that exact point.
+  - In VR the panel has short pages: the main page (tour, whole Moon or south pole, the two opacities, the legend
+    with its marks), "Layers", "Best zones", "Landing sites", "Why here?". Buttons are 5 cm high on the 82 cm
+    panel; text is 21 to 32 px of the 1024 px canvas (1.7 to 2.6 cm), the credits 18 px.
+  - `?preset=<key>`, or `?pick=sunlight,earth` with `flip=temperature` and `imp=sunlight:high`, open with that
+    choice (the website's own parameters).
+  - "Score for what is ticked" in the landing-point panel is the map score of that cell with its class; a zone's
+    score also counts its longest darkness and time without Earth, so the two differ.
 - Tour: four stops, each waiting for "Next". It ticks "Everything" when it starts. Every number in a caption is
   computed when the stop opens: the Sun's highest elevation at the pole from the ephemeris, the passing area from
   `summary.json`, the best zone and its "Why here?" lines, the Sun's path over the two days that stop 4 plays.
@@ -130,8 +135,8 @@ screen carry the numbers; say the line, press "Next".
 | Time | Screen | Say |
 |------|--------|-----|
 | 0:00 | The whole Moon, south pole towards you | "This is the Moon as NASA's Lunar Reconnaissance Orbiter mapped it. The south pole is where Artemis lands." Press "Tour". |
-| 0:06 | Stop 1: the view comes down to the pole, no heat map | "The Sun never climbs more than 1.6 degrees here, so every hill throws a shadow kilometres long. Power and darkness are decided by the skyline." |
-| 0:20 | Stop 2: Goldilocks map | "We tested every 120 metre square against NASA's Artemis III limits. 14.3 % passes: 14,928 square kilometres, in 5,297 zones." |
+| 0:06 | Stop 1: the view comes down to the pole, no map | "The Sun never climbs more than 1.6 degrees here, so every hill throws a shadow kilometres long. Power and darkness are decided by the skyline." |
+| 0:20 | Stop 2: the traffic-light map | "We tested every 120 metre square against NASA's Artemis III limits. 14.3 % passes: 14,928 square kilometres, in 5,297 zones. Hatched red fails a limit; green, amber and red score the rest." |
 | 0:32 | Stop 3: flight to the best zone | "This is the best zone with everything ticked, score 76 of 100. Every line is a criterion with its value and verdict. Tick only what matters to you and the ranking changes live." |
 | 0:46 | Stop 4: standing there | "Now we stand on it, eyes 2 metres up, at true scale. Two days pass: the Sun slides about 24 degrees round the horizon, the shadows sweep, and Earth stays in view for the radio link." |
 | 0:58 | "Finish" | "Real terrain, real Sun, real Earth: choose where to land before you fly." |
@@ -156,16 +161,16 @@ headset starts at.
 
 | Mode | Before, ms | After, ms | After, longest frame, ms | Before, headset detail, ms | After, headset detail, ms | After, headset detail, longest, ms |
 |------|-----------:|----------:|-------------------------:|---------------------------:|--------------------------:|-----------------------------------:|
-| Whole Moon | none | 3.2 | 4.7 | none | 3.2 | 4.8 |
-| Orbit at the pole | 4.6 | 4.1 | 6.1 | 3.5 | 3.9 | 6.6 |
-| Orbit at the pole, time running | 8.3 | 9.4 | 13.8 | 4.3 | 4.9 | 9.4 |
-| Land | 4.7 | 4.0 | 6.4 | 4.0 | 4.2 | 5.8 |
-| Stand | 3.8 | 3.3 | 5.3 | 3.5 | 4.0 | 6.1 |
-| Stand, time running | 6.1 | 5.6 | 8.0 | 4.1 | 5.2 | 39.0 |
+| Whole Moon | none | 3.1 | 4.4 | none | 2.9 | 4.3 |
+| Orbit at the pole | 4.6 | 4.1 | 5.3 | 3.5 | 3.4 | 5.1 |
+| Orbit at the pole, time running | 8.3 | 9.3 | 12.3 | 4.3 | 4.1 | 7.0 |
+| Land | 4.7 | 3.9 | 5.4 | 4.0 | 3.4 | 5.8 |
+| Stand | 3.8 | 3.2 | 4.8 | 3.5 | 3.3 | 6.2 |
+| Stand, time running | 6.1 | 5.7 | 7.1 | 4.1 | 4.2 | 13.9 |
 
-Run to run the means move by about 0.5 ms. The 39 ms frame in the last row was one frame in five windows; Land and
-Stand scenes themselves did not change. Triangles drawn per frame at headset detail: 59,674 (whole Moon), 186,144
-(pole), 166,874 (Land).
+"After" is the build with the whole Moon and the traffic-light map. Run to run the means move by about 0.5 ms, and
+a single long frame (up to 39 ms once, in Stand with time running) turned up in some runs and not in others.
+Triangles drawn per frame at headset detail: 59,674 (whole Moon), 186,144 (pole), 166,874 (Land).
 
 What keeps the whole Moon cheap in the headset: 2K maps and a 128 x 64 globe (4K and 384 x 192 on a laptop); from
 the whole-Moon view the cap uses a quarter of its mesh and half its shadow map; the ring round the cap reads its
@@ -183,8 +188,8 @@ If frames still run long on the headset, the automatic quality lowers the detail
 - Tour stop 4 plays 2 days at 4 hours per second and repeats. The speed buttons mean hours per second (1x = 1 hour
   per second), so "100x" would show the 2 days in half a second.
 - Goldilocks zones are drawn as rings with the zone's area around its best cell (zones.geojson holds points, not
-  outlines); the true shapes are what the "Goldilocks score" heat map shows (only cells that pass every hard limit
-  are coloured). Orbit rings the best 40 zones and lists the best 10, for what is ticked.
+  outlines); the true shapes are what the map shows (ground that passes every hard limit is the part that is
+  not hatched). Orbit rings the best 40 zones and lists the best 10, for what is ticked.
 - Zones, the score layer and past landings are optional files: if one is missing its feature is hidden, nothing breaks.
 - Ordinary objects (lander, markers, lines, panel, controllers) always draw in front of terrain, because terrain
   and sky use their own logarithmic depth range (see the comment in `terrain.ts`). From far away the lander can
@@ -205,7 +210,7 @@ If frames still run long on the headset, the automatic quality lowers the detail
    thumbstick pulled back goes out again; (b) point at a site marker or a name and pull
    the trigger, or pinch with a bare hand; (c) in Land you stand 2 km above the point: aim at the ground, trigger
    to move the landing point; (d) A or X, or "Stand here": you are on the surface, eyes 2 m up; (e) thumbstick
-   left or right scrubs time, or pinch and drag on the time bar; (f) "Enlarge 5x", "What matters?" and the map opacity, Play at 1x, 10x, 100x.
+   left or right scrubs time, or pinch and drag on the time bar; (f) "Enlarge 5x", "Layers" (open a group, tick, "Prefer", "Importance", "Alone"), the two opacity rows, Play at 1x, 10x, 100x.
 4. Frame rate: press "Stats" on the panel. It shows frames per second, milliseconds per frame (mean of the last
    72 frames), the longest single frame of those 72, and the detail level. Read it in each mode: whole Moon,
    south pole, south pole with Play at 10x, Land, Stand, Stand with Play at 10x. Target 72 fps (13.9 ms). In the headset detail is automatic: when the mean

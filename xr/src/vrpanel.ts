@@ -36,16 +36,22 @@ export interface PanelButton {
   label: string;
   on?: boolean;
   primary?: boolean;
-  /** A tick box: drawn with its box (ticked or not), then `chip`, then the label, left-aligned. */
-  check?: boolean;
-  /** Colour of the chip of a tick box, "#rrggbb". */
-  chip?: string;
+  /** A tick box: drawn with its box (ticked, not, or "some" of a group), then the label, left-aligned. */
+  check?: boolean | 'some';
+  /** Relative width in its row (default 1). */
+  w?: number;
+  /** A tick box one step in: a parameter under its group. */
+  indent?: boolean;
   /** Shown but not pressable. */
   locked?: boolean;
+  /** An empty place in the row, so that columns line up from row to row. */
+  blank?: boolean;
 }
 
 export interface PanelLine {
   text: string;
+  /** A swatch before the text: a class colour ("#rrggbb"), hatched for ground that fails a NASA limit. */
+  mark?: { color: string; hatch?: boolean };
   color?: PanelColor;
   big?: boolean;
   small?: boolean;
@@ -141,13 +147,35 @@ export class VrPanel {
     y += 22;
     const text = (lines: PanelLine[]) => {
       for (const line of lines) {
-        const size = line.big ? 32 : line.small ? 19 : 25;
+        const size = line.big ? 32 : line.small ? 21 : 25;
         g.font = `${line.big ? 600 : 400} ${size}px ${FONT}`;
-        g.fillStyle = C[line.color ?? 'text'];
-        for (const part of this.wrap(line.text, W - 2 * pad)) {
-          y += size + (line.small ? 5 : 9);
-          g.fillText(part, pad, y, W - 2 * pad);
-        }
+        const x = pad + (line.mark ? size + 12 : 0);
+        this.wrap(line.text, W - pad - x).forEach((part, i) => {
+          y += size + (line.small ? 6 : 9);
+          if (i === 0 && line.mark) {
+            // The swatch of a legend line; the hatch says "unsafe" without relying on colour.
+            const s0 = size - 3;
+            g.fillStyle = line.mark.color;
+            g.fillRect(pad, y - s0 + 2, s0, s0);
+            if (line.mark.hatch) {
+              g.save();
+              g.beginPath();
+              g.rect(pad, y - s0 + 2, s0, s0);
+              g.clip();
+              g.strokeStyle = '#191612';
+              g.lineWidth = 3;
+              for (let k = -s0; k < s0; k += 8) {
+                g.beginPath();
+                g.moveTo(pad + k, y + 2);
+                g.lineTo(pad + k + s0, y - s0 + 2);
+                g.stroke();
+              }
+              g.restore();
+            }
+          }
+          g.fillStyle = C[line.color ?? 'text'];
+          g.fillText(part, x, y, W - pad - x);
+        });
       }
     };
     text(m.lines);
@@ -155,9 +183,14 @@ export class VrPanel {
     const bh = m.buttonH ?? 50;
     for (const row of m.rows) {
       const gap = 10;
-      const bw = (W - 2 * pad - gap * (row.length - 1)) / row.length;
-      row.forEach((b, i) => {
-        const r = { x: pad + i * (bw + gap), y, w: bw, h: bh };
+      const unit = (W - 2 * pad - gap * (row.length - 1)) / row.reduce((a, b) => a + (b.w ?? 1), 0);
+      let x = pad;
+      row.forEach((b) => {
+        const r = { x, y, w: unit * (b.w ?? 1), h: bh };
+        x += r.w + gap;
+        if (b.blank) {
+          return;
+        }
         if (!b.locked) {
           this.buttons.push({ id: b.id, r });
         }
@@ -169,34 +202,33 @@ export class VrPanel {
         g.roundRect(r.x, r.y, r.w, r.h, 8);
         g.fill();
         g.stroke();
-        g.font = `600 ${bh > 56 ? 26 : 23}px ${FONT}`;
+        g.font = `600 ${bh > 56 && (b.w ?? 1) >= 1 && row.length < 5 ? 26 : 23}px ${FONT}`;
         if (b.check != null) {
-          // Tick box, colour chip, name: the website's list, at controller size.
+          // Tick box, then the name: the website's list, at controller size.
           const box = 30;
+          const bx = r.x + (b.indent ? 34 : 16);
           const by = r.y + (bh - box) / 2;
+          const on = b.check !== false;
           g.strokeStyle = b.locked ? C.text2 : C.text;
-          g.fillStyle = b.check ? (b.locked ? C.text2 : C.text) : C.panel;
+          g.fillStyle = on ? (b.locked ? C.text2 : C.text) : C.panel;
           g.beginPath();
-          g.roundRect(r.x + 16, by, box, box, 5);
+          g.roundRect(bx, by, box, box, 5);
           g.fill();
           g.stroke();
-          if (b.check) {
-            g.strokeStyle = '#191612';
-            g.lineWidth = 5;
-            g.beginPath();
-            g.moveTo(r.x + 23, by + 16);
-            g.lineTo(r.x + 29, by + 23);
-            g.lineTo(r.x + 40, by + 8);
-            g.stroke();
-          }
-          g.globalAlpha = b.check ? 1 : 0.45;
-          g.fillStyle = b.chip ?? C.ok;
+          g.strokeStyle = '#191612';
+          g.lineWidth = 5;
           g.beginPath();
-          g.roundRect(r.x + 60, by + 2, box - 4, box - 4, 5);
-          g.fill();
-          g.globalAlpha = 1;
-          g.fillStyle = b.check && !b.locked ? C.text : C.text2;
-          g.fillText(b.label, r.x + 100, r.y + bh / 2 + 9, r.w - 112);
+          if (b.check === true) {
+            g.moveTo(bx + 7, by + 16);
+            g.lineTo(bx + 13, by + 23);
+            g.lineTo(bx + 24, by + 8);
+          } else if (b.check === 'some') {
+            g.moveTo(bx + 7, by + 15);
+            g.lineTo(bx + 23, by + 15);
+          }
+          g.stroke();
+          g.fillStyle = on && !b.locked ? C.text : C.text2;
+          g.fillText(b.label, bx + box + 14, r.y + bh / 2 + 9, r.w - (bx - r.x) - box - 26);
         } else {
           g.fillStyle = b.primary || b.on ? '#191612' : C.text;
           g.textAlign = 'center';

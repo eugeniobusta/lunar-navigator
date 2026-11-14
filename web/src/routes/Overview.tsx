@@ -57,7 +57,7 @@ export function Overview() {
         <>
           <WhyHere title={`Why here? ${site.name} against the landing criteria`} list={why} />
           <p className="note">
-            NASA's limits, and the parameters ticked on the Map page. Long-run values at the site's own
+            NASA's limits, and the parameters ticked in Site Finder. Long-run values at the site's own
             120 m square, not for the dates chosen above.
           </p>
         </>

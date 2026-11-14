@@ -62,16 +62,23 @@ const SOURCES: Source[] = [
 ];
 
 interface FileEntry { path: string; bytes: number; format: string; description: string }
+/** Pictures and textures that are not ours (index.json `third_party`, docs/CREDITS.md). */
+interface ThirdParty {
+  nasa_media_terms: string;
+  website_photos: { file: string; nasa_id: string; title: string; credit: string; date: string; shown: string; source: string }[];
+  vr_textures: { files: string; what: string; credit: string; source: string; licence: string }[];
+}
 
 const fmtBytes = (b: number) => (b >= 1e6 ? `${(b / 1e6).toFixed(2)} MB` : `${(b / 1e3).toFixed(1)} kB`);
 
 export function Data() {
   const [files, setFiles] = useState<FileEntry[] | null>(null);
   const [failed, setFailed] = useState(false);
+  const [credits, setCredits] = useState<ThirdParty | null>(null);
   useEffect(() => {
     fetch(`${BASE}index.json`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((d: { files: FileEntry[] }) => setFiles(d.files))
+      .then((d: { files: FileEntry[]; third_party?: ThirdParty }) => { setFiles(d.files); setCredits(d.third_party ?? null); })
       .catch(() => setFailed(true));
   }, []);
   // The reference tables that used to sit under Site Finder: the landing criteria and every past landing attempt.
@@ -110,6 +117,40 @@ export function Data() {
           </article>
         ))}
       </div>
+
+      {credits && (
+        <details className="fold" open>
+          <summary>Pictures and textures: every credit</summary>
+          <p className="note">
+            The photographs on the homepage and in the sky chart are NASA images, used as NASA's media guidelines
+            allow: in a factual way, credited, with no NASA logo and no implied endorsement
+            (<a href={credits.nasa_media_terms}>NASA: Images and Media</a>). They keep their own terms and are not part of
+            our CC BY 4.0 data. The full list, with fonts and libraries, is <a href={`${REPO}/blob/main/docs/CREDITS.md`}>docs/CREDITS.md</a>.
+          </p>
+          <div className="table-scroll">
+            <table className="compare wide">
+              <thead><tr><th>Picture</th><th>Where it is shown</th><th>NASA ID</th><th>Date</th><th>Credit</th></tr></thead>
+              <tbody>
+                {credits.website_photos.map((a) => (
+                  <tr key={a.file}>
+                    <th>{a.title}</th><td>{a.shown}</td><td><a href={a.source}>{a.nasa_id}</a></td><td>{a.date}</td><td>{a.credit}</td>
+                  </tr>
+                ))}
+                {credits.vr_textures.map((t) => (
+                  <tr key={t.what}>
+                    <th>{t.what}</th><td>3D / VR view</td><td>{t.source ? <a href={t.source}>NASA SVS CGI Moon Kit</a> : "not added yet"}</td><td /><td>{t.credit}{t.licence === "unconfirmed" ? " (unconfirmed)" : ""}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="note">
+            The shaded relief under the landing map and the south-pole map on the homepage are our own drawings from NASA's LOLA
+            elevation map. The rock texture and boulders in the sky chart are illustration. Fonts: Barlow and Barlow Semi
+            Condensed, SIL Open Font License 1.1.
+          </p>
+        </details>
+      )}
 
       <div className="prose">
         <h3>Open data we publish</h3>

@@ -95,3 +95,12 @@ describe("Where to land selection", () => {
     for (const bad of ["?spot=91,0", "?spot=-85,200", "?spot=abc", "?spot=-85", "?spot=-85,1,2"]) expect(parseQuery(bad, landCtx).spot).toBeUndefined();
   });
 });
+
+describe("two views of one site", () => {
+  it("view= travels first in the link and is read back", () => {
+    const q = buildQuery({ view: "detailed", siteId: "mma01", compareId: "hw02", startIdx: 48, windowDays: 30, tab: "windows" }, startMs, 3600);
+    expect(q).toBe("?view=detailed&site=mma01&compare=hw02&date=2026-11-03&days=30&tab=windows");
+    expect(parseQuery(q, ctx)).toMatchObject({ view: "detailed", tab: "windows" });
+    expect(parseQuery("?view=expert", ctx).view).toBeUndefined();
+  });
+});

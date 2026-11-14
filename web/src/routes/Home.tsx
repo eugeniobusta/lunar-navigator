@@ -28,7 +28,8 @@ function TabLink({ tab, className, children }: { tab: Tab; className?: string; c
     e.preventDefault();
     setTab(tab);
   };
-  return <a href={`?tab=${tab}`} className={className} onClick={go}>{children}</a>;
+  const view = useStore((s) => s.view);
+  return <a href={`?view=${view}&tab=${tab}`} className={className} onClick={go}>{children}</a>;
 }
 
 function Arrow() {
@@ -72,8 +73,38 @@ interface Feature { tab: Tab; kicker: string; title: string; text: string; cta: 
 
 export function Home() {
   const s = useSummary();
+  const view = useStore((st) => st.view);
   const fmt = (n: number) => n.toLocaleString("en-GB");
-  const features: Feature[] = [
+  // The Detailed view: one section per tool.
+  const detailed: Feature[] = [
+    { tab: "overview", kicker: "Overview", title: "Stand at a site", cta: "See a site hour by hour",
+      photo: { file: "apollo8-earthrise.jpg", alt: "Earth rising over the grey lunar horizon, photographed from Apollo 8 in 1968", focus: "50% 72%" },
+      text: "Pick a landing site and a date. See its whole skyline, where the Sun and Earth are hour by hour, and how long the nights last.",
+      credit: "Photo: NASA, Apollo 8, Earthrise (AS08-14-2383), 1968." },
+    { tab: "map", kicker: "Site Finder", title: "Where is it safe to land?", cta: "Find a landing site", tint: "score", sunAz: 120,
+      text: s ? `We tested every 120 m square within 6° of the pole against NASA's Artemis III limits. ${s.pass_pct_of_region} % of the ground passes, in ${fmt(s.zones)} separate zones. Tick what matters for your mission: the map turns green, amber and red for it, and the zones are ranked.`
+        : "We tested every 120 m square within 6° of the pole against NASA's Artemis III limits. Tick what matters for your mission and we rank the safe zones for it.",
+      credit: "Our map: green is ground that passes every NASA limit. Relief: NASA LOLA." },
+    { tab: "windows", kicker: "Window Finder", title: "When does the Sun shine?", cta: "Find a landing day",
+      photo: { file: "artemis2-lunar-day-shadows.jpg", alt: "Craters at the edge of lunar day, with long shadows cast by a low Sun", focus: "70% 50%" },
+      text: "At the pole the Sun skims the horizon, so a single ridge can mean days of darkness. Pick a site and we search the calendar, hour by hour, for landings with sunlight and Earth in view for the whole stay.",
+      credit: "Photo: NASA, Artemis II crew, Shadows at the Edge of Lunar Day (art002e009281), 2026." },
+    { tab: "compare", kicker: "Compare sites", title: "Can we call home?", cta: "Compare two sites",
+      photo: { file: "artemis2-earthset.jpg", alt: "Earth setting behind the curved edge of the Moon, seen from the Orion spacecraft", focus: "35% 50%" },
+      text: "Earth hangs low in the northern sky. A hill can hide it and cut the direct radio link. Put two sites side by side and see which one keeps Earth, and the Sun, in view for longer.",
+      credit: "Photo: NASA, Artemis II crew, Earthset from Orion (art002e021278), 2026." },
+    { tab: "power", kicker: "Battery", title: "Will the power last the night?", cta: "Test a battery",
+      photo: { file: "artemis3-lighting-test.jpg", alt: "A bright lamp low over a model of lunar ground, as NASA engineers test south-pole lighting", focus: "50% 40%" },
+      text: "A low Sun means long shadows and long nights. Size the solar panels and the battery, and see whether a lander keeps its power through the dark hours.",
+      credit: "Photo: NASA/Charles Beason, lunar lighting test for Artemis III at Marshall Space Flight Center (CEB_1528), 2025." },
+    { tab: "moon3d", kicker: "3D Moon", title: "Stand on the Moon", cta: "Open the 3D view",
+      photo: { file: "apollo15-rover.jpg", alt: "Astronaut James Irwin beside the lunar rover, with a mountain behind, Apollo 15", focus: "30% 50%" },
+      text: "Real terrain at true scale, with the Sun and Earth where they really are at the hour you choose. In your browser, or in a VR headset.",
+      credit: "Photo: NASA, Apollo 15, James Irwin and the Lunar Roving Vehicle (AS15-86-11603), 1971." },
+  ];
+
+  // The Simple view: two pages (Chinh's two-minute site).
+  const simple: Feature[] = [
     { tab: "explore", kicker: "Step 1", title: "Explore a site", cta: "Explore a site",
       photo: { file: "apollo8-earthrise.jpg", alt: "Earth rising over the grey lunar horizon, photographed from Apollo 8 in 1968", focus: "50% 72%" },
       text: "Stand at one of NASA's candidate landing sites. See the real hills around you, where the Sun and Earth move, and how long the nights last.",
@@ -83,7 +114,8 @@ export function Home() {
         : "Find the safest ground, the days you can land there, and whether the batteries last the night.",
       credit: "Our map: green is ground that passes every NASA safety rule. Relief: NASA LOLA." },
   ];
-
+  const isSimple = view === "simple";
+  const features = isSimple ? simple : detailed;
   return (
     <div className="home">
       <section className="home-hero">
@@ -95,24 +127,37 @@ export function Home() {
         <div className="hero-copy">
           <p className="eyebrow">Lunar Landing Site Navigator · NASA Space Apps 2026</p>
           <h1 className="display">Choose where to land before you fly</h1>
-          <p className="hero-text">
-            The Moon's south pole may hold water ice, and NASA's Artemis astronauts will land there. But the Sun sits
-            so low that a single hill can block it. We use NASA's own maps to show <strong>where</strong> and{" "}
-            <strong>when</strong> a lander gets sunlight for power and can talk to Earth.
-          </p>
+          {isSimple ? (
+            <p className="hero-text">
+              The Moon's south pole may hold water ice, and NASA's Artemis astronauts will land there. But the Sun sits
+              so low that a single hill can block it. We use NASA's own maps to show <strong>where</strong> and{" "}
+              <strong>when</strong> a lander gets sunlight for power and can talk to Earth.
+            </p>
+          ) : (
+            <p className="hero-text">
+              At the Moon's south pole the Sun never rises far, so every hill decides who gets power and who can see
+              Earth. Claude's P.L.A.N (Polar Lunar Augmented Navigation) turns NASA's terrain and lighting data into
+              two answers: where it is safe to land, and when.
+            </p>
+          )}
           <div className="hero-buttons">
-            <TabLink tab="explore" className="btn-outline">Explore a site <Arrow /></TabLink>
-            <TabLink tab="plan" className="btn-outline">Plan a landing <Arrow /></TabLink>
+            {isSimple ? (
+              <>
+                <TabLink tab="explore" className="btn-outline">Explore a site <Arrow /></TabLink>
+                <TabLink tab="plan" className="btn-outline">Plan a landing <Arrow /></TabLink>
+              </>
+            ) : <TabLink tab="overview" className="btn-outline">Explore <Arrow /></TabLink>}
           </div>
         </div>
         <p className="hero-credit">Moon: NASA Goddard, from LRO laser-altimeter data.</p>
       </section>
 
       {s && (
-        <section className="home-stats" aria-label="The analysis in numbers">
+        <section className={isSimple ? "home-stats three" : "home-stats"} aria-label="The analysis in numbers">
           <div><b>{fmt(s.region_km2)} km²</b><span>of ground tested, 120 m at a time</span></div>
-          <div><b>{s.pass_pct_of_region} %</b><span>passes NASA's safety rules for landing</span></div>
-          <div><b>{fmt(s.zones)}</b><span>safe zones, ranked for your mission</span></div>
+          <div><b>{s.pass_pct_of_region} %</b><span>{isSimple ? "passes NASA's safety rules for landing" : "passes every NASA Artemis III limit"}</span></div>
+          <div><b>{fmt(s.zones)}</b><span>{isSimple ? "safe zones, ranked for your mission" : "separate safe zones, ranked"}</span></div>
+          {!isSimple && <div><b>{s.artemis.length}</b><span>Artemis candidate regions checked</span></div>}
         </section>
       )}
 

@@ -1,6 +1,6 @@
-// Plan a landing, in three plain steps: where is it safe (Site Finder), when can you land there (Window Finder, on the
-// skyline computed at the chosen zone itself), and will the batteries last the night (a one-line Battery check on the
-// first good landing). Holds what used to be Site Finder, Window Finder and Battery.
+// Plan a landing (the Simple view), in three plain steps: where is it safe (the Site Finder map and scoring, with
+// presets only), when can you land there (Window Finder, on the skyline computed at the chosen spot itself), and
+// will the batteries last the night (a one-line Battery check on the first good landing).
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { NumberField } from "../components/ui";
 import { computeSeries, type Horizon } from "../lib/analysis";
@@ -9,7 +9,7 @@ import { simulatePower, type PowerConfig } from "../lib/power";
 import { fmtDate, fmtHours, idxToMs } from "../state/derived";
 import { useStore } from "../state/store";
 import { Step } from "./Explore";
-import { WhereToLand } from "./WhereToLand";
+import { SiteFinder, type Place } from "./LandingMap";
 import { Windows, type FirstLanding } from "./Windows";
 
 const BASE = `${import.meta.env.BASE_URL}data/`;
@@ -31,23 +31,23 @@ function loadTile(siteId: string) {
   return tiles.get(siteId)!;
 }
 
-/** The skyline at the chosen zone: from the 120 m tile of the nearest Artemis site where it covers the zone, else from
- *  the south-pole grid; the same computation as the 3D view (lib/analysis/demHorizon.ts). */
-function useZoneHorizon(zone: Record<string, string> | null, siteId: string | undefined): Horizon | null {
+/** The skyline at the chosen place: from the 120 m tile of the nearest modelled site where it covers the place, else
+ *  from the south-pole grid; the same computation as the 3D view (lib/analysis/demHorizon.ts). */
+function usePlaceHorizon(place: Place | null): Horizon | null {
   const [hz, setHz] = useState<{ key: string; value: Horizon } | null>(null);
-  const key = zone ? `${zone.rank}` : "";
+  const key = place?.key ?? "";
   useEffect(() => {
-    if (!zone) return;
+    if (!place) return;
     let live = true;
-    const lat = +zone.lat, lon = +zone.lon;
-    Promise.all([loadPole(), siteId ? loadTile(siteId).catch(() => null) : Promise.resolve(null)]).then(([pole, tile]) => {
+    const { lat, lon, nearestSiteId } = place;
+    Promise.all([loadPole(), nearestSiteId ? loadTile(nearestSiteId).catch(() => null) : Promise.resolve(null)]).then(([pole, tile]) => {
       const [x, y] = stereoXY(lat, lon);
       const inTile = tile && !Number.isNaN(heightAt(tile.grid, x, y));
       const value = inTile ? demHorizon(tile!.grid, [pole, tile!.far], lat, lon) : demHorizon(pole, [pole], lat, lon);
       if (live) setHz({ key, value });
     }).catch(() => { /* step 2 then says it could not load */ });
     return () => { live = false; };
-  }, [key, siteId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
   return hz && hz.key === key ? hz.value : null;
 }
 
@@ -93,31 +93,29 @@ function BatteryCheck({ horizon, place, landing }: { horizon: Horizon | null; pl
 }
 
 export function Plan() {
-  const sites = useStore((s) => s.sites);
-  const [zone, setZone] = useState<Record<string, string> | null>(null);
+  const [place, setPlace] = useState<Place | null>(null);
   const [landing, setLanding] = useState<FirstLanding | null>(null);
-  const onZone = useCallback((z: Record<string, string>) => setZone((old) => (old?.rank === z.rank ? old : z)), []);
+  const onPlace = useCallback((p: Place) => setPlace((old) => (old?.key === p.key ? old : p)), []);
   const onResult = useCallback((r: FirstLanding | null) => setLanding(r), []);
-  const near = zone ? sites.find((s) => s.group === "artemis" && s.name === zone.nearest_artemis_region) : undefined;
-  const horizon = useZoneHorizon(zone, near?.id);
-  const place = zone ? `zone #${zone.rank}` : "";
-  const placeProp = useMemo(() => (horizon && zone ? { horizon, name: place, key: `zone-${zone.rank}` } : undefined), [horizon, zone, place]);
+  const horizon = usePlaceHorizon(place);
+  const name = place?.name ?? "";
+  const placeProp = useMemo(() => (horizon && place ? { horizon, name: place.name, key: place.key } : undefined), [horizon, place]);
 
   return (
     <div className="steps">
       <Step n={1} question="Where is it safe to land?"
-        hint={<>We checked every 120 m square near the south pole against NASA's safety rules for Artemis: flat enough to land, close enough to the pole, and enough sunlight and contact with Earth. <strong>Green ground passes.</strong> Choose what matters most for your mission; the numbered circles are the best places for it, and a click shows one.</>}>
-        <WhereToLand compact onZone={onZone} />
+        hint={<>We checked every 120 m square near the south pole against NASA's safety rules for Artemis: flat enough to land, close enough to the pole, and enough sunlight and contact with Earth. <strong>Green is good, amber acceptable, red poor; hatched red is unsafe.</strong> Choose what matters most for your mission; the numbered circles are the best places for it, and a click on any spot checks it.</>}>
+        <SiteFinder simple onPlace={onPlace} />
       </Step>
 
       <Step n={2} question="When can you land there?"
-        hint={<>{zone ? <>We worked out the real skyline around <strong>{place}</strong> (near {zone.nearest_artemis_region}) from NASA's terrain map. </> : null}Then we check every day of the next 12 months, hour by hour, for a landing time when the Sun and Earth stay up long enough for the whole mission. <strong>Green days work.</strong></>}>
-        {placeProp ? <Windows place={placeProp} compact onResult={onResult} /> : <p className="note">Working out the skyline at your zone…</p>}
+        hint={<>{place ? <>We worked out the real skyline around <strong>{name}</strong>{place.nearestRegion ? ` (near ${place.nearestRegion})` : ""} from NASA's terrain map. </> : null}Then we check every day of the next 12 months, hour by hour, for a landing time when the Sun and Earth stay up long enough for the whole mission. <strong>Green days work.</strong></>}>
+        {placeProp ? <Windows place={placeProp} compact onResult={onResult} /> : <p className="note">Working out the skyline at your spot…</p>}
       </Step>
 
       <Step n={3} question="Will the batteries last the night?"
         hint="When the Sun drops behind the hills, the lander runs on its batteries until it comes back. Here is the first good landing from step 2, with a typical small lander.">
-        <BatteryCheck horizon={horizon} place={place} landing={landing} />
+        <BatteryCheck horizon={horizon} place={name} landing={landing} />
       </Step>
     </div>
   );

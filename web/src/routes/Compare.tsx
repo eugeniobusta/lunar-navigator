@@ -35,7 +35,7 @@ export function Compare() {
   const wins = a && b ? ROWS.reduce((n, [, , v, more]) => n + ((more ? v(a.metrics) > v(b.metrics) : v(a.metrics) < v(b.metrics)) ? 1 : 0), 0) : 0;
   const winsB = a && b ? ROWS.reduce((n, [, , v, more]) => n + ((more ? v(b.metrics) > v(a.metrics) : v(b.metrics) < v(a.metrics)) ? 1 : 0), 0) : 0;
 
-  // The landing criteria at both sites, for what is ticked on the Map page: long-run values at each site's own
+  // The landing criteria at both sites, for what is ticked in Site Finder: long-run values at each site's own
   // 120 m square (suitability/site_values.csv), judged by the same rules as the map.
   const judge = (id: string) => {
     const row = tables?.siteValues.find((r) => r.id === id);
@@ -98,7 +98,7 @@ export function Compare() {
           </div>
           <p className="note">Drag the slip slider: at the south pole a delay of days can turn a well-lit site into one that lands at nightfall.</p>
 
-          <h3>As landing sites, for what you ticked on the map</h3>
+          <h3>As landing sites, for what you ticked in Site Finder</h3>
           {ja && jb ? (
             <>
               <table className="compare criteria">
@@ -117,7 +117,7 @@ export function Compare() {
               <p className="lede reasons-line"><strong>{nameOf(st.siteId)} is better for:</strong> {better(ja, jb).join(", ") || "nothing you ticked"}.</p>
               <p className="lede reasons-line"><strong>{nameOf(st.compareId)} is better for:</strong> {better(jb, ja).join(", ") || "nothing you ticked"}.</p>
               <p className="note">
-                Green is good, amber acceptable, red poor, by the ranges on the Map page. Long-run values at each site's own 120 m square, not
+                Green is good, amber acceptable, red poor, by the ranges in Site Finder. Long-run values at each site's own 120 m square, not
                 for the dates above. The score is the weighted mean of what you ticked, from the published site values; a site that fails a NASA
                 limit is unsafe whatever it scores.
               </p>

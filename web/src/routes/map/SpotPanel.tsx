@@ -50,13 +50,13 @@ export function SpotPanel({ spot, nothingTicked, sites, onSky, onWindows, onComp
   const good = strengths(spot.why), weak = weaknesses(spot.why).filter((e) => !(e.hardLimit && e.verdict === "rejected"));
   return (
     <div className="spot">
-      <h2>{coord(spot.lat, spot.lon)}</h2>
+      <h2 className="spot-coord">{coord(spot.lat, spot.lon)}</h2>
       {spot.zone && <p className="sub">Zone {spot.zone.id}: rank {spot.zone.rank.toLocaleString("en-GB")} of {spot.zone.of.toLocaleString("en-GB")} for what you ticked, {spot.zone.areaKm2.toFixed(spot.zone.areaKm2 < 10 ? 2 : 0)} km². {spot.zone.stay}</p>}
 
       <p className={`verdict-line ${unsafe ? "unsafe" : spot.rag}`}>
         <span className={`cls ${unsafe ? "unsafe" : spot.rag}`} aria-hidden="true" />
         <strong>{unsafe ? "Unsafe" : spot.rag === "grey" ? (nothingTicked ? "Passes every NASA limit" : "No data") : RAG_WORD[spot.rag]}</strong>
-        {spot.score !== null && <span className="score">{unsafe ? "would score" : "score"} <b>{spot.score}</b> of 100</span>}
+        {spot.score !== null && <span className="score sr">{unsafe ? "would score" : "score"} <b>{spot.score}</b> of 100</span>}
       </p>
       {unsafe
         ? <p className="fails">Fails {spot.failed.length === 1 ? "a NASA limit" : `${spot.failed.length} NASA limits`}: {spot.failed.join("; ")}. Ground that fails a limit is ruled out whatever it scores.</p>

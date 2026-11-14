@@ -55,3 +55,20 @@ def test_dictionary_covers_every_file_and_column():
         d = d["sites"][0] if doc == "sites.json" else d
         for key in d:
             assert any(form in text for form in (f"`{key}`", f".{key}`", f"`{key}[", f"`{key}.")), (doc, key)
+
+
+def test_every_third_party_picture_is_credited():
+    """Each photo in web/public/media/ is listed with a NASA ID and a credit in docs/CREDITS.md, in index.json and
+    on the Data page; the VR globe's credit is the one in its own moon.json."""
+    photos = {p.name for p in (ROOT / "web" / "public" / "media").glob("*.jpg")}
+    listed = INDEX["third_party"]["website_photos"]
+    assert {a["file"].split("/")[1] for a in listed} == photos
+    credits = (ROOT / "docs" / "CREDITS.md").read_text()
+    page = (ROOT / "web" / "src" / "routes" / "Data.tsx").read_text()
+    for a in listed:
+        assert a["nasa_id"] and a["credit"].startswith("NASA")
+        assert a["nasa_id"] in credits and a["file"].split("/")[1] in credits
+    assert "third_party" in page and "Pictures and textures" in page
+    moon = json.loads((ROOT / "xr" / "public" / "moon" / "moon.json").read_text())
+    assert INDEX["third_party"]["vr_textures"][0]["credit"] == moon["credit"]
+    assert "svs.gsfc.nasa.gov/4720" in credits

@@ -9,7 +9,8 @@ import { MissionControls } from "../components/ui/MissionControls";
 import { WhyHere } from "../components/ui/WhyHere";
 import type { Metrics } from "../lib/analysis";
 import { explainFor, valuesFromRow } from "../lib/analysis/explain";
-import { useCriteriaTables, useTickedTerms } from "../state/criteria";
+import { flippedTerms } from "../lib/analysis/suitability";
+import { useCriteriaTables, useLandSelection, useTickedTerms } from "../state/criteria";
 import { fmtDate, fmtHours, idxToMs, useSiteView } from "../state/derived";
 import { useStore } from "../state/store";
 import { verdict } from "./verdict";
@@ -55,11 +56,12 @@ export function Explore() {
   const other = useSiteView(st.compareId);
   const tables = useCriteriaTables();
   const ticked = useTickedTerms(tables);
+  const flips = flippedTerms(useLandSelection(tables));
   if (!eph || !site) return null;
   const n = view?.series.sunlit.length ?? 1;
   const k = Math.min(st.cursor, n - 1);
   const siteRow = tables?.siteValues.find((r) => r.id === site.id);
-  const why = tables && siteRow ? explainFor(valuesFromRow(siteRow), tables.criteria, ticked) : [];
+  const why = tables && siteRow ? explainFor(valuesFromRow(siteRow), tables.criteria, ticked, flips) : [];
   const nameOf = (id: string) => st.sites.find((s) => s.id === id)?.name ?? id;
 
   return (

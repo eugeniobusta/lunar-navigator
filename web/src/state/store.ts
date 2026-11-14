@@ -4,7 +4,11 @@ import type { Ephemeris, Horizon } from "../lib/analysis";
 import type { Selection } from "../lib/analysis/suitability";
 import { loadEphemeris, loadHorizon, loadSites, type Loaded, type Site } from "../lib/data";
 
-export type Tab = "map" | "overview" | "windows" | "compare" | "grid" | "power" | "moon3d" | "data" | "method";
+export type Tab = "home" | "explore" | "plan" | "overview" | "map" | "windows" | "compare" | "grid" | "power" | "moon3d" | "data" | "method";
+
+import { initialView, tabForView, type View } from "./view";
+
+export { tabForView, viewOfTab, type View } from "./view";
 
 interface State {
   ready: boolean;
@@ -19,6 +23,9 @@ interface State {
   windowDays: number;
   cursor: number; // sample offset within the window
   tab: Tab;
+  view: View;
+  /** Switches between the Simple and the Detailed view; the site, the dates and the selection stay. */
+  setView: (v: View) => void;
   /** The spot clicked on the landing map: [lat, east lon], or null. */
   mapSpot: [number, number] | null;
   setMapSpot: (spot: [number, number] | null) => void;
@@ -52,7 +59,9 @@ export const useStore = create<State>((set, get) => ({
   startIdx: 0,
   windowDays: 30,
   cursor: 0,
-  tab: "map",
+  tab: "home",
+  view: initialView(),
+  setView: (view) => set((st) => ({ view, tab: tabForView(st.tab, view) })),
   spot: null,
   mapSpot: null,
   setMapSpot: (mapSpot) => set({ mapSpot }),
@@ -90,6 +99,7 @@ export const useStore = create<State>((set, get) => ({
   },
   setWindowDays: (d) => set({ windowDays: d, cursor: 0 }),
   setCursor: (c) => set({ cursor: Math.max(0, Math.round(c)) }),
-  setTab: (t) => set({ tab: t }),
+  // A page of the other view opens as the page of this view that holds it.
+  setTab: (t) => set((st) => ({ tab: tabForView(t, st.view) })),
   goTo3D: (siteId, spot) => { set({ siteId, spot, cursor: 0, tab: "moon3d" }); void get().ensureHorizon(siteId); },
 }));

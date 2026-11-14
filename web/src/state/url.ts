@@ -1,4 +1,5 @@
 // View state <-> URL query string, so any view can be shared as a link and survives a reload.
+// view=simple|detailed comes first when it is given; links without it still open (urlSync.ts works the view out).
 // ?site=mma01&compare=hw02&date=2027-03-14&days=30&tab=compare&preset=ice
 // Where to land: preset=<key> for a preset; otherwise the ticked parameters as pick=sunlight,earth and any
 // importances as imp=sunlight:high and turned-round directions as flip=temperature. Old links with exact weights,
@@ -23,6 +24,8 @@ export interface UrlView {
   flipped?: string[] | null;
   /** Landing map: the clicked spot as [latitude, east longitude] in degrees. */
   spot?: [number, number] | null;
+  /** Which of the two views of the site: "simple" or "detailed". */
+  view?: string | null;
 }
 
 /** What a parsed value is checked against. */
@@ -49,6 +52,9 @@ export function parseQuery(search: string, ctx: UrlContext): Partial<UrlView> {
   if (site && ctx.siteIds.includes(site)) out.siteId = site;
   const compare = q.get("compare");
   if (compare && ctx.siteIds.includes(compare)) out.compareId = compare;
+
+  const view = q.get("view");
+  if (view === "simple" || view === "detailed") out.view = view;
 
   const tab = q.get("tab");
   if (tab && ctx.tabs.includes(tab)) out.tab = tab;
@@ -110,6 +116,7 @@ export function formatDate(startIdx: number, startMs: number, stepS: number): st
 /** Query string (with leading "?") for a view. */
 export function buildQuery(v: UrlView, startMs: number, stepS: number, defaultPreset?: string): string {
   const q = new URLSearchParams();
+  if (v.view) q.set("view", v.view);
   if (v.siteId) q.set("site", v.siteId);
   if (v.compareId) q.set("compare", v.compareId);
   q.set("date", formatDate(v.startIdx, startMs, stepS));

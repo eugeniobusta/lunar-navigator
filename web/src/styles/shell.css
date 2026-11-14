@@ -27,14 +27,14 @@ button.brand-mark:hover { border: 0; }
 .nav .tab:hover:not(:disabled) { opacity: 1; border: 0; }
 .nav .tab.on { opacity: 1; }
 .nav .tab.on::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: 2px; height: 2px; background: var(--bone); }
-.live { flex: none; margin-left: auto; display: flex; align-items: center; gap: 22px; padding: 11px 16px; background: transparent;
+.live { flex: none; display: flex; align-items: center; gap: 22px; padding: 11px 16px; background: transparent;
   border: 1px solid rgba(239, 232, 220, 0.45); border-radius: var(--r); color: var(--bone);
   font-family: var(--font-head); font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap; }
 .live:hover:not(:disabled) { border-color: var(--bone); }
 .live b { font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: 0.06em; }
 .live b.up { color: var(--sunlight); }
 .live b.down { color: var(--ash); }
-.menu-btn { display: none; margin-left: auto; padding: 8px; background: none; border: 0; color: var(--bone); }
+.menu-btn { display: none; flex: none; padding: 8px; background: none; border: 0; color: var(--bone); }
 .menu-btn:hover:not(:disabled) { border: 0; }
 
 /* Pages other than home */
@@ -106,18 +106,16 @@ button.brand-mark:hover { border: 0; }
 .foot p { max-width: 100ch; margin: 0; }
 .foot .brand-mark { margin-bottom: 14px; color: var(--bone); }
 
-@media (max-width: 1400px) { .live { display: none; } }
-@media (max-width: 1120px) {
-  .nav { padding: 0 20px; }
-  .menu-btn { display: block; }
-  /* Absolute, under the bar: the bar's backdrop blur would trap a fixed panel inside it. */
-  .nav-tabs { display: none; position: absolute; top: 100%; left: 0; right: 0; height: calc(100vh - var(--nav-h)); flex-direction: column; align-items: stretch;
-    gap: 0; padding: 16px 24px; background: var(--void); overflow-y: auto; }
-  .nav-tabs.open { display: flex; }
-  .nav .tab { padding: 16px 4px; text-align: left; font-size: 1.25rem; border-bottom: 1px solid var(--rim); }
-  .nav .tab:hover:not(:disabled) { border-bottom: 1px solid var(--rim); }
-  .nav .tab.on::after { left: auto; right: 4px; top: 50%; bottom: auto; width: 8px; height: 8px; border-radius: 50%; transform: translateY(-50%); }
-}
+/* The pages fold behind the Menu button when the bar has no room for them (App.tsx measures it), not at a fixed width. */
+.nav[data-menu="button"] .menu-btn { display: block; }
+/* Absolute, under the bar: the bar's backdrop blur would trap a fixed panel inside it. */
+.nav[data-menu="button"] .nav-tabs { display: none; position: absolute; top: 100%; left: 0; right: 0; height: calc(100vh - var(--nav-h)); flex-direction: column; align-items: stretch;
+  gap: 0; padding: 16px 24px; background: var(--void); overflow-y: auto; }
+.nav[data-menu="button"] .nav-tabs.open { display: flex; }
+.nav[data-menu="button"] .nav-tabs .tab { padding: 16px 4px; text-align: left; font-size: 1.25rem; border-bottom: 1px solid var(--rim); }
+.nav[data-menu="button"] .nav-tabs .tab:hover:not(:disabled) { border-bottom: 1px solid var(--rim); }
+.nav[data-menu="button"] .nav-tabs .tab.on::after { left: auto; right: 4px; top: 50%; bottom: auto; width: 8px; height: 8px; border-radius: 50%; transform: translateY(-50%); }
+@media (max-width: 1120px) { .nav { padding: 0 20px; gap: 16px; } }
 @media (max-width: 760px) {
   .page { padding: calc(var(--nav-h) + 20px) 16px 32px; }
   .hero-globe { top: auto; bottom: -18vw; right: -30vw; width: 120vw; transform: none; opacity: 0.85; }
@@ -370,4 +368,52 @@ button.primary.big { padding: 16px 28px; font-family: var(--font-head); font-siz
 }
 .hero-buttons { display: flex; flex-wrap: wrap; gap: 14px; }
 .hero-text strong { color: var(--bone); }
-.home-stats { grid-template-columns: repeat(3, 1fr); }
+
+/* ---- One site, two views: the Simple / Detailed switch in the menu bar ---- */
+.view-switch { flex: none; display: inline-flex; margin-left: auto; padding: 2px; border: 1px solid rgba(239, 232, 220, 0.45); border-radius: 999px; }
+.view-switch button, .view-switch span { border: 0; border-radius: 999px; padding: 7px 14px; background: none; color: var(--bone); opacity: 0.75; white-space: nowrap;
+  font-family: var(--font-head); font-size: 0.78rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
+.view-switch button:hover:not(:disabled) { opacity: 1; border: 0; }
+.view-switch button[aria-pressed="true"] { background: var(--bone); color: var(--void); opacity: 1; }
+.view-switch.in-menu { margin: 24px 0 0; align-self: flex-start; }
+.view-switch.in-menu button { padding: 12px 22px; font-size: 1rem; }
+/* Invisible copies that tell the bar how much room each part needs. */
+.nav-measure, .view-measure, .live-measure { position: absolute; left: 0; top: -300px; visibility: hidden; pointer-events: none; width: max-content; margin: 0; }
+.nav-measure { display: flex; gap: 2px; }
+
+/* ---- Site Finder: main's map inside his page ---- */
+.finder-bar .answer { color: var(--ash); max-width: 110ch; }
+.finder-bar .answer strong { color: var(--bone); font-weight: 600; }
+.landing.simple .answer { margin: 0 0 14px; color: var(--ash); max-width: 110ch; }
+.landing.simple .answer strong { color: var(--bone); font-weight: 600; }
+.land { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 28px; align-items: start; margin-top: 14px; }
+.land-side { min-width: 0; }
+.land-side .spot-title { margin: 0; font-family: var(--font-head); font-size: 1rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ash); }
+.land-side .spot-coord { margin-top: 14px; font-size: 1.125rem; font-family: var(--font-head); }
+.land-side .spot .verdict-line { margin-top: 6px; font-size: 1rem; }
+.land-side .spot .verdict-line strong { font-size: 1.125rem; }
+.score-big.green b { color: var(--go); }
+.score-big.amber b { color: var(--caution); }
+.score-big.red b, .score-big.unsafe b { color: var(--stop); }
+.score-big.grey b { color: var(--bone); }
+.finder-side .layers { font-size: 0.9375rem; }
+.finder-side .preset-row { gap: 4px 12px; }
+.chip { border-radius: 999px; padding: 5px 12px; font-size: 0.875rem; }
+.chip.on { border-color: var(--bone); background: var(--rim); }
+.presets { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
+.step-actions.two { display: flex; flex-wrap: wrap; gap: 10px; }
+.step-actions .btn-outline { background: none; cursor: pointer; }
+.step-actions .btn-outline:disabled { opacity: 0.45; }
+.compare.ranked .bar { display: inline-block; width: 80px; height: 6px; margin-right: 8px; background: var(--rim); border-radius: 3px; vertical-align: middle; overflow: hidden; }
+.compare.ranked .bar span { display: block; height: 100%; }
+.zones-list + .why, .glance + .section-title { margin-top: 36px; }
+/* Traffic lights for the checklist too: a colour means the same thing on the map and in the list. */
+.why-mark.good { color: var(--go); }
+.why-mark.acceptable { color: var(--caution); }
+.why-mark.rejected { color: var(--stop); }
+.why .why-list li.rejected { border-color: color-mix(in oklab, var(--stop) 45%, var(--rim)); }
+.home-stats.three { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 1180px) { .land { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 760px) { .home-stats.three { grid-template-columns: 1fr 1fr; } }
+.nav[data-menu="button"] .menu-btn { margin-left: auto; }
+.nav[data-menu="button"] .view-switch.in-bar ~ .menu-btn { margin-left: 0; }

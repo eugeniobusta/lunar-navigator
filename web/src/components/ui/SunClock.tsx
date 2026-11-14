@@ -6,7 +6,9 @@ import { formatCountdown, nextSunChange } from "../../lib/analysis/countdown";
 
 const LOOK_AHEAD_DAYS = 60;
 
-export function SunClock({ eph, horizon, siteName, onOpen }: { eph: Ephemeris; horizon: Horizon; siteName: string; onOpen: () => void }) {
+/** `measure`: an invisible copy with the widest text the clock can show, so the menu bar can reserve its room. */
+export function SunClock({ eph, horizon, siteName, onOpen, measure = false }:
+  { eph: Ephemeris; horizon: Horizon; siteName: string; onOpen: () => void; measure?: boolean }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => { const id = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(id); }, []);
   // Recomputed for a new site, or once the hour it started from has passed.
@@ -19,6 +21,7 @@ export function SunClock({ eph, horizon, siteName, onOpen }: { eph: Ephemeris; h
   if (!change) return null;
   const event = change.lit ? "Sunset" : "Sunrise";
   const label = `${event} at ${siteName} in`;
+  if (measure) return <div className="live live-measure" aria-hidden="true"><span>{`Sunrise at ${siteName} in`}</span><b>88d 88:88:88</b></div>;
   const value = change.atMs === null ? `${LOOK_AHEAD_DAYS}+ days` : formatCountdown(change.atMs - now);
   return (
     <button type="button" className="live" onClick={onOpen}

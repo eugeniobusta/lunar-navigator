@@ -33,6 +33,11 @@ The list of published files.
 | `files[].format` | string | JSON, CSV, or the binary encoding. |
 | `files[].description` | string | One line on what the file holds. |
 
+`index.json` also carries `third_party`: the credits of pictures and textures that are not ours (the NASA
+photographs of the website as `website_photos[]` with `file`, `nasa_id`, `title`, `credit`, `date`, `shown`,
+`source`; the VR textures as `vr_textures[]`; and `nasa_media_terms`). They are listed for credit only and are
+not covered by our licence. See docs/CREDITS.md.
+
 ## sites.json
 
 | Field | Type | Unit | Meaning |

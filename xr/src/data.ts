@@ -7,10 +7,8 @@ import {
   type HeightGridMeta,
 } from '../../web/src/lib/analysis/demHorizon';
 import { heightAt } from '../../web/src/lib/analysis/demHorizon';
-import type { CriterionRow } from '../../web/src/lib/analysis/explain';
 import { LAYER_KEYS } from '../../web/src/lib/analysis/suitability';
-import { parseCsv } from '../../web/src/lib/data/csv';
-import { buildZones, priorities, type Priorities, type Summary, type ZoneRow } from './guide.js';
+import { priorities, type Priorities } from './guide.js';
 
 export const DATA_URL = '/data/';
 
@@ -41,15 +39,6 @@ export interface SiteTile {
   site: { x_m: number; y_m: number; height_m: number };
   /** True if the tile was resampled from the ~430 m south-pole grid (a zone outside every 120 m site tile). */
   coarse: boolean;
-}
-
-export interface Mission {
-  name: string;
-  lat: number;
-  lon: number;
-  outcome: 'landed' | 'tipped' | 'crashed';
-  year: string;
-  lesson: string;
 }
 
 async function get(path: string): Promise<Response | null> {
@@ -148,31 +137,8 @@ export async function loadSiteTile(siteId: string): Promise<SiteTile> {
   };
 }
 
-const csv = async (p: string) => {
-  const r = await get(p);
-  return r ? parseCsv(await r.text()) : null;
-};
-
-/** The zones of zones.csv with their layer bytes (docs/INTERFACES.md section 10). Null if either file is missing. */
-export async function loadZones(): Promise<ZoneRow[] | null> {
-  const [zones, layers] = await Promise.all([csv('suitability/zones.csv'), csv('suitability/zones_layers.csv')]);
-  return zones && layers ? buildZones(zones, layers) : null;
-}
-
-/** criteria.csv: the reasons quoted by "Why here?". Empty if missing (the sentences then end without a reason). */
-export async function loadCriteria(): Promise<CriterionRow[]> {
-  return ((await csv('criteria.csv')) ?? []) as unknown as CriterionRow[];
-}
-
-/** suitability/site_values.csv: the criteria values at each site's own point, by site id. */
-export async function loadSiteValues(): Promise<Map<string, Record<string, string>>> {
-  return new Map(((await csv('suitability/site_values.csv')) ?? []).map((r) => [r.id, r]));
-}
-
 /** Presets, default selection and bounds of suitability/weights.json; only the published weights if it is missing. */
 export const loadPriorities = async (): Promise<Priorities> => priorities(await json('suitability/weights.json'));
-
-export const loadSummary = () => json<Summary>('suitability/summary.json');
 
 /** The per-criterion layers of a grid, in LAYER_KEYS order. Null unless all of them are there. */
 async function loadLayers(path: (key: string) => string, size: number): Promise<Uint8Array[] | null> {
@@ -183,7 +149,6 @@ async function loadLayers(path: (key: string) => string, size: number): Promise<
   return bufs.map((b) => new Uint8Array(b!));
 }
 export const loadPoleLayers = (size: number) => loadLayers((k) => `suitability/layers/south_pole_${k}.u8`, size);
-export const loadSiteLayers = (siteId: string, size: number) => loadLayers((k) => `suitability/layers/sites/${siteId}_${k}.u8`, size);
 
 /** Nearest-pixel copy of a byte grid of `g` onto a `size` x `size` grid of `pixelM` centred on x, y. 255 outside. */
 export function resampleBytes(src: Uint8Array, g: HeightGrid, x: number, y: number, size: number, pixelM: number): Uint8Array {
@@ -295,71 +260,4 @@ export async function loadStars(): Promise<Stars | null> {
     nRot: f.n,
     quat: Float64Array.from(f.quat_xyzw),
   };
-}
-
-function splitCsvLine(line: string): string[] {
-  const out: string[] = [];
-  let cur = '';
-  let quoted = false;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (quoted) {
-      if (c === '"' && line[i + 1] === '"') {
-        cur += '"';
-        i++;
-      } else if (c === '"') {
-        quoted = false;
-      } else {
-        cur += c;
-      }
-    } else if (c === '"') {
-      quoted = true;
-    } else if (c === ',') {
-      out.push(cur);
-      cur = '';
-    } else {
-      cur += c;
-    }
-  }
-  out.push(cur);
-  return out.map((s) => s.trim());
-}
-
-/** /data/missions.csv: past landings with outcome and one-line lesson. Null until it exists. */
-export async function loadMissions(): Promise<Mission[] | null> {
-  const r = await get('missions.csv');
-  if (!r) {
-    return null;
-  }
-  const lines = (await r.text()).split(/\r?\n/u).filter((l) => l.trim());
-  const head = splitCsvLine(lines[0]).map((h) => h.toLowerCase());
-  const col = (...names: string[]) => head.findIndex((h) => names.some((n) => h === n || h.startsWith(n)));
-  const iName = col('name', 'mission');
-  const iLat = col('lat');
-  const iLon = col('lon');
-  const iOut = col('outcome', 'status', 'result');
-  const iYear = col('year', 'landing_date', 'date');
-  const iLesson = col('lesson');
-  if (iName < 0 || iLat < 0 || iLon < 0) {
-    return null;
-  }
-  const missions: Mission[] = [];
-  for (const line of lines.slice(1)) {
-    const c = splitCsvLine(line);
-    const lat = Number(c[iLat]);
-    const lon = Number(c[iLon]);
-    if (!c[iName] || !Number.isFinite(lat) || !Number.isFinite(lon) || c[iLat] === '') {
-      continue;
-    }
-    const o = (c[iOut] ?? '').toLowerCase();
-    missions.push({
-      name: c[iName],
-      lat,
-      lon,
-      outcome: o.includes('tip') ? 'tipped' : o.includes('crash') || o.includes('fail') || o.includes('lost') ? 'crashed' : 'landed',
-      year: (c[iYear] ?? '').slice(0, 4),
-      lesson: c[iLesson] ?? '',
-    });
-  }
-  return missions;
 }

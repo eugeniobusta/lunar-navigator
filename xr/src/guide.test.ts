@@ -1,5 +1,5 @@
-// The demo start, the priorities, "Why here?" and the tour captions, against the published data and the analysis
-// library they are built on.
+// The time a site opens at, the safe-landing colours and their legend, and tiles cut from the south-pole grid,
+// against the published data and the analysis library they are built on.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { computeSeries, type Ephemeris } from '../../web/src/lib/analysis';
@@ -13,24 +13,10 @@ import { resampleBytes, tileFromPole, type SouthPole } from './data';
 import {
   CB_COLOR,
   RAG_COLOR,
-  TOUR_PLAY_H,
-  answer,
-  buildZones,
-  captionGoldilocks,
-  captionPole,
-  captionStand,
-  captionZone,
-  longRunMetrics,
   mapLegend,
   nextSunUp,
   paintStyle,
-  poleSunMaxDeg,
   priorities,
-  rankAll,
-  showingKey,
-  shownSelection,
-  whyFromRow,
-  zoneRag,
 } from './guide';
 
 const DATA = new URL('../../web/public/data/', import.meta.url);
@@ -77,52 +63,11 @@ describe('demo start', () => {
     expect(nextSunUp(eph, hz, from, 1)).toBeNull();
   });
 
-  it('the long-run darkness of our model matches site_values.csv at Malapert', () => {
-    const row = parseCsv(text('suitability/site_values.csv')).find((r) => r.id === 'mma01')!;
-    const m = longRunMetrics(eph, hz);
-    console.log('mma01 longest dark / no Earth, VR:', m.longestDarkH, m.longestNoEarthH, 'published:', row.longest_dark_h, row.longest_no_earth_h);
-    expect(Math.abs(m.longestDarkH - Number(row.longest_dark_h))).toBeLessThanOrEqual(24);
-    expect(Math.abs(m.longestNoEarthH - Number(row.longest_no_earth_h))).toBeLessThanOrEqual(24);
-  });
 });
 
-describe('layers: presets, ranking, classes', () => {
+describe('safe landing colours', () => {
   const prio = priorities(json('suitability/weights.json'));
   const only = (...ticked: Selection['ticked']): Selection => ({ ticked });
-  const preset = (key: string) => presetSelection(presets.find((p) => p.key === key)!);
-
-  it('opens with everything ticked; the presets are the website\'s', () => {
-    expect(sameSelection(prio.initial, EVERYTHING)).toBe(true);
-    expect(prio.presets.map((p) => p.key)).toEqual(['balanced', 'everything', 'power', 'radio', 'ice']);
-    expect(prio.labels.darkness).toBe('Short nights');
-    // Without the file there is only the published ranking.
-    expect(sameSelection(priorities(null).initial, preset('balanced'))).toBe(true);
-  });
-
-  it('NASA-style balance gives the published order and scores', () => {
-    const ranked = rankAll(zones(), preset('balanced'));
-    expect(ranked.length).toBeGreaterThan(1000);
-    expect(ranked.every((z, i) => z.rank === i + 1 && z.id === i + 1)).toBe(true);
-    expect(ranked.every((z) => z.score === Number(z.row.score))).toBe(true);
-  });
-
-  it('every other preset is a re-ranking: a permutation, confirmed stays first, best score first', () => {
-    for (const p of presets.filter((k) => k.key !== 'balanced')) {
-      const ranked = rankAll(zones(), presetSelection(p));
-      expect(new Set(ranked.map((z) => z.id)).size).toBe(ranked.length);
-      const ok = ranked.filter((z) => z.stayOk);
-      expect(ranked.slice(0, ok.length).every((z) => z.stayOk)).toBe(true);
-      expect(ok.every((z, i) => i === 0 || ok[i - 1].score >= z.score)).toBe(true);
-      console.log(p.key, 'top 3:', ranked.slice(0, 3).map((z) => `zone ${z.id} score ${z.score}`).join('; '));
-    }
-  });
-
-  it('turning a direction round re-ranks: the zone that was best for cold ground is not best for warm', () => {
-    const cold = rankAll(zones(), only('temperature'))[0].id;
-    const warm = rankAll(zones(), { ticked: ['temperature'], flipped: ['temperature'] });
-    expect(warm[0].id).not.toBe(cold);
-    expect(warm.every((z, i) => !z.stayOk || i === 0 || !warm[i - 1].stayOk || warm[i - 1].score >= z.score)).toBe(true);
-  });
 
   it('the class colours are the website\'s tokens', () => {
     const css = readFileSync(new URL('../../web/src/styles/tokens.css', import.meta.url), 'utf8');
@@ -160,17 +105,6 @@ describe('layers: presets, ranking, classes', () => {
     expect(drawn).toBe(0);
   });
 
-  it('shownSelection: one ticked parameter alone, with its direction; the ticks otherwise', () => {
-    const sel: Selection = { ticked: ['sunlight', 'temperature', 'darkness'], flipped: ['temperature'] };
-    expect(shownSelection(sel, null)).toBe(sel);
-    expect(shownSelection(sel, 'temperature')).toEqual({ ticked: ['temperature'], flipped: ['temperature'] });
-    expect(shownSelection(sel, 'ice')).toBe(sel); // not ticked: nothing to show alone
-    expect(showingKey(shownSelection(sel, 'temperature'))).toBe('temperature');
-    expect(showingKey(sel)).toBe('combined');
-    expect(showingKey(only('darkness', 'no_earth'))).toBe('limits');
-    expect(showingKey(only())).toBe('limits');
-  });
-
   it('the legend says what the website says', () => {
     const page = readFileSync(new URL('../../web/src/routes/LandingMap.tsx', import.meta.url), 'utf8');
     // The page builds its lines from these pieces, one set per palette.
@@ -197,74 +131,6 @@ describe('layers: presets, ranking, classes', () => {
     expect(none.lines.map((l) => l.mark)).toEqual([null, 'unsafe', 'grey']);
   });
 
-  it('zoneRag: the class of the score, or of the one ticked parameter at the zone', () => {
-    const all = zones();
-    const best = rankAll(all, EVERYTHING)[0];
-    expect(zoneRag(best, EVERYTHING)).toBe(classifyScore(best.score));
-    expect(zoneRag(best, only())).toBe('grey');
-    const z = all[0];
-    expect(zoneRag(z, only('sunlight'))).toBe(Number(z.row.sun_pct) >= 70 ? 'green' : Number(z.row.sun_pct) < 25 ? 'red' : 'amber');
-    const dark = Number(z.row.longest_dark_h);
-    expect(zoneRag(z, only('darkness'))).toBe(dark <= 85 ? 'green' : dark >= 354 ? 'red' : 'amber');
-  });
-
-  it('the answer names what is ticked, counts when the list is long, and gives the best zone\'s class', () => {
-    const all = zones();
-    const n = all.length.toLocaleString('en-US');
-    const best = (sel: Selection) => rankAll(all, sel)[0];
-    const two = only('sunlight', 'darkness');
-    const b2 = best(two);
-    expect(answer(two, prio, all.length, b2)).toBe(
-      `Best landing spots for Sunlight + Short nights: ${n} zones. The best scores ${b2.score} of 100 (${zoneRag(b2, two) === 'green' ? 'good' : zoneRag(b2, two) === 'amber' ? 'acceptable' : 'poor'})${b2.near ? `, near ${b2.near}` : ''}.`,
-    );
-    const every = answer(EVERYTHING, prio, all.length, best(EVERYTHING));
-    expect(every).toContain(`Best landing spots for everything on the list: ${n} zones.`);
-    expect(answer(preset('balanced'), prio, all.length, best(preset('balanced')))).toContain('for 8 of 10 parameters:');
-    expect(answer(only(), prio, all.length, all[0])).toBe(`Nothing is ticked, so nothing is ranked. Clear ground passes every NASA limit: ${n} zones.`);
-    console.log(every);
-    console.log(answer(two, prio, all.length, b2));
-  });
-
-  it('"Why here?" keeps the hard limits, leaves out what is not ticked, and follows a turned-round direction', () => {
-    const z = zones()[0];
-    const full = whyFromRow('zone', z.row, criteria);
-    const power = whyFromRow('zone', z.row, criteria, ['sunlight', 'darkness']);
-    expect(power.lines.length).toBeLessThan(full.lines.length);
-    expect(power.lines.some((l) => l.head.startsWith('Landing slope'))).toBe(true); // a NASA limit: always there
-    expect(power.lines.some((l) => /temperature/i.test(l.head))).toBe(false);
-    const usual = whyFromRow('zone', z.row, criteria, ['temperature']).lines.find((l) => /temperature/i.test(l.head))!;
-    const turned = whyFromRow('zone', z.row, criteria, ['temperature'], ['temperature']).lines.find((l) => /temperature/i.test(l.head))!;
-    const swap = { good: 'rejected', acceptable: 'acceptable', rejected: 'good' } as const;
-    expect(turned.verdict).toBe(swap[usual.verdict]);
-    console.log('why lines: everything', full.lines.length, ', power', power.lines.length);
-  });
-});
-
-describe('why here and the tour', () => {
-  it('a zone row gives one line per criterion, each with a verdict', () => {
-    const z = zones()[0];
-    const w = whyFromRow('zone #1', z.row, criteria);
-    expect(w.lines).toHaveLength(9);
-    expect(w.lines.every((l) => /: (good|acceptable|rejected)$/u.test(l.head) && l.detail.length > 20)).toBe(true);
-    expect(w.summary).toMatch(/^Passes every hard limit/u);
-    expect(captionZone(z, 'Everything', w)).toContain(`score ${z.row.score} of 100`);
-  });
-
-  it('captions carry numbers from the data', () => {
-    const max = poleSunMaxDeg(eph);
-    expect(max).toBeGreaterThan(1.3); // the Moon's axis is tilted 1.54 deg to the ecliptic
-    expect(max).toBeLessThan(1.8);
-    expect(captionPole(eph)).toContain(`${max.toFixed(1)} degrees`);
-    const s = json('suitability/summary.json');
-    expect(captionGoldilocks(s)).toContain(`(${s.pass_pct_of_region} %)`);
-    expect(captionGoldilocks(null)).not.toContain("km2");
-    const from = nextSunUp(eph, hz, 0)!;
-    const c = captionStand(computeSeries(eph, hz, from, from + TOUR_PLAY_H + 1), TOUR_PLAY_H);
-    const turn = Number(/moves (\d+) degrees/u.exec(c)![1]);
-    expect(turn).toBeGreaterThan(20); // 360 deg in 29.5 days: about 24 deg in 2 days
-    expect(turn).toBeLessThan(29);
-    console.log(captionPole(eph), '|', captionGoldilocks(s), '|', c);
-  });
 });
 
 describe('tileFromPole', () => {

@@ -43,9 +43,9 @@ Start with docs/XR.md (how to run, file map, known issues, Quest test). Branches
    Stand, and let the left thumbstick turn the view in 30 degree steps."
 5. `feat/ahmed-earth-phase-labels`: "Name the brightest stars and show the Earth's phase and the Sun's azimuth as
    small labels in Stand, using stars.json names and computeSeries values only."
-Stretch: `feat/ahmed-tour-voice`: "voice-over (ElevenLabs) for the four tour stops of /xr/: one audio file per
-caption, generated from the caption text of xr/src/guide.ts, played when the stop opens, with a mute button. The
-captions contain live numbers, so generate the audio in `make data` or keep the numbers out of the spoken text."
+Stretch: `feat/ahmed-journey-voice`: "voice-over (ElevenLabs) for the moments of the /xr/ journey: follow
+docs/NARRATION.md (one clip per moment, played on the `lunar-moment` event the first time it fires, with a mute
+button; numbers in braces come from the event's facts)."
 The old placeholder `web/src/routes/Moon3D.tsx` belongs to the website session: it embeds `/xr/?embed=1`.
 
 ## Luke (story)

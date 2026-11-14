@@ -187,3 +187,32 @@ export function fadeShell(): Mesh {
   mesh.visible = false;
   return mesh;
 }
+
+/** Pictures of the real Earth and Sun (xr/public/sky/, scripts/export_sky_textures.py). */
+export interface SkyKit {
+  earth: Texture;
+  sun: Texture;
+}
+
+/** Loads them, 1K in a headset and 2K elsewhere for the Earth. Null if they are not there: plain colours then. */
+export async function loadSkyKit(): Promise<SkyKit | null> {
+  const base = `${import.meta.env.BASE_URL}sky/`;
+  try {
+    const res = await fetch(`${base}sky.json`);
+    if (!res.ok || (res.headers.get('content-type') ?? '').includes('text/html')) {
+      return null;
+    }
+    const meta = (await res.json()) as { earth: Record<string, string>; sun: string };
+    const loader = new TextureLoader();
+    const [earth, sun] = await Promise.all([loader.loadAsync(base + meta.earth[isHeadset() ? '1k' : '2k']), loader.loadAsync(base + meta.sun)]);
+    for (const t of [earth, sun]) {
+      t.colorSpace = SRGBColorSpace;
+      t.minFilter = LinearMipmapLinearFilter;
+      t.magFilter = LinearFilter;
+    }
+    earth.wrapS = RepeatWrapping;
+    return { earth, sun };
+  } catch {
+    return null;
+  }
+}

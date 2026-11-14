@@ -6,13 +6,16 @@ import {
   BufferGeometry,
   Color,
   DataTexture,
+  DataUtils,
   FloatType,
+  HalfFloatType,
   LinearFilter,
   Mesh,
   NearestFilter,
   OrthographicCamera,
   PlaneGeometry,
   RedFormat,
+  RGFormat,
   RGBAFormat,
   SRGBColorSpace,
   Scene,
@@ -44,6 +47,28 @@ export function upTexture(field: Field, floatLinear: boolean): DataTexture {
   const n = field.grid.size;
   const t = new DataTexture(field.up, n, n, RedFormat, FloatType);
   t.minFilter = t.magFilter = floatLinear ? LinearFilter : NearestFilter;
+  t.needsUpdate = true;
+  return t;
+}
+
+/** The slopes of a field (rise per metre towards scene +x and +z) as a half-float texture: one read gives the normal. */
+export function slopeTexture(field: Field): DataTexture {
+  const n = field.grid.size;
+  const { up, x, z } = field;
+  const data = new Uint16Array(2 * n * n);
+  for (let r = 0; r < n; r++) {
+    const r0 = Math.max(0, r - 1);
+    const r1 = Math.min(n - 1, r + 1);
+    for (let c = 0; c < n; c++) {
+      const c0 = Math.max(0, c - 1);
+      const c1 = Math.min(n - 1, c + 1);
+      const i = r * n + c;
+      data[2 * i] = DataUtils.toHalfFloat((up[r * n + c1] - up[r * n + c0]) / (x[r * n + c1] - x[r * n + c0]));
+      data[2 * i + 1] = DataUtils.toHalfFloat((up[r1 * n + c] - up[r0 * n + c]) / (z[r1 * n + c] - z[r0 * n + c]));
+    }
+  }
+  const t = new DataTexture(data, n, n, RGFormat, HalfFloatType);
+  t.minFilter = t.magFilter = LinearFilter;
   t.needsUpdate = true;
   return t;
 }
@@ -199,9 +224,17 @@ export class ShadowPass {
 
 const TERRAIN_VERT = /* glsl */ `
 varying vec2 vUv;
+#ifdef DETAIL
+varying vec3 vPos;
+varying vec3 vWorld;
+#endif
 ${LOGZ_PARS_VERT}
 void main() {
   vUv = uv;
+#ifdef DETAIL
+  vPos = position;
+  vWorld = (modelMatrix * vec4(position, 1.0)).xyz;
+#endif
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   ${LOGZ_VERT}
 }`;
@@ -232,6 +265,19 @@ uniform vec2 capFade;   // angle from the pole where the fade starts and ends, r
 uniform float capInner; // nothing is drawn nearer the pole than this (a finer cap sits there), radians
 uniform float mapReach; // the map is drawn out to this angle from the pole (NASA's 6 deg limit), radians
 #endif
+#ifdef DETAIL
+// The surface seen from 2 m: the LOLA shape (its slopes in tSlope) with small craters and roughness added by the
+// detail tile (ground.ts), read at three scales. The added detail is illustrative; the shape underneath is not.
+uniform sampler2D tSlope;   // rg: rise per metre of the field towards +x and +z
+uniform sampler2D tDetail;  // rg: slopes of the detail, b: its sunlit fraction for this Sun, a: albedo variation
+uniform float detailT;      // metres covered by the detail tile
+uniform float detailS;      // the tile is also laid this many times larger
+uniform float detailK;      // ... with its relief scaled by this
+uniform vec2 detailOff;
+uniform vec3 nearHole;      // x, z, radius: not drawn there (the near patch of real geometry is)
+varying vec3 vPos;
+varying vec3 vWorld;
+#endif
 varying vec2 vUv;
 ${LOGZ_PARS_FRAG}
 
@@ -255,7 +301,29 @@ void main() {
     ground = textureLod(tAlbedo, vec2(lon / 6.28318531 + 0.5, colat / 3.14159265), 0.0).rgb;
   }
 #endif
-#ifdef BAKED
+#ifdef DETAIL
+  if (distance(vPos.xz, nearHole.xy) < nearHole.z) discard;
+  vec4 d1 = texture2D(tDetail, vPos.xz / detailT);
+  vec4 d0 = texture2D(tDetail, vPos.xz * (8.0 / detailT));
+  vec4 d2 = texture2D(tDetail, vPos.xz / (detailT * detailS) + detailOff);
+  // Level of detail by distance: beyond a few hundred metres the detail goes over into its own average (the top
+  // of the tile's mip chain), so far hills carry no repeating pattern and no shimmer.
+  float farAway = smoothstep(400.0, 2200.0, vW);
+  float meanLit = textureLod(tDetail, vec2(0.5), 9.0).b;
+  vec2 sl = texture2D(tSlope, vUv).rg + (1.0 - farAway) * (d1.rg + 0.6 * d0.rg + detailK * d2.rg);
+  vec3 n = normalize(vec3(-sl.x, 1.0, -sl.y));
+  float detailLit = mix(d1.b * mix(1.0, d0.b, 0.6) * mix(1.0, d2.b, 0.5), meanLit * mix(1.0, meanLit, 0.6) * mix(1.0, meanLit, 0.5), farAway);
+  float sunlit = texture2D(tShadow, vUv).r * detailLit;
+  // Regolith is not a matt wall: it scatters light back towards the Sun (Lommel-Seeliger, with a phase function
+  // that falls away from the Sun's direction and a surge close to it), so low sunlight still reads as bright.
+  vec3 toEye = normalize(cameraPosition - vWorld);
+  float mu0 = max(dot(n, sunDir), 0.0);
+  float mu = max(dot(n, toEye), 0.0);
+  float phaseAngle = acos(clamp(dot(sunDir, toEye), -1.0, 1.0));
+  float phase = 0.25 + 0.5 * exp(-1.2 * phaseAngle) + 0.6 * exp(-9.0 * phaseAngle);
+  float bright = 1.0 - exp(-1.6 * sunlit * phase * 2.0 * mu0 / (mu0 + mu + 0.02));
+  ground *= 0.8 + 0.4 * d1.a;
+#elif defined(BAKED)
   // Light worked out once per Sun position in the shadow pass (its green channel): one texture read per pixel.
   vec3 n = upv;
   float bright = texture2D(tShadow, vUv).g;
@@ -269,7 +337,11 @@ void main() {
   float bright = 1.0 - exp(-gain * lit);   // display curve: the Sun is 1 to 6 deg up, so true Lambert is near black
 #endif
   // Unlit ground keeps a faint fill that darkens with slope, so the relief stays readable in the dark (display only).
+#ifdef DETAIL
+  float fill = 0.6 * ambient * (0.4 + 0.6 * max(n.y, 0.0));
+#else
   float fill = ambient * (0.25 + 0.75 * pow(max(dot(n, upv), 0.0), 8.0));
+#endif
   vec3 col = ground * (fill + (1.0 - fill) * bright);
   if (mapOn > 0.5) {
     // The traffic-light classes, already painted as colour and opacity (paint.ts paintClasses), over the ground.
@@ -298,6 +370,8 @@ export interface TerrainMaterialOptions {
   depthBias?: number;
   /** Read the light from the shadow pass's green channel (ShadowPass) instead of computing it per screen pixel. */
   baked?: boolean;
+  /** The surface seen from 2 m: the field's own slopes (slopeTexture) and the detail tile of ground.ts. */
+  detail?: { slopeTex: Texture; tex: Texture; tileM: number; big: number; bigK: number; bigOff: [number, number] };
 }
 
 export function terrainMaterial(o: TerrainMaterialOptions): ShaderMaterial {
@@ -305,7 +379,7 @@ export function terrainMaterial(o: TerrainMaterialOptions): ShaderMaterial {
   return new ShaderMaterial({
     vertexShader: TERRAIN_VERT,
     fragmentShader: TERRAIN_FRAG,
-    defines: { ...(o.cap ? { CAP: '' } : {}), ...(o.baked ? { BAKED: '' } : {}) },
+    defines: { ...(o.cap ? { CAP: '' } : {}), ...(o.baked ? { BAKED: '' } : {}), ...(o.detail ? { DETAIL: '' } : {}) },
     // The cap blends into the globe at its edge; it is drawn after the globe and before every label.
     transparent: o.cap != null,
     uniforms: {
@@ -329,6 +403,13 @@ export function terrainMaterial(o: TerrainMaterialOptions): ShaderMaterial {
       ambient: { value: 0.06 },
       gain: { value: 11 },
       hole: { value: new Vector4(...(o.hole ?? [2, 2, 2, 2])) },
+      tSlope: { value: o.detail?.slopeTex ?? null },
+      tDetail: { value: o.detail?.tex ?? null },
+      detailT: { value: o.detail?.tileM ?? 1 },
+      detailS: { value: o.detail?.big ?? 1 },
+      detailK: { value: o.detail?.bigK ?? 0 },
+      detailOff: { value: new Vector2(...(o.detail?.bigOff ?? [0, 0])) },
+      nearHole: { value: new Vector3(0, 0, -1) },
     },
   });
 }

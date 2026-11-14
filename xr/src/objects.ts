@@ -2,7 +2,6 @@
 import {
   BufferGeometry,
   CanvasTexture,
-  CircleGeometry,
   Color,
   ConeGeometry,
   CylinderGeometry,
@@ -11,12 +10,11 @@ import {
   Group,
   Line,
   LineBasicMaterial,
-  LineDashedMaterial,
   LinearFilter,
   Mesh,
   MeshBasicMaterial,
   MeshLambertMaterial,
-  OctahedronGeometry,
+  PlaneGeometry,
   Points,
   RingGeometry,
   SRGBColorSpace,
@@ -26,6 +24,7 @@ import {
   SpriteMaterial,
   Vector3,
   BoxGeometry,
+  type Texture,
 } from '@iwsdk/core';
 import {
   LOGZ_FRAG,
@@ -52,33 +51,72 @@ export function farColorMaterial(color: number): ShaderMaterial {
   });
 }
 
-/** A sphere lit by the Sun only (ambient for the night side), in the far depth range. Used for Earth and the globe. */
+/** A sphere lit by the Sun only (ambient for the night side), in the far depth range; `sunDir` is in world axes. */
 export function farLitMaterial(color: number, ambient: number, gain: number): ShaderMaterial {
   return new ShaderMaterial({
     uniforms: {
       color: { value: new Color(color) },
+      map: { value: null },
+      hasMap: { value: 0 },
       sunDir: { value: new Vector3(0, 1, 0) },
       ambient: { value: ambient },
       gain: { value: gain },
     },
-    vertexShader: `varying vec3 vN; ${LOGZ_PARS_VERT}
-      void main() { vN = normal; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); ${LOGZ_VERT} }`,
+    vertexShader: `varying vec3 vN; varying vec2 vUv; ${LOGZ_PARS_VERT}
+      void main() { vN = normalize(mat3(modelMatrix) * normal); vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); ${LOGZ_VERT} }`,
     fragmentShader: `precision highp float; uniform vec3 color; uniform vec3 sunDir; uniform float ambient; uniform float gain;
-      varying vec3 vN; ${LOGZ_PARS_FRAG}
+      uniform sampler2D map; uniform float hasMap; varying vec3 vN; varying vec2 vUv; ${LOGZ_PARS_FRAG}
       void main() {
         float lit = max(dot(normalize(vN), sunDir), 0.0);
-        gl_FragColor = vec4(color * (ambient + (1.0 - ambient) * (1.0 - exp(-gain * lit))), 1.0); ${LOGZ_FRAG}
+        // A picture of the Earth is dark (oceans reflect a few per cent): it is drawn 1.8 times brighter to read.
+        vec3 base = mix(color, min(texture2D(map, vUv).rgb * 1.8, 1.0), hasMap);
+        gl_FragColor = vec4(base * (ambient + (1.0 - ambient) * (1.0 - exp(-gain * lit))), 1.0); ${LOGZ_FRAG}
         #include <colorspace_fragment>
       }`,
   });
 }
 
+/** How far the Sun's glow reaches, in radii of its disc. */
+export const SUN_GLOW = 4;
+
+/**
+ * The Sun: a disc that faces the viewer, radius 1, carrying a picture of the real Sun when one is given, with a
+ * glow round it (the only glow in the scene: there is no air to light up anything else). Far depth range, so the
+ * hills hide the disc and its glow alike.
+ */
 export function sunDisc(): Mesh {
-  return new Mesh(new CircleGeometry(1, 48), farColorMaterial(PALETTE.sunlight));
+  const mat = new ShaderMaterial({
+    uniforms: { map: { value: null }, hasMap: { value: 0 }, color: { value: new Color(PALETTE.sunlight) } },
+    transparent: true,
+    depthWrite: false,
+    vertexShader: `varying vec2 vP; ${LOGZ_PARS_VERT}
+      void main() { vP = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); ${LOGZ_VERT} }`,
+    fragmentShader: `precision highp float; uniform sampler2D map; uniform float hasMap; uniform vec3 color; varying vec2 vP; ${LOGZ_PARS_FRAG}
+      void main() {
+        float r = length(vP);
+        vec3 disc = mix(color, texture2D(map, clamp(vP * 0.5 + 0.5, 0.0, 1.0)).rgb, hasMap);
+        float glow = 0.5 * exp(-1.7 * max(r - 1.0, 0.0)) * (1.0 - smoothstep(${(SUN_GLOW * 0.6).toFixed(1)}, ${SUN_GLOW.toFixed(1)}, r));
+        float inDisc = 1.0 - smoothstep(0.97, 1.0, r);
+        gl_FragColor = vec4(mix(color, disc, inDisc), mix(glow, 1.0, inDisc)); ${LOGZ_FRAG}
+        #include <colorspace_fragment>
+      }`,
+  });
+  const m = new Mesh(new PlaneGeometry(2 * SUN_GLOW, 2 * SUN_GLOW), mat);
+  m.renderOrder = -3; // blended: before the terrain caps, which are nearer
+  return m;
 }
 
+/** The Earth: a sphere lit by the Sun only, carrying a picture of the real Earth when one is given. */
 export function earthBall(): Mesh {
-  return new Mesh(new SphereGeometry(1, 48, 24), farLitMaterial(PALETTE.earth, 0.06, 6));
+  const mat = farLitMaterial(PALETTE.earth, 0.05, 6);
+  return new Mesh(new SphereGeometry(1, 48, 24), mat);
+}
+
+/** Gives the Sun's disc or the Earth its picture. */
+export function setMap(mesh: Mesh, tex: Texture | null): void {
+  const u = (mesh.material as ShaderMaterial).uniforms;
+  u.map.value = tex;
+  u.hasMap.value = tex ? 1 : 0;
 }
 
 export interface Label {
@@ -141,33 +179,6 @@ export function makeLabel(text: string, color: number = PALETTE.text, heightFrac
       apply();
     },
     aspect: () => aspect,
-  };
-}
-
-export interface SightLine {
-  line: Line;
-  set(from: Vector3, to: Vector3, clear: boolean): void;
-}
-
-/** A line from the lander to the Sun or Earth: solid in its colour when the view is clear, dashed alert when blocked. */
-export function makeSightLine(color: number): SightLine {
-  const geo = new BufferGeometry();
-  geo.setAttribute('position', new Float32BufferAttribute([0, 0, 0, 0, 0, -1], 3));
-  const solid = new LineBasicMaterial({ color, depthTest: false });
-  const dashed = new LineDashedMaterial({ color: PALETTE.alert, dashSize: 5, gapSize: 5, depthTest: false });
-  const line = new Line(geo, solid);
-  line.frustumCulled = false;
-  line.renderOrder = 5;
-  return {
-    line,
-    set(from, to, clear) {
-      const p = geo.getAttribute('position');
-      p.setXYZ(0, from.x, from.y, from.z);
-      p.setXYZ(1, to.x, to.y, to.z);
-      p.needsUpdate = true;
-      line.material = clear ? solid : dashed;
-      line.computeLineDistances();
-    },
   };
 }
 
@@ -251,12 +262,6 @@ export function makeRocket(): Group {
 // Markers and lines ignore depth and are drawn in the blended pass, after the terrain caps that fade at their edge.
 export function siteMarker(color: number): Mesh {
   const m = new Mesh(new SphereGeometry(1, 16, 12), new MeshBasicMaterial({ color, depthTest: false, transparent: true }));
-  m.renderOrder = 4;
-  return m;
-}
-
-export function missionMarker(color: number): Mesh {
-  const m = new Mesh(new OctahedronGeometry(1), new MeshBasicMaterial({ color, depthTest: false, transparent: true }));
   m.renderOrder = 4;
   return m;
 }

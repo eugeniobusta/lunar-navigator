@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "earth": {
+    "2k": "earth_2k.jpg",
+    "1k": "earth_1k.jpg",
+    "projection": "simple cylindrical; row 0 = 90 N, column 0 = 180 W",
+    "source": "https://svs.gsfc.nasa.gov/2915",
+    "file": "https://svs.gsfc.nasa.gov/vis/a000000/a002900/a002915/bluemarble-2048.png",
+    "credit": "NASA/Goddard Space Flight Center Scientific Visualization Studio. The Blue Marble Next Generation data is courtesy of Reto Stockli (NASA/GSFC) and NASA's Earth Observatory."
+  },
+  "sun": "sun_512.jpg",
+  "sun_source": {
+    "source": "https://images.nasa.gov/details/PIA21582",
+    "file": "https://images-assets.nasa.gov/image/PIA21582/PIA21582~orig.jpg",
+    "title": "Spotless Sun (PIA21582), 2017-03-13",
+    "credit": "NASA/GSFC/Solar Dynamics Observatory",
+    "disc_found": {
+      "centre_px": [
+        750.5,
+        734.0
+      ],
+      "radius_px": 667.0,
+      "white_level": 133.0
+    }
+  },
+  "licence": "public domain (NASA)"
+}

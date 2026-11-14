@@ -40,3 +40,29 @@ def disc_fraction(margin, radius):
     """Visible fraction of a disc of angular radius `radius` whose centre is `margin` above a flat horizon edge."""
     d = np.clip(np.asarray(margin, dtype=float) / radius, -1.0, 1.0)
     return 1.0 - (np.arccos(d) - d * np.sqrt(1.0 - d * d)) / np.pi
+
+
+def window_stats(lit, earth, w):
+    """For every start j with a full window [j, j + w): (% sunlit, % Earth visible, longest dark run in samples)."""
+    lit, earth = np.asarray(lit, dtype=bool), np.asarray(earth, dtype=bool)
+    n = lit.size - w + 1
+    cs, ce = np.concatenate([[0], np.cumsum(lit)]), np.concatenate([[0], np.cumsum(earth)])
+    sun_pct = 100.0 * (cs[w:] - cs[:-w]) / w
+    earth_pct = 100.0 * (ce[w:] - ce[:-w]) / w
+    # run[i] = length of the dark run ending at i; inside a window it is clipped at the window start.
+    run = np.zeros(lit.size, dtype=np.int64)
+    for i in range(lit.size):
+        run[i] = 0 if lit[i] else (run[i - 1] + 1 if i else 1)
+    win = np.lib.stride_tricks.sliding_window_view(run, w)[:n]
+    longest = np.minimum(win, np.arange(1, w + 1)).max(axis=1)
+    return sun_pct, earth_pct, longest
+
+
+def feasible_starts(lit, earth, w, min_sun_pct, min_earth_pct, max_dark_samples, lit_and_earth_at_landing):
+    """Boolean per start: the same rule as findWindows in web/src/lib/analysis (docs/INTERFACES.md section 5)."""
+    sun_pct, earth_pct, longest = window_stats(lit, earth, w)
+    ok = (sun_pct >= min_sun_pct) & (earth_pct >= min_earth_pct) & (longest <= max_dark_samples)
+    if lit_and_earth_at_landing:
+        n = ok.size
+        ok &= np.asarray(lit, dtype=bool)[:n] & np.asarray(earth, dtype=bool)[:n]
+    return ok

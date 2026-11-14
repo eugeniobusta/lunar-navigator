@@ -102,3 +102,22 @@ def test_disc_fraction():
     from engine.visibility import disc_fraction
     assert disc_fraction([0.0, 0.27, -0.27, 5.0, -5.0], 0.27) == pytest.approx([0.5, 1, 0, 1, 0])
     assert disc_fraction(0.1, 0.27) + disc_fraction(-0.1, 0.27) == pytest.approx(1.0)
+
+
+def test_window_stats_match_brute_force():
+    from engine.visibility import feasible_starts, window_stats
+    rng = np.random.default_rng(7)
+    lit = np.repeat(rng.random(60) < 0.6, rng.integers(1, 9, 60))
+    earth = np.repeat(rng.random(60) < 0.5, rng.integers(1, 9, 60))[:lit.size]
+    lit = lit[:earth.size]
+    w = 24
+    sun_pct, earth_pct, longest = window_stats(lit, earth, w)
+    assert sun_pct.size == lit.size - w + 1
+    for j in range(sun_pct.size):
+        assert sun_pct[j] == pytest.approx(100 * lit[j:j + w].mean())
+        assert earth_pct[j] == pytest.approx(100 * earth[j:j + w].mean())
+        assert longest[j] == longest_run(~lit[j:j + w])
+    ok = feasible_starts(lit, earth, w, 50, 40, 6, True)
+    brute = [lit[j:j + w].mean() >= 0.5 and earth[j:j + w].mean() >= 0.4 and longest_run(~lit[j:j + w]) <= 6
+             and lit[j] and earth[j] for j in range(ok.size)]
+    assert ok.tolist() == brute and 0 < sum(brute) < len(brute)

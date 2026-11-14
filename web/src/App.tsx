@@ -87,7 +87,7 @@ export default function App() {
       </main>
 
       <footer className="foot">
-        HackAthlone 2026, NASA Space Apps Challenge. Data: NASA LOLA, NASA Goddard PGDA, JPL DE421. Not an official NASA product.
+        Built by team Claude's Plan at HackAthlone 2026, NASA Space Apps Challenge. Data: NASA LOLA, NASA Goddard PGDA, JPL DE421. Not an official NASA product.
       </footer>
     </div>
   );

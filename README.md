@@ -1,6 +1,6 @@
 # Lunar Landing Site Navigator
 
-HackAthlone 2026 · NASA Space Apps Challenge #11.
+Team **Claude's Plan** · HackAthlone 2026 · NASA Space Apps Challenge #11.
 
 Pick a landing site near the lunar south pole and a date, and see when the Sun (power) and Earth
 (direct-to-Earth comms) are above the real terrain horizon. Compare sites, slip the launch date,
@@ -39,6 +39,6 @@ find the landing days that meet a mission's needs, and check whether the battery
 Raw NASA data (~520 MB) is not in git: `make download` puts it in `data/`. Download once, share by USB.
 Sources and validation: docs/DATA.md, docs/SCIENCE.md, docs/VALIDATION.md.
 
-## Team
+## Team: Claude's Plan
 
 Eugenio Busta (lead) · Kien · Chinh · Rahan · Ahmed Diallo · Luke

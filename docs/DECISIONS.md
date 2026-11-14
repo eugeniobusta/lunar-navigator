@@ -14,3 +14,4 @@
 - Sat 09:30, Claude: computeMetrics takes an optional stepH (default 1 h). Why: Series carries no sample spacing; the contract signature computeMetrics(s) still works.
 - Sat 09:30, Claude: Window Finder score = mean of Sun% and Earth% over the best window that day; every landing hour is tried. Why: simple, explainable to judges.
 - Sat 09:30, Claude: "hoursBelowZero" = hours where the battery could not cover the load. Why: reaching exactly 0 Wh with the load met is not a failure.
+- Sat 10:00, team: Team name is "Claude's Plan". Used in the README, the app footer and the submission.

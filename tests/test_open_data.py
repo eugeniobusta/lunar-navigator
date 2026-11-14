@@ -35,7 +35,7 @@ def test_dictionary_covers_every_file_and_column():
                  "south_pole_sun.u8", "south_pole_earth.u8", "tile.json", "height.u16", "far.u16", "sun.u8", "earth.u8", "slope.u8", "validation/jpl.csv", "validation/pgda.csv"):
         assert name in text, name
     for csv_name in ("validation/jpl.csv", "validation/pgda.csv", "suitability/zones.csv", "criteria.csv", "missions.csv",
-                     "suitability/zones_layers.csv", "suitability/artemis_points.csv"):
+                     "suitability/zones_layers.csv", "suitability/artemis_points.csv", "suitability/site_values.csv"):
         assert csv_name in text, csv_name
         for col in next(csv.reader((DATA / csv_name).open())):
             assert f"`{col}`" in text, (csv_name, col)

@@ -7,6 +7,8 @@ import {
   BALANCED, LAYER_KEYS, ZONE_KEYS, mapScore, mapScoreGrid, rankAmong, rankZones, zoneScore,
   type Preset, type TermKey, type Weights, type ZoneInput,
 } from "../lib/analysis/suitability";
+import { WhyHere } from "../components/ui/WhyHere";
+import { explain, valuesFromRow, type CriterionRow } from "../lib/analysis/explain";
 import { parseCsv } from "../lib/data/csv";
 import { useStore } from "../state/store";
 
@@ -256,6 +258,9 @@ export function WhereToLand() {
           </ul>
         </div>
       </div>
+
+      <WhyHere title={`Why here? Zone ${live.rank} against the landing criteria`}
+        list={explain(valuesFromRow(zone), criteria as unknown as CriterionRow[])} />
 
       <div className="prose">
         <h3>Does this find NASA's own regions?</h3>

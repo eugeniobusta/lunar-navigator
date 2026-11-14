@@ -4,7 +4,7 @@ import { scaleSequential } from "d3";
 import { useEffect, useMemo, useState } from "react";
 import { NumberField } from "../components/ui";
 import { Donut, HBars, type BarRow } from "../components/ui/Charts";
-import { findWindows, type DayResult, type MissionSpec } from "../lib/analysis";
+import { findWindows, type DayResult, type Horizon, type MissionSpec } from "../lib/analysis";
 import { fmtDate, idxToMs } from "../state/derived";
 import { useStore } from "../state/store";
 
@@ -14,26 +14,42 @@ const PRESETS: { name: string; line: string; spec: MissionSpec }[] = [
   { name: "Long-lived rover", line: "30 days", spec: { durationH: 30 * 24, minSunPct: 60, minEarthPct: 40, maxDarkH: 96, requireLitAndEarthAtLanding: true } },
 ];
 
-export function Windows() {
+/** The first good landing found: when, and for how long (the Plan page's battery check uses it). */
+export interface FirstLanding { startIdx: number; durationH: number }
+
+/** `place`: search this skyline instead of the selected site's (the Plan page passes the one it computed at the chosen
+ *  zone), with a name and a key that changes when the place does. `compact`: no section titles of its own.
+ *  `onResult`: hears the first good landing, or null if none. */
+export function Windows({ place, compact = false, onResult }:
+  { place?: { horizon: Horizon; name: string; key: string }; compact?: boolean; onResult?: (r: FirstLanding | null) => void } = {}) {
   const st = useStore();
-  const hz = st.horizons[st.siteId];
+  const siteId = st.siteId;
+  const hzValue = place?.horizon ?? st.horizons[siteId]?.value;
+  const ensureHorizon = st.ensureHorizon;
+  useEffect(() => { void ensureHorizon(siteId); }, [siteId, ensureHorizon]);
   const [spec, setSpec] = useState<MissionSpec>(PRESETS[0].spec);
   const [months, setMonths] = useState(12);
   const [ran, setRan] = useState<{ key: string; days: DayResult[] } | null>(null);
-  const site = st.sites.find((s) => s.id === st.siteId);
-  const key = JSON.stringify([st.siteId, spec, months, st.startIdx]);
+  const placeName = place?.name ?? st.sites.find((s) => s.id === siteId)?.name;
+  const key = JSON.stringify([place?.key ?? siteId, spec, months, st.startIdx]);
 
   const run = () => {
-    if (!st.eph || !hz) return;
+    if (!st.eph || !hzValue) return;
     const to = st.startIdx + Math.round((months * 30.44 * 86400) / st.eph.stepS);
-    setRan({ key, days: findWindows(st.eph, hz.value, spec, st.startIdx, to) });
+    setRan({ key, days: findWindows(st.eph, hzValue, spec, st.startIdx, to) });
   };
   // Search again shortly after anything changes (typing a number changes it once per key press).
   useEffect(() => {
-    if (!hz || ran?.key === key) return;
+    if (!hzValue || ran?.key === key) return;
     const id = setTimeout(run, ran ? 250 : 0);
     return () => clearTimeout(id);
-  }, [key, hz]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [key, hzValue]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!onResult || !ran || ran.key !== key) return;
+    const first = ran.days.find((d) => d.feasible && d.bestStartIdx !== null);
+    onResult(first ? { startIdx: first.bestStartIdx!, durationH: spec.durationH } : null);
+  }, [ran, key, onResult, spec.durationH]);
 
   const byMonth = useMemo(() => {
     if (!ran) return [];
@@ -72,7 +88,7 @@ export function Windows() {
 
   return (
     <section className="panel">
-      <h2 className="section-title first">1. Choose the mission</h2>
+      {!compact && <h2 className="section-title first">1. Choose the mission</h2>}
       <div className="mission-cards" role="group" aria-label="Missions">
         {PRESETS.map((p) => {
           const on = chosen === p;
@@ -101,13 +117,13 @@ export function Windows() {
         </div>
       </details>
       <div className="run-row">
-        <button className="primary big" onClick={run} disabled={!hz}>Find landing days</button>
-        <p className="note">Every UTC day is checked hour by hour for a landing time whose whole mission meets these needs at {site?.name}.</p>
+        <button className="primary big" onClick={run} disabled={!hzValue}>Find landing days</button>
+        <p className="note">Every UTC day is checked hour by hour for a landing time whose whole mission meets these needs at {placeName}.</p>
       </div>
 
       {ran && (
         <>
-          <h2 className="section-title">2. When you can land</h2>
+          {!compact && <h2 className="section-title">2. When you can land</h2>}
           <div className="window-head">
             <Donut label={`${feasible} of ${ran.days.length} days work`} centre={`${feasible}`} sub={`of ${ran.days.length} days`}
               parts={[
@@ -149,14 +165,14 @@ export function Windows() {
                           ? `Land ${fmtDate(idxToMs(d.bestStartIdx))}: ${d.metrics?.sunPct.toFixed(0)}% sun, ${d.metrics?.earthPct.toFixed(0)}% Earth`
                           : "No landing time meets the needs"}
                         disabled={!d.feasible}
-                        onClick={() => { if (d.bestStartIdx !== null) { st.setStartIdx(d.bestStartIdx); st.setWindowDays(Math.max(1, Math.round(spec.durationH / 24))); st.setTab("overview"); } }}>
+                        onClick={() => { if (d.bestStartIdx !== null && !place) { st.setStartIdx(d.bestStartIdx); st.setWindowDays(Math.max(1, Math.round(spec.durationH / 24))); st.setTab("explore"); } }}>
                         {new Date(idxToMs(d.dayIdx * 24)).getUTCDate()}
                       </button>
                     ))}
                   </div>
                 ))}
               </div>
-              <p className="note">Green days work; stronger green means more margin above the mission's needs. Choose a day to open that mission in Overview.</p>
+              <p className="note">Green days work; stronger green means more margin above the mission's needs. {place ? "Point at a green day for its best landing time." : "Click a green day to explore that landing."}</p>
             </div>
           </div>
         </>

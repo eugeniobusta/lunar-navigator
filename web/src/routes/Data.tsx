@@ -1,6 +1,7 @@
 // Open data: what we use, what we publish, and how to rebuild it.
 import { useEffect, useState } from "react";
 import { HBars, type BarRow } from "../components/ui/Charts";
+import { parseCsv } from "../lib/data/csv";
 
 const REPO = "https://github.com/eugeniobusta/lunar-navigator";
 const BASE = `${import.meta.env.BASE_URL}data/`;
@@ -73,6 +74,14 @@ export function Data() {
       .then((d: { files: FileEntry[] }) => setFiles(d.files))
       .catch(() => setFailed(true));
   }, []);
+  // The reference tables that used to sit under Site Finder: the landing criteria and every past landing attempt.
+  const [criteria, setCriteria] = useState<Record<string, string>[]>([]);
+  const [missions, setMissions] = useState<Record<string, string>[]>([]);
+  useEffect(() => {
+    const text = (p: string) => fetch(BASE + p).then((r) => (r.ok ? r.text() : Promise.reject(new Error(p))));
+    text("criteria.csv").then((t) => setCriteria(parseCsv(t))).catch(() => {});
+    text("missions.csv").then((t) => setMissions(parseCsv(t))).catch(() => {});
+  }, []);
   const total = files?.reduce((a, f) => a + f.bytes, 0) ?? 0;
   // What we publish, by folder: size and number of files.
   const folders = new Map<string, { bytes: number; n: number }>();
@@ -144,6 +153,45 @@ export function Data() {
             </tbody>
           </table>
         </div>
+        </details>
+      )}
+
+      {criteria.length > 0 && (
+        <details className="fold">
+          <summary>The landing criteria, with sources</summary>
+          <div className="table-scroll">
+            <table className="compare wide">
+              <thead><tr><th>What</th><th>Good</th><th>Acceptable</th><th>Rejected</th><th>Why it matters</th></tr></thead>
+              <tbody>
+                {criteria.map((c) => (
+                  <tr key={`${c.parameter} ${c.kind}`}>
+                    <th>{c.parameter}{c.kind === "hard" ? " (hard limit)" : c.kind === "reported" ? " (reported only)" : ""}<span className="unit">{c.unit}</span></th>
+                    <td>{c.ideal}</td><td>{c.acceptable}</td><td>{c.reject}</td><td>{c.reason}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      )}
+      {missions.length > 0 && (
+        <details className="fold">
+          <summary>What past landings teach ({missions.length} attempts)</summary>
+          <div className="table-scroll">
+            <table className="compare wide">
+              <thead><tr><th>Mission</th><th>Date</th><th>Outcome</th><th>Lesson</th></tr></thead>
+              <tbody>
+                {[...missions].reverse().map((m) => (
+                  <tr key={m.id}>
+                    <th><a href={m.source_url}>{m.name}</a></th>
+                    <td>{m.landing_date_utc}</td>
+                    <td className={m.outcome === "landed" ? "outcome ok" : "outcome"}>{m.outcome}</td>
+                    <td>{m.lesson}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </details>
       )}
 

@@ -3,7 +3,7 @@ import { TERM_KEYS, type Importance, type Selection, type TermKey, type Weights 
 import { useStore, type Tab } from "./store";
 import { buildQuery, parseQuery } from "./url";
 
-export const TAB_IDS: Tab[] = ["overview", "land", "windows", "compare", "grid", "power", "moon3d", "data", "method"];
+export const TAB_IDS: Tab[] = ["home", "overview", "land", "windows", "compare", "grid", "power", "moon3d", "data", "method"];
 
 /** Reads the query string once the data is loaded, then rewrites it whenever the view changes. */
 export function startUrlSync(): void {

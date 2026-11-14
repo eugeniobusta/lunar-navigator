@@ -1,4 +1,5 @@
 @import "./styles/tokens.css";
+@import "./styles/shell.css";
 
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--shadow); color: var(--bone); font: 16px/1.5 var(--font); }
@@ -11,11 +12,8 @@ a { color: var(--bone); text-decoration-color: var(--ash); text-underline-offset
 a:hover { text-decoration-color: var(--bone); }
 :focus-visible { outline: 2px solid var(--bone); outline-offset: 2px; }
 
-.app { max-width: 1240px; margin: 0 auto; padding: 20px 24px 40px; }
 .loading { padding: 40px; color: var(--ash); }
 
-.top { display: flex; flex-wrap: wrap; gap: 16px 32px; align-items: flex-end; justify-content: space-between; }
-.brand p { margin: 4px 0 0; color: var(--ash); max-width: 56ch; }
 
 .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
 .field { display: flex; flex-direction: column; gap: 4px; font-size: 0.8125rem; color: var(--ash); }
@@ -41,7 +39,7 @@ button.primary:hover:not(:disabled), a.primary:hover { background: var(--cloud);
 .banner { margin: 16px 0 0; padding: 8px 12px; border: 1px solid var(--eclipse); border-radius: var(--r); background: var(--dust); font-size: 0.9375rem; }
 
 /* Hero: the skyline. */
-.hero { margin: 24px 0 0; }
+.hero { margin: 24px 0 8px; }
 .hero-head { display: flex; flex-wrap: wrap; gap: 12px 32px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .hero-head p { margin: 0; max-width: 70ch; font-size: 1.0625rem; }
 .hero-head strong { font-weight: 600; }
@@ -77,10 +75,6 @@ button.primary:hover:not(:disabled), a.primary:hover { background: var(--cloud);
 .scrub { display: flex; align-items: center; gap: 16px; margin-top: 10px; font-size: 0.875rem; color: var(--ash); }
 .scrub span { white-space: nowrap; min-width: 17ch; font-variant-numeric: tabular-nums; color: var(--bone); }
 
-.tabs { display: flex; gap: 4px; margin: 28px 0 0; border-bottom: 1px solid var(--rim); overflow-x: auto; scrollbar-width: thin; }
-.tab { flex: none; background: none; border: none; border-bottom: 2px solid transparent; border-radius: 0; padding: 10px 14px; color: var(--ash); white-space: nowrap; }
-.tab:hover:not(:disabled) { color: var(--bone); }
-.tab.on { color: var(--bone); border-bottom-color: var(--bone); font-weight: 600; }
 
 .panel { padding: 20px 0; }
 .lede { margin: 0 0 12px; max-width: 72ch; }
@@ -224,16 +218,13 @@ button.link { background: none; border: none; padding: 0; color: var(--bone); te
 .compare.wide th:first-child { min-width: 11rem; }
 .prose pre { background: var(--dust); border: 1px solid var(--rim); padding: 12px 14px; border-radius: var(--r); white-space: pre-wrap; overflow-wrap: anywhere; }
 
-.foot { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--rim); color: var(--ash); font-size: 0.8125rem; max-width: 100ch; }
 
 @media (max-width: 640px) {
-  .app { padding: 16px 16px 32px; }
   .controls .field { flex: 1 1 140px; }
   .field input:not([type=checkbox]):not([type=range]), .field select { width: 100%; }
   .hero-head p { font-size: 1rem; }
   .vr-link { width: 100%; text-align: center; }
   .verdict { font-size: 1.1875rem; }
-  .tabs { margin-inline: -16px; padding-inline: 16px; }
   .cal-hint { display: block; }
 }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }

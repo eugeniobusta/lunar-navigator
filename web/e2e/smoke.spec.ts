@@ -12,11 +12,36 @@ function watchErrors(page: Page): string[] {
   return errors;
 }
 
+/** Opens the homepage and follows its Explore button to Overview. */
 async function openApp(page: Page) {
   await page.goto("/");
-  await expect(page.getByRole("tab").first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Choose where to land before you fly" })).toBeVisible();
+  await page.getByRole("link", { name: "Explore" }).click();
+  await expect(page.getByRole("tab", { name: "Overview", exact: true })).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("svg.sky")).toBeVisible(); // the skyline has real terrain loaded
 }
+
+test("the homepage: hero, numbers, a section per feature, back to the top", async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto("/");
+  await expect(page).toHaveURL(/tab=home/);
+  await expect(page.getByRole("img", { name: /The Moon's south pole, 440 km across/ })).toBeVisible();
+  await expect(page.locator(".home-stats")).toContainText("5,297");
+  await expect(page.getByRole("heading", { name: "Where is it safe to land?" })).toBeVisible();
+  // Back to the top: hidden at the top, shown a screen down, and it works.
+  const toTop = page.getByRole("button", { name: "Back to the top" });
+  await expect(toTop).toBeHidden();
+  await page.getByRole("heading", { name: "Stand on the Moon" }).scrollIntoViewIfNeeded();
+  await expect(toTop).toBeVisible();
+  await toTop.click();
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  // A feature section opens its page; the brand comes back home.
+  await page.getByRole("link", { name: "Find a landing day" }).click();
+  await expect(page.getByRole("tab", { name: "Window Finder", exact: true })).toHaveAttribute("aria-selected", "true");
+  await page.getByRole("button", { name: "Claude's P.L.A.N: home" }).click();
+  await expect(page.getByRole("heading", { name: "Choose where to land before you fly" })).toBeVisible();
+  expect(errors).toEqual([]);
+});
 
 test("the app loads real data and the skyline explains itself", async ({ page }) => {
   const errors = watchErrors(page);
@@ -138,11 +163,14 @@ test("the view lives in the URL: a shared link opens the same view and survives 
   await expect(page).toHaveURL(/site=hw02&compare=nr107&date=2027-03-14&days=14&tab=land&preset=ice$/);
   // Changing the view rewrites the address; a reload brings the same view back.
   await page.getByRole("button", { name: "Power first", exact: true }).click();
+  // The site picker is on the pages that use a site; the choice travels across pages.
+  await page.getByRole("tab", { name: "Overview", exact: true }).click();
   await page.getByLabel("Landing site").selectOption("mma01");
+  await page.getByRole("tab", { name: "Where to land", exact: true }).click();
   await expect(page).toHaveURL(/site=mma01&compare=nr107&date=2027-03-14&days=14&tab=land&preset=power$/);
   await page.reload();
   await expect(page.getByRole("tab", { name: "Where to land", exact: true })).toHaveAttribute("aria-selected", "true");
-  await expect(page.getByLabel("Landing site")).toHaveValue("mma01");
+  await expect(page).toHaveURL(/site=mma01/);
   await expect(page.getByRole("button", { name: "Power first", exact: true })).toHaveAttribute("aria-pressed", "true");
   // Hand-set ticks travel as pick=...; an old link with exact weights (w=) still opens; nonsense is ignored.
   await page.getByLabel(/^Ice depth/).check();
@@ -153,7 +181,8 @@ test("the view lives in the URL: a shared link opens the same view and survives 
   await expect(page.locator(".tick.on")).toHaveCount(7);
   await expect(page.getByText("This link carries its own exact weights.")).toBeVisible();
   await page.goto("/?site=nope&tab=evil&days=0&date=1999-01-01&preset=%3Cb%3E");
-  await expect(page.getByRole("tab", { name: "Overview", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("heading", { name: "Choose where to land before you fly" })).toBeVisible(); // home
+  await page.getByRole("tab", { name: "Overview", exact: true }).click();
   await expect(page.getByLabel("Landing site")).toHaveValue("mma01");
   expect(errors).toEqual([]);
 });

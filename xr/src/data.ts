@@ -8,9 +8,9 @@ import {
 } from '../../web/src/lib/analysis/demHorizon';
 import { heightAt } from '../../web/src/lib/analysis/demHorizon';
 import type { CriterionRow } from '../../web/src/lib/analysis/explain';
-import { LAYER_KEYS, type Preset } from '../../web/src/lib/analysis/suitability';
+import { LAYER_KEYS } from '../../web/src/lib/analysis/suitability';
 import { parseCsv } from '../../web/src/lib/data/csv';
-import { FALLBACK_PRESETS, buildZones, type Summary, type ZoneRow } from './guide.js';
+import { buildZones, priorities, type Priorities, type Summary, type ZoneRow } from './guide.js';
 
 export const DATA_URL = '/data/';
 
@@ -169,11 +169,8 @@ export async function loadSiteValues(): Promise<Map<string, Record<string, strin
   return new Map(((await csv('suitability/site_values.csv')) ?? []).map((r) => [r.id, r]));
 }
 
-/** The priority presets of suitability/weights.json; only "Balanced" if the file is missing. */
-export async function loadPresets(): Promise<Preset[]> {
-  const f = await json<{ presets?: Preset[] }>('suitability/weights.json');
-  return f?.presets?.length ? f.presets : FALLBACK_PRESETS;
-}
+/** Presets, default selection and bounds of suitability/weights.json; only the published weights if it is missing. */
+export const loadPriorities = async (): Promise<Priorities> => priorities(await json('suitability/weights.json'));
 
 export const loadSummary = () => json<Summary>('suitability/summary.json');
 

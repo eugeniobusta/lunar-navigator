@@ -37,7 +37,7 @@ which the whole Sun is above its skyline (`nextSunUp` in `guide.ts`, a search wi
 | `terrain.ts` | Terrain material (lighting, heat-map ramps, palette), the GPU shadow pass, mesh builder, the depth scheme. | look of the ground, heat-map colours, shadow quality |
 | `geo.ts` | Frames: MOON_ME to the scene, fields of true 3D positions (curvature included), picking a ground point, CPU copy of the shadow test. Tested. | never, unless the maths is wrong |
 | `data.ts` | Loaders for everything in `/data/`, including optional files (zones, missions, score, layers, presets, criteria); `tileFromPole` cuts a tile from the south-pole grid for a zone no site tile covers. | a data file changes shape |
-| `guide.ts` | What the view says and ranks: demo start time, "Why here?" lines, priorities (re-rank, recolour), the tour's four captions. Only calls `explain.ts`, `suitability.ts` and `computeSeries`. Tested. | tour text, a new preset or criterion |
+| `guide.ts` | What the view says and ranks: demo start time, "Why here?" lines, the tick boxes (which map to show, re-rank, the sentence), the tour's four captions. Only calls `explain.ts`, `suitability.ts` and `computeSeries`. Tested. | tour text, a new preset or criterion |
 | `perf.ts` | Automatic quality in the headset: the three detail levels and the rule that lowers them. Tested. | frame rate on the Quest |
 | `objects.ts` | Lander, rocket, Sun disc, Earth, stars, labels, sight lines, markers. | models and labels |
 | `hud.ts` | Laptop interface (plain DOM and CSS, Earthrise tokens) and the credits line. | laptop UI text and layout |
@@ -65,13 +65,28 @@ IWSDK scene: everything is generated from data at run time.
   there: latitude, the NASA sunlight and Earth pixels, the landing slope (the formula of `engine/criteria.py` on
   the tile's heights; within 0.105 deg of zones.csv at 235 zones) and the longest darkness and time without Earth
   from `computeSeries` over the whole ephemeris (at Malapert: 404 h and 0 h, the same as site_values.csv).
-- "Your priorities": the presets of `suitability/weights.json`. Choosing one re-ranks all 5,297 zones with
-  `rankZones` and recolours the Goldilocks map with `mapScoreGrid` on the published layers; cells that fail a
-  hard limit stay uncoloured. "Goldilocks map score" in the landing-point panel is the map score of that cell; a
-  zone's score also counts its longest darkness and time without Earth, so the two differ.
-- Tour: four stops, each waiting for "Next". Every number in a caption is computed when the stop opens: the Sun's
-  highest elevation at the pole from the ephemeris, the passing area from `summary.json`, the best zone and its
-  "Why here?" lines under the priorities in use, the Sun's path over the two days that stop 4 plays.
+- "What matters for your mission?": the website's tick boxes, through the selection API of
+  `web/src/lib/analysis/suitability.ts` (`toggleTerm`, `presetSelection`, `selectionWeights`, `rankZones`). The
+  presets of `suitability/weights.json` are buttons; the view opens on its default, "Everything". The colours are
+  the website's tokens (`guide.test.ts` checks them against `web/src/styles/tokens.css`). "NASA safety limits" is
+  a locked row: the hard limits always apply.
+  - One parameter ticked: its own layer as a heat map in its colour, dark at its reject bound and full colour at
+    its ideal (the website's 0.75 power), everywhere there is data.
+  - Two or more: the combined Goldilocks map (`mapScoreGrid` on the published layers; cells that fail a hard limit
+    stay uncoloured), the zones re-ranked, the top 10 listed, and the sentence "Best landing spots for A + B: N
+    zones".
+  - "Short nights" and "Never out of contact" are known at the zones, not at every point. Ticked by themselves,
+    the map shows where the limits pass in one flat green and the zone rings carry the parameter's colour.
+  - Nothing ticked: nothing is ranked, no zones are listed, the map shows where the limits pass.
+  - "Why here?" shows the ticked parameters plus every NASA hard limit (`explainFor`).
+  - In VR the tick boxes are a page of the panel ("What matters?"): each box is 5 cm high and 38 cm wide on the
+    82 cm panel, and the sentence is drawn under the boxes so they do not move when it changes.
+  - `?preset=<key>` and `?pick=sunlight,earth` in the URL open with that choice (the website's own parameters).
+  - "Score for what is ticked" in the landing-point panel is the map score of that cell; a zone's score also
+    counts its longest darkness and time without Earth, so the two differ.
+- Tour: four stops, each waiting for "Next". It ticks "Everything" when it starts. Every number in a caption is
+  computed when the stop opens: the Sun's highest elevation at the pole from the ephemeris, the passing area from
+  `summary.json`, the best zone and its "Why here?" lines, the Sun's path over the two days that stop 4 plays.
 - Stars: `stars.json`, Yale Bright Star Catalogue rotated by the Moon's real orientation.
 - Display choices that are not data (say so if asked): terrain colour #A39888; brightness curve
   `1 - exp(-11 * lit)` because true Lambert at 1 to 6 deg of Sun is nearly black; a faint slope-shaded fill (6 %) so
@@ -88,12 +103,12 @@ screen carry the numbers; say the line, press "Next".
 | 0:00 | Orbit, Goldilocks map on | "This is the Moon's south pole, built from NASA's laser altimeter. Nothing here is drawn by hand." Press "Tour". |
 | 0:08 | Stop 1: the pole, heat map off | "The Sun never climbs more than 1.6 degrees here, so every hill throws a shadow kilometres long. Power and darkness are decided by the skyline." |
 | 0:20 | Stop 2: Goldilocks map | "We tested every 120 metre square against NASA's Artemis III limits. 14.3 % passes: 14,928 square kilometres, in 5,297 zones." |
-| 0:32 | Stop 3: flight to the best zone | "This is the best zone for balanced priorities, score 77 of 100. Every line is a criterion with its value and verdict. Change the priorities and the ranking changes live." |
+| 0:32 | Stop 3: flight to the best zone | "This is the best zone with everything ticked, score 76 of 100. Every line is a criterion with its value and verdict. Tick only what matters to you and the ranking changes live." |
 | 0:46 | Stop 4: standing there | "Now we stand on it, eyes 2 metres up, at true scale. Two days pass: the Sun slides about 24 degrees round the horizon, the shadows sweep, and Earth stays in view for the radio link." |
 | 0:58 | "Finish" | "Real terrain, real Sun, real Earth: choose where to land before you fly." |
 
 The numbers in the "Say" column are the ones the captions showed on 14 Nov 2026; read them off the screen if the
-data has been rebuilt. Stop 3's zone and score change with the priorities preset; stop 4's Sun heights with the date.
+data has been rebuilt. The tour always runs with "Everything" ticked; stop 4's Sun heights change with the date.
 
 ## Footage
 
@@ -111,7 +126,7 @@ production build; the header of the script says how to serve it. No cursor is dr
   per second), so "100x" would show the 2 days in half a second.
 - Goldilocks zones are drawn as rings with the zone's area around its best cell (zones.geojson holds points, not
   outlines); the true shapes are what the "Goldilocks score" heat map shows (only cells that pass every hard limit
-  are coloured). Orbit rings the best 40 zones and lists the best 10, under the priorities in use.
+  are coloured). Orbit rings the best 40 zones and lists the best 10, for what is ticked.
 - Zones, the score layer and past landings are optional files: if one is missing its feature is hidden, nothing breaks.
 - Ordinary objects (lander, markers, lines, panel, controllers) always draw in front of terrain, because terrain
   and sky use their own logarithmic depth range (see the comment in `terrain.ts`). From far away the lander can

@@ -9,7 +9,7 @@ import {
   type Series,
 } from '../../web/src/lib/analysis';
 import {
-  explain,
+  explainFor,
   summarise,
   valuesFromRow,
   type CriterionRow,
@@ -19,17 +19,29 @@ import {
 } from '../../web/src/lib/analysis/explain';
 import {
   BALANCED,
+  countedTerms,
+  EVERYTHING,
   LAYER_KEYS,
   mapScoreGrid,
+  parameter,
+  PARAMETERS,
+  presetSelection,
   rankZones,
+  sameSelection,
+  selectionWeights,
+  subscore,
+  TERM_KEYS,
+  type LayerKey,
   type Preset,
+  type Selection,
+  type TermKey,
   type Weights,
 } from '../../web/src/lib/analysis/suitability';
 
 const R2D = 180 / Math.PI;
 
-/** Used when suitability/weights.json is missing: only the default weights, so nothing is invented. */
-export const FALLBACK_PRESETS: Preset[] = [{ key: 'balanced', label: 'Balanced', weights: BALANCED }];
+/** Used when suitability/weights.json is missing: only the published weights, so nothing is invented. */
+export const FALLBACK_PRESETS: Preset[] = [{ key: 'balanced', label: 'NASA-style balance', weights: BALANCED }];
 
 // ------------------------------------------------------------------------------------------------ time
 
@@ -143,6 +155,135 @@ export function rescore(layers: ArrayLike<number>[], raw: Uint8Array, weights: W
   }
 }
 
+// ------------------------------------------------------------------------------------------------ what matters (tick boxes)
+
+/** suitability/weights.json, as far as the VR needs it. */
+export interface Bounds {
+  reject: number;
+  ideal: number;
+  unit: string;
+  label: string;
+}
+export interface Priorities {
+  presets: Preset[];
+  /** The selection the view opens with (weights.json's "default" preset; everything ticked if it names none). */
+  initial: Selection;
+  bounds: Partial<Record<TermKey, Bounds>>;
+}
+
+interface WeightsFile {
+  presets?: Preset[];
+  default?: string;
+  layers?: (Bounds & { key: TermKey })[];
+  zone_terms?: (Bounds & { key: TermKey })[];
+}
+
+export function priorities(f: WeightsFile | null): Priorities {
+  const presets = f?.presets?.length ? f.presets : FALLBACK_PRESETS;
+  const first = presets.find((p) => p.key === f?.default);
+  const bounds: Priorities['bounds'] = {};
+  for (const t of [...(f?.layers ?? []), ...(f?.zone_terms ?? [])]) {
+    bounds[t.key] = { reject: t.reject, ideal: t.ideal, unit: t.unit, label: t.label };
+  }
+  return { presets, initial: first ? presetSelection(first) : f ? EVERYTHING : presetSelection(presets[0]), bounds };
+}
+
+/** The website's colour for each parameter (web/src/styles/tokens.css; guide.test.ts checks them against it). */
+export const PARAM_COLOR: Record<TermKey, string> = {
+  sunlight: '#F6B93B',
+  darkness: '#E8862A',
+  earth: '#2F6FD6',
+  no_earth: '#DCE8FF',
+  landing_slope: '#8FC28A',
+  walkable: '#5E9C76',
+  shadow: '#B49CF0',
+  ice: '#7D5BD6',
+  temperature: '#C9774A',
+  hollow: '#A39888',
+};
+/** The chip of the locked "NASA safety limits" row (the website's --bone). */
+export const LIMITS_COLOR = '#EFE8DC';
+
+export const paramLabel = (k: TermKey, p: Priorities | null) => p?.bounds[k]?.label ?? parameter(k).label;
+
+const isLayer = (k: TermKey): k is LayerKey => (LAYER_KEYS as readonly string[]).includes(k);
+
+/**
+ * What the heat map shows for a selection, as on the website: one ticked parameter that is known everywhere shows
+ * its own layer in its colour; two or more show the combined score; with nothing to colour by (nothing ticked, or
+ * only the two terms known at zones) it shows where NASA's limits pass.
+ */
+export type MapKind = { kind: 'flat' } | { kind: 'single'; layer: LayerKey } | { kind: 'combined' };
+export function mapKind(sel: Selection): MapKind {
+  const on = countedTerms(sel);
+  if (!on.some(isLayer)) {
+    return { kind: 'flat' };
+  }
+  return on.length === 1 ? { kind: 'single', layer: on[0] as LayerKey } : { kind: 'combined' };
+}
+
+/** The byte a single-parameter map shows where NASA's limits pass, and the top of its colour ramp. */
+export const FLAT_BYTE = 45;
+export const SINGLE_MAX = 254;
+
+/**
+ * Fills the heat map for a selection. `raw` is the published score grid (0..100 pass, 101..201 fail, 255 no data).
+ * `shown` gets what the texture carries, 255 = nothing drawn: the combined score 0..100 or FLAT_BYTE where every
+ * limit passes, or, for one parameter, its layer everywhere there is data, as 0..SINGLE_MAX with the website's
+ * 0.75 power. `score` gets the selection's score of every cell with data.
+ */
+export function paint(layers: ArrayLike<number>[], raw: Uint8Array, sel: Selection, shown: Uint8Array, score: Uint8Array): void {
+  const k = mapKind(sel);
+  rescore(layers, raw, selectionWeights(sel), shown, score);
+  if (k.kind === 'flat') {
+    for (let i = 0; i < raw.length; i++) {
+      shown[i] = raw[i] <= 100 ? FLAT_BYTE : 255;
+    }
+  } else if (k.kind === 'single') {
+    const layer = layers[LAYER_KEYS.indexOf(k.layer)];
+    for (let i = 0; i < raw.length; i++) {
+      shown[i] = raw[i] === 255 ? 255 : Math.round(SINGLE_MAX * (layer[i] / 255) ** 0.75);
+    }
+  }
+}
+
+/** True if the selection scores as the published files do, so the published grid can be shown as it is. */
+export const isPublished = (sel: Selection) => sameSelection(sel, { ticked: [], weights: BALANCED });
+
+/** 0..1 for a zone under one of the two zone-only terms (1 = ideal), or null for any other selection. */
+export function zoneShade(sel: Selection, z: ZoneRow, p: Priorities): { key: TermKey; s: number } | null {
+  const on = countedTerms(sel);
+  const key = on.length === 1 && !isLayer(on[0]) ? on[0] : null;
+  const b = key && p.bounds[key];
+  if (!key || !b) {
+    return null;
+  }
+  return { key, s: subscore(key === 'darkness' ? z.darkH : z.noEarthH, b.reject, b.ideal) ** 0.75 };
+}
+
+/** The sentence under the tick boxes, as on the website's "Where to land". `best` is the first zone of the ranking. */
+export function answer(sel: Selection, p: Priorities, zones: number, best: ZoneRow | undefined): { text: string; note: string | null } {
+  const on = PARAMETERS.map((q) => q.key).filter((k) => countedTerms(sel).includes(k));
+  const n = zones.toLocaleString('en-US');
+  if (on.length === 0 || !best) {
+    return { text: `Nothing is ticked, so nothing is ranked. The map shows where the NASA safety limits pass: ${n} zones.`, note: null };
+  }
+  const top = `the best${best.near ? ` is near ${best.near} and` : ''} scores ${best.score} of 100`;
+  if (on.length === 1) {
+    const b = p.bounds[on[0]];
+    const name = paramLabel(on[0], p);
+    const range = b ? `: ${b.reject} ${b.unit} (dark) to ${b.ideal} ${b.unit}${b.ideal > b.reject ? ' or more' : ' or less'} (full colour)` : '';
+    return {
+      text: `Showing ${name} by itself${range}. Of ${n} zones, ${top}.`,
+      note: isLayer(on[0])
+        ? null
+        : `${name} comes from our hour-by-hour model, so it is known at the zones, not at every point: the map shows where the NASA limits pass, and the zone rings carry the colour.`,
+    };
+  }
+  const what = on.length === TERM_KEYS.length ? 'everything on the list' : on.map((k) => paramLabel(k, p)).join(' + ');
+  return { text: `Best landing spots for ${what}: ${n} zones; ${top}.`, note: null };
+}
+
 // ------------------------------------------------------------------------------------------------ Why here?
 
 export interface WhyLine {
@@ -160,8 +301,9 @@ export interface Why {
   lines: WhyLine[];
 }
 
-export function why(title: string, values: PointValues, criteria: CriterionRow[]): Why {
-  const list: Explanation[] = explain(values, criteria);
+/** The sentences for the ticked parameters plus every NASA hard limit (explain.ts's explainFor). */
+export function why(title: string, values: PointValues, criteria: CriterionRow[], counted: readonly TermKey[] = TERM_KEYS): Why {
+  const list: Explanation[] = explainFor(values, criteria, counted);
   return {
     title,
     summary: summarise(list),
@@ -169,7 +311,8 @@ export function why(title: string, values: PointValues, criteria: CriterionRow[]
   };
 }
 
-export const whyFromRow = (title: string, row: Row, criteria: CriterionRow[]) => why(title, valuesFromRow(row), criteria);
+export const whyFromRow = (title: string, row: Row, criteria: CriterionRow[], counted: readonly TermKey[] = TERM_KEYS) =>
+  why(title, valuesFromRow(row), criteria, counted);
 
 // ------------------------------------------------------------------------------------------------ tour
 
@@ -203,7 +346,7 @@ export function captionGoldilocks(s: Summary | null): string {
 
 /** Stop 3: the best zone under the weights in use. Its Why-here lines are shown under the caption. */
 export function captionZone(z: ZoneRow, presetLabel: string, w: Why): string {
-  return `The best zone with "${presetLabel}" priorities: #${z.rank}${z.near ? `, nearest Artemis region ${z.near}` : ''}, score ${z.score} of 100, ${z.areaKm2.toFixed(1)} km2. ${w.summary}`;
+  return `The best zone with "${presetLabel}" ticked: #${z.rank}${z.near ? `, nearest Artemis region ${z.near}` : ''}, score ${z.score} of 100, ${z.areaKm2.toFixed(1)} km2. ${w.summary}`;
 }
 
 /** Stop 4: standing there. `s` covers the hours that are played, starting at the first. */

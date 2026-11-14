@@ -51,6 +51,8 @@ export interface Explanation {
   detail: string;
   /** The whole sentence: label, value, verdict, then `detail`. */
   sentence: string;
+  /** True if the user turned this parameter's direction round (suitability.ts FLIPPABLE): the verdict is swapped. */
+  flipped?: boolean;
 }
 
 interface Rule {
@@ -169,10 +171,29 @@ export const TERM_OF: Record<keyof PointValues, TermKey | null> = {
  * "Why here?" for a selection: the sentences for the ticked parameters, plus every NASA hard limit (they always
  * apply, ticked or not). Unticked soft criteria are left out.
  */
-export function explainFor(values: PointValues, criteria: CriterionRow[], counted: readonly TermKey[]): Explanation[] {
+export function explainFor(values: PointValues, criteria: CriterionRow[], counted: readonly TermKey[],
+  flipped: readonly TermKey[] = []): Explanation[] {
   return explain(values, criteria)
     .filter((e) => e.hardLimit || (TERM_OF[e.key] !== null && counted.includes(TERM_OF[e.key]!)))
-    .map((e) => (e.optional ? { ...e, optional: false, detail: e.detail.replace(OPTIONAL_NOTE, ""), sentence: e.sentence.replace(OPTIONAL_NOTE, "") } : e));
+    .map((e) => (e.optional ? { ...e, optional: false, detail: e.detail.replace(OPTIONAL_NOTE, ""), sentence: e.sentence.replace(OPTIONAL_NOTE, "") } : e))
+    .map((e) => (TERM_OF[e.key] !== null && flipped.includes(TERM_OF[e.key]!) && counted.includes(TERM_OF[e.key]!) ? flip(e) : e));
+}
+
+/** The sentence for a parameter whose direction the user turned round: good and rejected change places. A value
+ *  that breaks a NASA hard limit stays rejected: the limits never flip. */
+function flip(e: Explanation): Explanation {
+  const rule = RULES.find((r) => r.key === e.key)!;
+  if (e.hardLimit && e.verdict === "rejected") return e;
+  const verdict: Verdict = e.verdict === "good" ? "rejected" : e.verdict === "rejected" ? "good" : "acceptable";
+  const side = rule.ideal > rule.reject ? "less" : "more";
+  const detail = `You chose to prefer ${side} here, the opposite of the usual reading${verdict === "rejected" ? "; this scores zero but does not rule the spot out" : ""}. Usual reading: ${e.detail}`;
+  return { ...e, verdict, flipped: true, detail, sentence: `${e.label} ${e.value}: ${verdict}. ${detail}` };
+}
+
+/** "Good here": what is in the good range. "Weak here": what is rejected first, then what is only acceptable. */
+export function strengths(list: Explanation[]): Explanation[] { return list.filter((e) => e.verdict === "good"); }
+export function weaknesses(list: Explanation[]): Explanation[] {
+  return [...list.filter((e) => e.verdict === "rejected"), ...list.filter((e) => e.verdict === "acceptable")];
 }
 
 /** The values of a row of zones.csv or suitability/site_values.csv (same column names). */

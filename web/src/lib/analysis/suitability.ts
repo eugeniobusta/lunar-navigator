@@ -40,6 +40,31 @@ export interface Selection {
   ticked: TermKey[];
   importance?: Partial<Record<TermKey, Importance>>;
   weights?: Weights;
+  /** Parameters whose preferred direction the user turned round (only those of FLIPPABLE): "prefer colder ground". */
+  flipped?: TermKey[];
+}
+
+/**
+ * The parameters where a mission might want the opposite of the default direction: steeper or flatter ground,
+ * ice nearer or farther, shallower or deeper, warmer or colder ground, a hollow or level ground. Flipping one turns
+ * its sub-score round (0 becomes 1). NASA's hard limits never flip: a flipped landing slope still fails at 10 degrees.
+ */
+export const FLIPPABLE: readonly TermKey[] = ["landing_slope", "shadow", "ice", "temperature", "hollow"];
+/** The flipped parameters that count: flippable and ticked. */
+export const flippedTerms = (sel: Selection): TermKey[] => (sel.flipped ?? []).filter((k) => FLIPPABLE.includes(k) && sel.ticked.includes(k));
+
+/** Turns one parameter's direction round, or back. Parameters that cannot flip are left alone. */
+export function toggleFlip(sel: Selection, key: TermKey): Selection {
+  if (!FLIPPABLE.includes(key)) return sel;
+  const now = sel.flipped ?? [];
+  return { ...sel, flipped: now.includes(key) ? now.filter((k) => k !== key) : [...now, key] };
+}
+
+/** The layer bytes of one cell as the selection reads them: a flipped parameter's byte is turned round. */
+export function flipBytes(q: ArrayLike<number>, sel: Selection): ArrayLike<number> {
+  const flips = flippedTerms(sel);
+  if (!flips.length) return q;
+  return LAYER_KEYS.map((k, i) => (flips.includes(k) ? 255 - q[i] : q[i]));
 }
 
 /** The weights a selection stands for: each ticked parameter's importance, 0 for the others. */
@@ -63,7 +88,8 @@ export function presetSelection(p: Preset): Selection {
 /** True if two selections give the same weights (so the same scores and ranking). */
 export function sameSelection(a: Selection, b: Selection): boolean {
   const wa = selectionWeights(a), wb = selectionWeights(b);
-  return TERM_KEYS.every((k) => wa[k] === wb[k]);
+  const fa = flippedTerms(a), fb = flippedTerms(b);
+  return TERM_KEYS.every((k) => wa[k] === wb[k]) && fa.length === fb.length && fa.every((k) => fb.includes(k));
 }
 
 /** The parameters of a selection that actually count (ticked, or with weight in an exact-weights selection). */
@@ -76,17 +102,18 @@ export function countedTerms(sel: Selection): TermKey[] {
 export function toggleTerm(sel: Selection, key: TermKey): Selection {
   const on = countedTerms(sel);
   const ticked = on.includes(key) ? on.filter((k) => k !== key) : TERM_KEYS.filter((k) => on.includes(k) || k === key);
-  return { ticked, importance: sel.weights ? undefined : sel.importance };
+  return { ticked, importance: sel.weights ? undefined : sel.importance, flipped: sel.flipped?.filter((k) => ticked.includes(k)) };
 }
 
 /** Sets one ticked parameter's importance. */
 export function setImportance(sel: Selection, key: TermKey, level: Importance): Selection {
-  return { ticked: countedTerms(sel), importance: { ...(sel.weights ? {} : sel.importance), [key]: level } };
+  return { ticked: countedTerms(sel), importance: { ...(sel.weights ? {} : sel.importance), [key]: level }, flipped: sel.flipped };
 }
 
-/** Zones scored and ranked for a selection (rankZones with the selection's weights). */
+/** Zones scored and ranked for a selection (rankZones with the selection's weights and flipped directions). */
 export function rankZonesFor(zones: ZoneInput[], sel: Selection): RankedZone[] {
-  return rankZones(zones, selectionWeights(sel));
+  const flipped = flippedTerms(sel).length ? zones.map((z) => ({ ...z, q: flipBytes(z.q, sel) })) : zones;
+  return rankZones(flipped, selectionWeights(sel));
 }
 
 /** The weights of docs/criteria.md ("NASA-style balance"): they reproduce the published scores exactly. */

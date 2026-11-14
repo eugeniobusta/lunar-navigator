@@ -10,6 +10,7 @@ import { Power } from "./routes/Power";
 import { Windows } from "./routes/Windows";
 import { fmtDate, idxToMs, useSiteView } from "./state/derived";
 import { useStore, type Tab } from "./state/store";
+import { startUrlSync } from "./state/urlSync";
 
 // Loaded on demand so their code stays out of the main bundle.
 const Moon3D = lazy(() => import("./routes/Moon3D").then((m) => ({ default: m.Moon3D })));
@@ -25,7 +26,7 @@ const TABS: [Tab, string][] = [["overview", "Overview"], ["land", "Where to land
 
 export default function App() {
   const st = useStore();
-  useEffect(() => { void st.init(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { void st.init().then(startUrlSync); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const view = useSiteView(st.siteId);
   const hz = st.horizons[st.siteId];
   const eph = st.eph;
@@ -56,7 +57,7 @@ export default function App() {
           <label className="field">
             <span>Mission length</span>
             <select value={st.windowDays} onChange={(e) => st.setWindowDays(+e.target.value)}>
-              {[1, 3, 7, 14, 30, 90, 365].map((d) => <option key={d} value={d}>{d === 1 ? "1 day" : `${d} days`}</option>)}
+              {[...new Set([1, 3, 7, 14, 30, 90, 365, st.windowDays])].sort((a, b) => a - b).map((d) => <option key={d} value={d}>{d === 1 ? "1 day" : `${d} days`}</option>)}
             </select>
           </label>
         </div>

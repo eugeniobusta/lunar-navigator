@@ -3,6 +3,7 @@
 // Every number shown comes from /data/ or from web/src/lib/analysis (demHorizon, computeSeries, computeMetrics).
 import {
   AmbientLight,
+  Color,
   DirectionalLight,
   Group,
   InputComponent,
@@ -32,14 +33,24 @@ import {
 } from '../../web/src/lib/analysis';
 import { demHorizon, heightAt, stereoLatLon, stereoXY } from '../../web/src/lib/analysis/demHorizon';
 import type { CriterionRow } from '../../web/src/lib/analysis/explain';
-import type { Preset } from '../../web/src/lib/analysis/suitability';
+import {
+  countedTerms,
+  PARAMETERS,
+  presetSelection,
+  sameSelection,
+  selectionWeights,
+  TERM_KEYS,
+  toggleTerm,
+  type Selection,
+  type TermKey,
+} from '../../web/src/lib/analysis/suitability';
 import {
   loadCriteria,
   loadEphemeris,
   LIMIT_NAMES,
   loadMissions,
   loadPoleLayers,
-  loadPresets,
+  loadPriorities,
   loadSiteLayers,
   loadSiteValues,
   loadSummary,
@@ -59,20 +70,29 @@ import {
   type Suitability,
 } from './data.js';
 import {
-  FALLBACK_PRESETS,
+  LIMITS_COLOR,
+  PARAM_COLOR,
+  SINGLE_MAX,
   TOUR_PLAY_H,
   TOUR_PLAY_RATE,
   TOUR_STOPS,
+  answer,
   captionGoldilocks,
   captionPole,
   captionStand,
   captionZone,
+  isPublished,
   longRunMetrics,
+  mapKind,
   nextSunUp,
+  paint,
+  paramLabel,
+  priorities,
   rankAll,
-  rescore,
   why,
   whyFromRow,
+  zoneShade,
+  type Priorities,
   type Summary,
   type Why,
   type ZoneRow,
@@ -97,7 +117,7 @@ import {
   type GroundHit,
   type V3,
 } from './geo.js';
-import { CREDITS, Hud, statusText, type Actions, type HudModel, type SpotView, type StatusView } from './hud.js';
+import { CREDITS, FLAT_LABEL, Hud, statusText, type Actions, type HudModel, type SpotView, type StatusView } from './hud.js';
 import {
   earthBall,
   farLitMaterial,
@@ -165,6 +185,8 @@ interface Spot {
   score: number | null;
   /** Index of the cell in the tile's grids. */
   cell: number;
+  /** "Why here?" for the ticked parameters (it changes with the tick boxes). */
+  mkWhy: (counted: readonly TermKey[]) => Why;
   /** Hard limits that fail at this cell (docs/criteria.csv). */
   failed: string[];
   why: Why;
@@ -203,6 +225,8 @@ interface ScoreMap {
   /** The score of every cell under the priorities in use. */
   all: Uint8Array;
   tex: DataTexture;
+  /** False until `shown` and `all` hold the selection in use. */
+  ready: boolean;
   layers: () => Promise<Uint8Array[] | null>;
 }
 
@@ -242,8 +266,9 @@ export class ExperienceSystem extends createSystem({}) {
   private zones: ZoneRow[] = [];
   private criteria: CriterionRow[] = [];
   private siteValues = new Map<string, Record<string, string>>();
-  private presets: Preset[] = FALLBACK_PRESETS;
-  private preset: Preset = FALLBACK_PRESETS[0];
+  private prio: Priorities = priorities(null);
+  /** What the user ticked: the heat map, the ranking and "Why here?" all follow it. */
+  private selection: Selection = this.prio.initial;
   private summary: Summary | null = null;
   private poleLayers: Promise<Uint8Array[] | null> | null = null;
   private poleScore: ScoreMap | null = null;
@@ -269,6 +294,7 @@ export class ExperienceSystem extends createSystem({}) {
   private tour: { stop: number; caption: string; why: Why | null; playFrom: number | null } | null = null;
   private showStats = false;
   private showWhy = false;
+  private showPriorities = false;
   private quality = new QualityGovernor();
   private statsText = '';
   private zoneObjs: Line[] = [];
@@ -403,6 +429,7 @@ export class ExperienceSystem extends createSystem({}) {
       pickSite: (id) => this.pickSite(id),
       pickZone: (id) => this.pickZone(id),
       setPreset: (key) => this.setPreset(key),
+      toggleParam: (key) => this.choose(toggleTerm(this.selection, key as TermKey)),
       tourStart: () => this.tourGo(1),
       tourNext: () => this.tourNext(),
       tourEnd: () => this.tourEnd(),
@@ -446,7 +473,7 @@ export class ExperienceSystem extends createSystem({}) {
   }
 
   private async load(params: URLSearchParams): Promise<void> {
-    const [sites, eph, pole, zones, missions, score, stars, criteria, siteValues, presets, summary] = await Promise.all([
+    const [sites, eph, pole, zones, missions, score, stars, criteria, siteValues, prio, summary] = await Promise.all([
       loadSites(),
       loadEphemeris(),
       loadSouthPole(),
@@ -456,7 +483,7 @@ export class ExperienceSystem extends createSystem({}) {
       loadStars(),
       loadCriteria(),
       loadSiteValues(),
-      loadPresets(),
+      loadPriorities(),
       loadSummary(),
     ]);
     if (stars) {
@@ -470,10 +497,13 @@ export class ExperienceSystem extends createSystem({}) {
     this.pole = pole;
     this.criteria = criteria;
     this.siteValues = siteValues;
-    this.presets = presets;
-    this.preset = presets[0];
+    this.prio = prio;
+    // The website's own link parameters: preset=<key>, or the ticked parameters as pick=sunlight,earth.
+    const linked = prio.presets.find((p) => p.key === params.get('preset'));
+    const pick = (params.get('pick') ?? '').split(',').filter((k): k is TermKey => TERM_KEYS.includes(k as TermKey));
+    this.selection = linked ? presetSelection(linked) : pick.length ? { ticked: TERM_KEYS.filter((k) => pick.includes(k)) } : prio.initial;
     this.summary = summary;
-    this.zones = rankAll(zones ?? [], this.preset.weights);
+    this.zones = rankAll(zones ?? [], selectionWeights(this.selection));
     this.missions = missions ?? [];
     this.poleSuit = score;
     const t = Date.parse(params.get('t') ?? '');
@@ -600,7 +630,24 @@ export class ExperienceSystem extends createSystem({}) {
     this.markers.push({ ...m, pos, normal: new Vector3(n[0], n[1], n[2]), label });
   }
 
-  /** Goldilocks zones on the relief under the priorities in use: a ring with the zone's area around its best
+  /** The zones in rank order for what is ticked; none when nothing is ticked (nothing is ranked then). */
+  private ranked(): ZoneRow[] {
+    return countedTerms(this.selection).length ? this.zones : [];
+  }
+
+  /** A zone's ring colour: green, or, with only "Short nights" or "Never out of contact" ticked, that
+   *  parameter's colour, brighter where the zone is closer to ideal. */
+  private zoneColor(z: ZoneRow): number {
+    const sh = zoneShade(this.selection, z, this.prio);
+    return sh ? new Color(0x000000).lerp(new Color(PARAM_COLOR[sh.key]), 0.25 + 0.75 * sh.s).getHex() : PALETTE.ok;
+  }
+
+  /** The name of the preset that is on, if one is. */
+  private selectionLabel(): string {
+    return this.prio.presets.find((p) => sameSelection(presetSelection(p), this.selection))?.label ?? 'your own choice';
+  }
+
+  /** Goldilocks zones on the relief for what is ticked: a ring with the zone's area around its best
    *  cell for the best 40 (the heat map shows the true shapes), a marker for the best 10. */
   private rebuildOrbitZones(): void {
     for (const o of this.zoneObjs) {
@@ -617,13 +664,14 @@ export class ExperienceSystem extends createSystem({}) {
       return false;
     });
     this.hovered = null;
-    for (const z of this.zones.slice(0, ORBIT_ZONES)) {
+    for (const z of this.ranked().slice(0, ORBIT_ZONES)) {
+      const color = this.zoneColor(z);
       const pts: number[] = [];
       for (const [lat, lon] of zoneRing(z)) {
         const p = this.globePos(lat, lon, 400);
         pts.push(p.x, p.y, p.z);
       }
-      const ring = polyline(pts, PALETTE.ok, Math.max(0.45, 1 - 0.03 * (z.rank - 1)), true);
+      const ring = polyline(pts, color, Math.max(0.45, 1 - 0.03 * (z.rank - 1)), true);
       this.zoneObjs.push(ring);
       this.orbitMarkers.add(ring);
       if (z.rank <= LISTED_ZONES) {
@@ -631,29 +679,34 @@ export class ExperienceSystem extends createSystem({}) {
           {
             kind: 'zone',
             id: String(z.id),
-            obj: missionMarker(PALETTE.ok),
+            obj: missionMarker(color),
             title: `#${z.rank}`,
-            info: `Goldilocks zone #${z.rank} for "${this.preset.label}"${z.near ? `, nearest region ${z.near}` : ''}: score ${z.score}, ${z.areaKm2.toFixed(1)} km2, NASA sunlight ${z.row.sun_pct} %, Earth ${z.row.earth_pct} %.`,
+            info: `Goldilocks zone #${z.rank} for ${this.selectionLabel()}${z.near ? `, nearest region ${z.near}` : ''}: score ${z.score}, ${z.areaKm2.toFixed(1)} km2, NASA sunlight ${z.row.sun_pct} %, Earth ${z.row.earth_pct} %.`,
           },
           z.lat,
           z.lon,
-          PALETTE.ok,
+          color,
         );
       }
     }
   }
 
-  /** A heat map of the published score that setPreset can recolour. */
+  /** A heat map that follows the tick boxes. It starts as the published score, or empty until its layers load. */
   private scoreMap(suit: Suitability, size: number, layers: () => Promise<Uint8Array[] | null>): ScoreMap {
-    const shown = Uint8Array.from(suit.passScore);
-    return { raw: suit.raw, shown, all: suit.raw.map((v) => (v <= 100 || v === 255 ? v : v - 101)), tex: byteTexture(shown, size), layers };
+    const ready = isPublished(this.selection);
+    const shown = ready ? Uint8Array.from(suit.passScore) : new Uint8Array(suit.raw.length).fill(255);
+    const m: ScoreMap = { raw: suit.raw, shown, all: suit.raw.map((v) => (v <= 100 || v === 255 ? v : v - 101)), tex: byteTexture(shown, size), ready, layers };
+    if (!ready) {
+      void this.rescoreMap(m);
+    }
+    return m;
   }
 
-  /** Recolours one heat map for the priorities in use (suitability.ts's mapScoreGrid on the published layers). */
+  /** Repaints one heat map for what is ticked (guide.ts's paint, on the published layers). */
   private async rescoreMap(m: ScoreMap): Promise<void> {
-    const p = this.preset;
-    if (p.key === 'balanced') {
-      // The published grid is the balanced score.
+    const sel = this.selection;
+    if (isPublished(sel)) {
+      // The published grid is this score.
       for (let i = 0; i < m.raw.length; i++) {
         const v = m.raw[i];
         m.all[i] = v <= 100 || v === 255 ? v : v - 101;
@@ -661,27 +714,48 @@ export class ExperienceSystem extends createSystem({}) {
       }
     } else {
       const layers = await m.layers();
-      if (!layers || this.preset !== p) {
+      if (!layers || this.selection !== sel) {
         return;
       }
-      rescore(layers, m.raw, p.weights, m.shown, m.all);
+      paint(layers, m.raw, sel, m.shown, m.all);
     }
+    m.ready = true;
     m.tex.needsUpdate = true;
     const sp = this.spot;
     if (sp && m === this.scene3?.scoreMap) {
-      sp.score = m.raw[sp.cell] === 255 ? null : m.all[sp.cell];
+      sp.score = this.spotScore(m, sp.cell);
     }
     this.dirtyHud = true;
   }
 
-  /** "Your priorities": re-rank the zones and recolour the Goldilocks maps. */
+  /** The score of one cell for what is ticked; null without data or when nothing ticked is known at every point. */
+  private spotScore(m: ScoreMap | null, cell: number): number | null {
+    return m && m.ready && m.raw[cell] !== 255 && mapKind(this.selection).kind !== 'flat' ? m.all[cell] : null;
+  }
+
+  /** The colour ramp of the "score" heat map: one parameter in its own colour, otherwise the Goldilocks green. */
+  private scoreRamp(): { label: string; a: number; b: number; max: number; unit: string } {
+    const k = mapKind(this.selection);
+    if (k.kind !== 'single') {
+      return k.kind === 'flat' ? { ...OVERLAYS.score, label: FLAT_LABEL } : OVERLAYS.score;
+    }
+    return { label: paramLabel(k.layer, this.prio), a: 0x000000, b: new Color(PARAM_COLOR[k.layer]).getHex(), max: SINGLE_MAX, unit: '' };
+  }
+
   private setPreset(key: string): void {
-    const p = this.presets.find((k) => k.key === key);
-    if (!p || p === this.preset) {
+    const p = this.prio.presets.find((k) => k.key === key);
+    if (p) {
+      this.choose(presetSelection(p));
+    }
+  }
+
+  /** "What matters for your mission?": re-rank the zones, repaint the heat maps, redo "Why here?". */
+  private choose(sel: Selection): void {
+    if (sameSelection(sel, this.selection)) {
       return;
     }
-    this.preset = p;
-    this.zones = rankAll(this.zones, p.weights);
+    this.selection = sel;
+    this.zones = rankAll(this.zones, selectionWeights(sel));
     this.rebuildOrbitZones();
     if (this.scene3) {
       this.rebuildSiteZones(this.scene3);
@@ -690,6 +764,17 @@ export class ExperienceSystem extends createSystem({}) {
       if (m) {
         void this.rescoreMap(m);
       }
+    }
+    // Show the map the choice is about.
+    if (this.poleScore) {
+      this.overlayOrbit = 'score';
+    }
+    if (this.scene3?.scoreMap) {
+      this.overlaySite = 'score';
+    }
+    this.applyOverlay();
+    if (this.spot) {
+      this.spot.why = this.spot.mkWhy(countedTerms(sel));
     }
     this.dirtyHud = true;
   }
@@ -702,7 +787,7 @@ export class ExperienceSystem extends createSystem({}) {
     this.mode = 'orbit';
     this.siteId = null;
     this.place = null;
-    this.showWhy = false;
+    this.showWhy = this.showPriorities = false;
     this.spot = null;
     this.status = null;
     this.info = null;
@@ -838,9 +923,6 @@ export class ExperienceSystem extends createSystem({}) {
       this.disposeSite();
       this.scene3 = this.buildSite(site, tile);
       this.message = null;
-      if (this.scene3.scoreMap && this.preset.key !== 'balanced') {
-        void this.rescoreMap(this.scene3.scoreMap);
-      }
     }
     const s = this.scene3!;
     const g = s.tile.grid;
@@ -855,7 +937,7 @@ export class ExperienceSystem extends createSystem({}) {
     this.siteRoot.visible = this.sky.visible = true;
     this.mode = 'land';
     this.info = null;
-    this.showWhy = false;
+    this.showWhy = this.showPriorities = false;
     // "Why here?" for a zone or a site's own point uses the published row; any other point, what is known there.
     const values = dest.zone?.row ?? (dest.spot ? undefined : this.siteValues.get(site.id));
     this.setSpot(row, col, values ? { title: dest.zone ? `zone #${dest.zone.rank}` : site.name, row: values } : undefined);
@@ -937,8 +1019,9 @@ export class ExperienceSystem extends createSystem({}) {
     }
     const g = s.tile.grid;
     const half = (g.size * g.pixelM) / 2;
-    for (const z of this.zones) {
+    for (const z of this.ranked()) {
       const [zx, zy] = stereoXY(z.lat, z.lon);
+      const color = this.zoneColor(z);
       if (Math.abs(zx - (g.xMinM + half)) > half - 1500 || Math.abs(zy - (g.yMaxM - half)) > half - 1500) {
         continue;
       }
@@ -948,9 +1031,9 @@ export class ExperienceSystem extends createSystem({}) {
         const h = heightAt(g, x, y);
         pts.push(...latLonToScene(s.frame, lat, lon, (Number.isNaN(h) ? 0 : h) + 30));
       }
-      s.zoneGroup.add(polyline(pts, PALETTE.ok, Math.max(0.45, 1 - 0.004 * (z.rank - 1)), true));
+      s.zoneGroup.add(polyline(pts, color, Math.max(0.45, 1 - 0.004 * (z.rank - 1)), true));
       if (z.rank <= 100) {
-        const label = makeLabel(`#${z.rank}`, PALETTE.ok, 0.02);
+        const label = makeLabel(`#${z.rank}`, color, 0.02);
         const h = heightAt(g, zx, zy);
         label.sprite.position.set(...latLonToScene(s.frame, z.lat, z.lon, (Number.isNaN(h) ? 0 : h) + 30));
         s.zoneGroup.add(label.sprite);
@@ -990,20 +1073,14 @@ export class ExperienceSystem extends createSystem({}) {
     const hz = demHorizon(s.tile.grid, [this.pole.grid, s.tile.far], hit.lat, hit.lon, { observerHM: EYE_M, siteId: s.site.id });
     const series = computeSeries(this.eph, hz, this.startIdx, this.startIdx + WINDOW_H + 2);
     const metrics = computeMetrics(sliceSeries(series, 0, WINDOW_H));
-    this.spot = {
-      hit,
-      pos: new Vector3(hit.pos[0], hit.pos[1], hit.pos[2]),
-      slopeDeg: byteOrNull(s.tile.slope[i]),
-      nasaSun: byteOrNull(s.tile.sun[i]),
-      nasaEarth: byteOrNull(s.tile.earth[i]),
-      score: map && map.raw[i] !== 255 ? map.all[i] : null,
-      cell: i,
-      why: published
-        ? whyFromRow(published.title, published.row, this.criteria)
+    const lat = hit.lat;
+    const mkWhy = (counted: readonly TermKey[]): Why =>
+      published
+        ? whyFromRow(published.title, published.row, this.criteria, counted)
         : why(
             'this landing point',
             {
-              latDeg: hit.lat,
+              latDeg: lat,
               // No landing slope on a tile interpolated from the 430 m map: its heights are too smooth.
               landingSlopeDeg: s.tile.coarse ? undefined : landingSlopeDeg(s.tile.grid, Math.round(row), Math.round(col)),
               sunPct: byteOrNull(s.tile.sun[i]) ?? undefined,
@@ -1011,7 +1088,18 @@ export class ExperienceSystem extends createSystem({}) {
               ...longRunMetrics(this.eph, hz),
             },
             this.criteria,
-          ),
+            counted,
+          );
+    this.spot = {
+      hit,
+      pos: new Vector3(hit.pos[0], hit.pos[1], hit.pos[2]),
+      slopeDeg: byteOrNull(s.tile.slope[i]),
+      nasaSun: byteOrNull(s.tile.sun[i]),
+      nasaEarth: byteOrNull(s.tile.earth[i]),
+      score: this.spotScore(map, i),
+      cell: i,
+      mkWhy,
+      why: mkWhy(countedTerms(this.selection)),
       failed: suit && suit.raw[i] !== 255 && suit.raw[i] > 100 ? (suit.limits ? LIMIT_NAMES.filter(([bit]) => suit.limits![i] & bit).map(([, n]) => n) : ['a hard limit']) : [],
       hz,
       series,
@@ -1067,7 +1155,7 @@ export class ExperienceSystem extends createSystem({}) {
   }
 
   private applyOverlay(): void {
-    const ramp = (o: OverlayId) => (o === 'off' ? undefined : OVERLAYS[o]);
+    const ramp = (o: OverlayId) => (o === 'off' ? undefined : o === 'score' ? this.scoreRamp() : OVERLAYS[o]);
     setOverlay(this.poleMat, this.poleOverlays[this.overlayOrbit] ?? null, ramp(this.overlayOrbit));
     if (this.scene3) {
       setOverlay(this.scene3.mat, this.scene3.overlays[this.overlaySite] ?? null, ramp(this.overlaySite));
@@ -1486,6 +1574,8 @@ export class ExperienceSystem extends createSystem({}) {
     else if (kind === 'endtour') a.tourEnd();
     else if (kind === 'stats') a.toggleStats();
     else if (kind === 'why') this.showWhy = !this.showWhy;
+    else if (kind === 'prio') this.showPriorities = !this.showPriorities;
+    else if (kind === 'term') a.toggleParam(arg);
     this.dirtyHud = true;
   }
 
@@ -1594,6 +1684,9 @@ export class ExperienceSystem extends createSystem({}) {
     const t = (this.tour = { stop, caption: '', why: null as Why | null, playFrom: null as number | null });
     this.playing = false;
     if (stop === 1) {
+      // The tour is told with everything ticked.
+      const all = this.prio.presets.find((p) => p.key === 'everything');
+      this.choose(all ? presetSelection(all) : this.prio.initial);
       this.overlayOrbit = 'off';
       this.cam.orbit = { az: 0.5, pol: 0.72, dist: 2.7 };
       this.enterOrbit();
@@ -1608,8 +1701,8 @@ export class ExperienceSystem extends createSystem({}) {
         this.tourEnd();
         return;
       }
-      t.why = whyFromRow(`zone #${z.rank}`, z.row, this.criteria);
-      t.caption = captionZone(z, this.preset.label, t.why);
+      t.why = whyFromRow(`zone #${z.rank}`, z.row, this.criteria, countedTerms(this.selection));
+      t.caption = captionZone(z, this.selectionLabel(), t.why);
       this.overlaySite = 'score';
       this.flyTo(this.zoneDest(z));
     } else if (this.spot) {
@@ -1721,6 +1814,7 @@ export class ExperienceSystem extends createSystem({}) {
       overlays.push('score');
     }
     overlays.push('off');
+    const counted = countedTerms(this.selection);
     let info = this.info;
     if (!info && this.mode === 'orbit' && this.missions.length) {
       info = 'Past landings: <span style="color:#8FC28A">landed</span>, <span style="color:#F6B93B">tipped</span>, <span style="color:#E0457B">crashed</span>. Point at one for its lesson.';
@@ -1729,8 +1823,10 @@ export class ExperienceSystem extends createSystem({}) {
       info = COARSE_NOTE;
     }
     return {
-      presets: this.presets.map((p) => ({ key: p.key, label: p.label })),
-      preset: this.preset.key,
+      presets: this.prio.presets.map((p) => ({ key: p.key, label: p.label, on: sameSelection(presetSelection(p), this.selection) })),
+      params: PARAMETERS.map((p) => ({ key: p.key, label: paramLabel(p.key, this.prio), color: PARAM_COLOR[p.key], on: counted.includes(p.key) })),
+      answer: answer(this.selection, this.prio, this.zones.length, this.zones[0]),
+      scoreRamp: this.scoreRamp(),
       why: inSite ? (this.spot?.why ?? null) : null,
       tour: this.tour ? { stop: this.tour.stop, of: TOUR_STOPS, caption: this.tour.caption, why: this.tour.why } : null,
       stats: this.showStats ? this.statsText || 'measuring' : null,
@@ -1738,7 +1834,7 @@ export class ExperienceSystem extends createSystem({}) {
       message: this.message,
       siteName: site?.name ?? null,
       sites: this.sites.filter((s) => s.terrain === 'dem').map((s) => ({ id: s.id, name: s.name, group: s.group })),
-      zones: this.zones.slice(0, LISTED_ZONES).map((z) => ({ id: z.id, rank: z.rank, name: z.near ? `near ${z.near}` : '', score: z.score, areaKm2: z.areaKm2, detail: this.zoneHasTile(z) })),
+      zones: this.ranked().slice(0, LISTED_ZONES).map((z) => ({ id: z.id, rank: z.rank, name: z.near ? `near ${z.near}` : '', score: z.score, areaKm2: z.areaKm2, detail: this.zoneHasTile(z) })),
       overlay: inSite ? this.overlaySite : this.overlayOrbit,
       overlays,
       spot: inSite ? this.spotView() : null,
@@ -1774,7 +1870,34 @@ export class ExperienceSystem extends createSystem({}) {
       statusLines.push({ text: txt.sun, color: st.sunUp ? 'sun' : 'alert', big: true });
       statusLines.push({ text: txt.earth, color: st.earthUp ? 'cloud' : 'alert', big: true });
     }
-    const presetRow = this.presets.length > 1 ? [this.presets.map((p) => ({ id: `preset:${p.key}`, label: p.label, on: p === this.preset }))] : [];
+    const ans = answer(this.selection, this.prio, this.zones.length, this.zones[0]);
+    const prioButton = { id: 'prio', label: 'What matters?' };
+    const scoreLabel = this.scoreRamp().label === OVERLAYS.score.label ? 'Goldilocks' : this.scoreRamp().label;
+    if (this.showPriorities && !this.tour) {
+      // The website's tick boxes: presets, the locked NASA row, then one large box per parameter.
+      const counted = countedTerms(this.selection);
+      const presets = this.prio.presets.map((p) => ({ id: `preset:${p.key}`, label: p.label, on: sameSelection(presetSelection(p), this.selection) }));
+      const ticks = PARAMETERS.map((p) => ({ id: `term:${p.key}`, label: paramLabel(p.key, this.prio), check: counted.includes(p.key), chip: PARAM_COLOR[p.key] }));
+      const rows: PanelModel['rows'] = [];
+      for (let i = 0; i < presets.length; i += 3) {
+        rows.push(presets.slice(i, i + 3));
+      }
+      rows.push([{ id: '', label: 'NASA safety limits: always on', check: true, chip: LIMITS_COLOR, locked: true }]);
+      for (let i = 0; i < ticks.length; i += 2) {
+        rows.push(ticks.slice(i, i + 2));
+      }
+      rows.push([{ id: 'prio', label: 'Done', primary: true }]);
+      return {
+        title: 'What matters for your mission?',
+        subtitle: '',
+        lines: [],
+        rows,
+        after: [{ text: ans.text }, ...(ans.note ? [{ text: ans.note, color: 'text2' as const, small: true }] : [])],
+        buttonH: 62,
+        timeFrac: null,
+        credits: CREDITS,
+      };
+    }
     const t = this.tour;
     if (t) {
       return {
@@ -1793,21 +1916,20 @@ export class ExperienceSystem extends createSystem({}) {
     }
     if (this.mode === 'orbit' || this.mode === 'flight') {
       const dem = this.sites.filter((s) => s.terrain === 'dem');
-      const rows = [[{ id: 'tour', label: 'Tour: 4 stops', primary: true }, statsButton, { id: 'exit', label: 'Exit VR' }]];
+      const rows: PanelModel['rows'] = [[{ id: 'tour', label: 'Tour: 4 stops', primary: true }, prioButton, statsButton, { id: 'exit', label: 'Exit VR' }]];
       for (let i = 0; i < dem.length; i += 3) {
         rows.push(dem.slice(i, i + 3).map((s) => ({ id: `site:${s.id}`, label: s.name, on: s.id === this.siteId })));
       }
-      rows.push(...presetRow);
-      const top = this.zones.slice(0, LISTED_ZONES);
+      const top = this.ranked().slice(0, LISTED_ZONES);
       for (let i = 0; i < top.length; i += 2) {
         rows.push(top.slice(i, i + 2).map((z) => ({ id: `zone:${z.id}`, label: `#${z.rank} ${z.near ? `near ${z.near}` : 'zone'}, score ${z.score}`, on: this.siteId === `zone-${z.id}` })));
       }
       const ov: OverlayId[] = this.poleScore ? ['sun', 'earth', 'score', 'off'] : ['sun', 'earth', 'off'];
-      rows.push(ov.map((o) => ({ id: `ov:${o}`, label: o === 'off' ? 'Map off' : o === 'score' ? 'Goldilocks' : OVERLAYS[o].label, on: this.overlayOrbit === o })));
+      rows.push(ov.map((o) => ({ id: `ov:${o}`, label: o === 'off' ? 'Map off' : o === 'score' ? scoreLabel : OVERLAYS[o].label, on: this.overlayOrbit === o })));
       return {
         title: this.mode === 'flight' ? `Flying to ${site?.name ?? ''}` : 'Choose a landing site',
         subtitle: date,
-        lines: [{ text: 'Sites, then your priorities and the 10 best zones for them. Trigger or pinch to choose.', color: 'text2' }, ...stats],
+        lines: [{ text: 'Sites, then the 10 best zones for what you ticked. Trigger or pinch to choose.', color: 'text2' }, { text: ans.text }, ...stats],
         rows,
         timeFrac: this.tH / WINDOW_H,
         credits: CREDITS,
@@ -1834,7 +1956,7 @@ export class ExperienceSystem extends createSystem({}) {
     if (sp) {
       const steep = sp.slopeDeg != null && sp.slopeDeg > 10;
       lines.push({
-        text: `Elevation ${Math.round(sp.hit.heightM)} m.  Slope ${sp.slopeDeg == null ? 'no data' : `${sp.slopeDeg} deg`}${steep ? ': too steep to land' : ''}${sp.score == null ? '' : `.  Goldilocks map score ${sp.score}${sp.failed.length ? ' (fails a limit)' : ''}`}`,
+        text: `Elevation ${Math.round(sp.hit.heightM)} m.  Slope ${sp.slopeDeg == null ? 'no data' : `${sp.slopeDeg} deg`}${steep ? ': too steep to land' : ''}${sp.score == null ? '' : `.  Score for what is ticked ${sp.score}${sp.failed.length ? ' (fails a limit)' : ''}`}`,
         color: steep ? 'alert' : 'text',
       });
       lines.push({ text: `NASA map (18.6-year average): sunlit ${sp.nasaSun ?? '?'} %, Earth ${sp.nasaEarth ?? '?'} %`, color: 'text2' });
@@ -1848,7 +1970,7 @@ export class ExperienceSystem extends createSystem({}) {
       lines.push({ text: COARSE_NOTE, color: 'text2', small: true });
     }
     const ovs: OverlayId[] = ['sun', 'earth', ...(coarse ? [] : ['slope' as const]), ...(this.scene3?.scoreMap ? ['score' as const] : []), 'off'];
-    const short: Record<OverlayId, string> = { sun: 'Sunlight', earth: 'Earth', slope: 'Slope', score: 'Goldilocks', off: 'Off' };
+    const short: Record<OverlayId, string> = { sun: 'Sunlight', earth: 'Earth', slope: 'Slope', score: scoreLabel, off: 'Off' };
     return {
       title: site?.name ?? '',
       subtitle: date,
@@ -1860,9 +1982,8 @@ export class ExperienceSystem extends createSystem({}) {
           { id: 'enlarge', label: `Enlarge ${ENLARGE}x`, on: this.enlarge },
           { id: 'exit', label: 'Exit VR' },
         ],
-        [{ id: 'why', label: 'Why here?' }, statsButton],
+        [{ id: 'why', label: 'Why here?' }, prioButton, statsButton],
         ovs.map((o) => ({ id: `ov:${o}`, label: short[o], on: this.overlaySite === o })),
-        ...presetRow,
         speedRow,
       ],
       timeFrac: this.tH / WINDOW_H,

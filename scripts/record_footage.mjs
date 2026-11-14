@@ -4,7 +4,7 @@
 //
 // Usage (from the repository root):
 //   make build && make xr && (cd web && npx vite preview --port 4179 --strictPort) &
-//   node scripts/record_footage.mjs [http://localhost:4179]
+//   node scripts/record_footage.mjs [http://localhost:4179] [tour|web]   (no second argument: both videos)
 // Needs ffmpeg on the PATH and the Playwright Chromium that web/ already uses (cd web && npx playwright install chromium).
 // Every clip is recorded with its loading time and then cut to the part that matters.
 import { execFileSync } from 'node:child_process';
@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const { chromium } = createRequire(join(ROOT, 'web', 'package.json'))('playwright');
 const BASE = process.argv[2] ?? 'http://localhost:4179';
+const ONLY = process.argv[3] ?? null;
 const SIZE = { width: 1920, height: 1080 };
 const SITE = 'mma01';
 const DATE = '2026-11-18'; // the Sun is up at Malapert (the website's own timeline shows it)
@@ -62,7 +63,7 @@ const scrollTo = (page, selector, offset = 16) =>
 
 // ------------------------------------------------------------------------------------------------ the tour
 
-const tour = await clip(async (page, cut) => {
+const tour = ONLY === 'web' ? null : await clip(async (page, cut) => {
   await page.goto(`${BASE}/xr/`);
   await page.waitForSelector('button[data-a=tour]', { timeout: 60000 });
   await wait(page, 2);
@@ -86,7 +87,7 @@ const tour = await clip(async (page, cut) => {
 
 // ------------------------------------------------------------------------------------------------ the website
 
-const web = await clip(async (page, cut) => {
+const web = ONLY === 'tour' ? null : await clip(async (page, cut) => {
   await page.goto(`${BASE}/?site=${SITE}&date=${DATE}&tab=overview`);
   await page.waitForSelector('nav.tabs');
   await page.waitForSelector('.hero svg');
@@ -115,7 +116,7 @@ const web = await clip(async (page, cut) => {
   await wait(page, 3.5);
 });
 
-const vr = await clip(async (page, cut) => {
+const vr = ONLY === 'tour' ? null : await clip(async (page, cut) => {
   await page.goto(`${BASE}/xr/?site=${SITE}&t=${DATE}T00:00Z`);
   await page.waitForSelector('button[data-a=stand]', { timeout: 60000 });
   await wait(page, 1.5);
@@ -143,6 +144,10 @@ function write(out, clips) {
 }
 
 mkdirSync(join(ROOT, 'media'), { recursive: true });
-write(join(ROOT, 'media', 'vr-tour.webm'), [tour]);
-write(join(ROOT, 'media', 'web-30s.webm'), [web, vr]);
+if (tour) {
+  write(join(ROOT, 'media', 'vr-tour.webm'), [tour]);
+}
+if (web && vr) {
+  write(join(ROOT, 'media', 'web-30s.webm'), [web, vr]);
+}
 rmSync(tmp, { recursive: true, force: true });

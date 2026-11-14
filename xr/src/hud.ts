@@ -1,7 +1,10 @@
 // The laptop interface: plain DOM over the canvas, Earthrise palette. In VR the same actions are on the
 // floating panel (vrpanel.ts).
-import type { Why } from './guide.js';
+import { LIMITS_COLOR, type Why } from './guide.js';
 import { OVERLAYS, type OverlayId } from './terrain.js';
+
+/** The heat map button when nothing ticked is known at every point. */
+export const FLAT_LABEL = 'NASA limits pass';
 
 export const CREDITS =
   "Terrain: NASA LOLA. Illumination: NASA Goddard PGDA. Ephemeris: JPL DE421. Built by Claude's Plan with AI coding assistants; not an official NASA product.";
@@ -34,8 +37,13 @@ export interface HudModel {
   sites: { id: string; name: string; group: string }[];
   /** The best zones under the priorities in use; `id` is the published rank, `detail` false = ~430 m terrain only. */
   zones: { id: number; rank: number; name: string; score: number; areaKm2: number; detail: boolean }[];
-  presets: { key: string; label: string }[];
-  preset: string;
+  presets: { key: string; label: string; on: boolean }[];
+  /** The tick boxes, in the website's order, each with its colour ("#rrggbb"). */
+  params: { key: string; label: string; color: string; on: boolean }[];
+  /** The sentence under the tick boxes, and a note when a parameter is only known at the zones. */
+  answer: { text: string; note: string | null };
+  /** What the "score" heat map shows for what is ticked. */
+  scoreRamp: { label: string; a: number; b: number; max: number; unit: string };
   why: Why | null;
   tour: { stop: number; of: number; caption: string; why: Why | null } | null;
   /** Frame rate line, or null when "Stats" is off. */
@@ -59,6 +67,7 @@ export interface Actions {
   pickSite(id: string): void;
   pickZone(id: number): void;
   setPreset(key: string): void;
+  toggleParam(key: string): void;
   tourStart(): void;
   tourNext(): void;
   tourEnd(): void;
@@ -103,6 +112,15 @@ html, body { margin:0; height:100%; background:#000; overflow:hidden; }
 #side .list button { text-align:left; display:flex; justify-content:space-between; gap:8px; }
 #side .list small { color:var(--ash); }
 #side .row { display:flex; flex-wrap:wrap; gap:6px; }
+#side .ticks { display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-top:8px; }
+#side .ticks .tick { display:flex; align-items:center; gap:7px; text-align:left; padding:6px 7px; color:var(--ash); }
+#side .ticks .tick.ticked { color:var(--bone); }
+#side .ticks .tick:disabled { grid-column:1 / -1; cursor:default; color:var(--ash); }
+#side .ticks .cb { flex:none; width:15px; height:15px; border:1px solid var(--ash); border-radius:3px; font:700 12px/13px var(--font); text-align:center; }
+#side .ticks .ticked .cb { background:var(--bone); border-color:var(--bone); color:var(--dust); }
+#side .ticks .chipc { flex:none; width:12px; height:12px; border-radius:3px; opacity:.45; }
+#side .ticks .ticked .chipc { opacity:1; }
+#side .answer { margin:10px 0 0; font-weight:600; }
 #side table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
 #side td, #side th { padding:4px 0; text-align:right; border-top:1px solid var(--rim); }
 #side td:first-child, #side th:first-child { text-align:left; color:var(--ash); font-weight:400; }
@@ -230,6 +248,7 @@ export class Hud {
       if (d.site) actions.pickSite(d.site);
       else if (d.zone) actions.pickZone(Number(d.zone));
       else if (d.preset) actions.setPreset(d.preset);
+      else if (d.term) actions.toggleParam(d.term);
       else if (d.a === 'tour') actions.tourStart();
       else if (d.a === 'next') actions.tourNext();
       else if (d.a === 'endtour') actions.tourEnd();
@@ -279,30 +298,33 @@ export class Hud {
       this.tour.innerHTML = this.lastTour = tour;
     }
     this.stats.textContent = m.stats ?? '';
+    // The website's "What matters for your mission?": presets, the locked NASA row, one tick box per parameter.
+    const tick = (on: boolean, color: string, label: string, attr: string) =>
+      `<button class="tick${on ? ' ticked' : ''}" ${attr}><i class="cb">${on ? '&#10003;' : ''}</i><i class="chipc" style="background:${color}"></i><span>${esc(label)}</span></button>`;
     const presetButtons = () =>
-      m.presets.length > 1
-        ? `<h2>Your priorities</h2><div class="row">${m.presets
-            .map((p) => `<button data-preset="${p.key}" class="${p.key === m.preset ? 'on' : ''}">${esc(p.label)}</button>`)
-            .join('')}</div>`
-        : '';
+      `<h2>What matters for your mission?</h2><div class="row">${m.presets
+        .map((p) => `<button data-preset="${p.key}" class="${p.on ? 'on' : ''}">${esc(p.label)}</button>`)
+        .join('')}</div><div class="ticks">${tick(true, LIMITS_COLOR, 'NASA safety limits: always on', 'disabled')}${m.params
+        .map((p) => tick(p.on, p.color, p.label, `data-term="${p.key}" role="checkbox" aria-checked="${p.on}"`))
+        .join('')}</div><p class="answer">${esc(m.answer.text)}</p>${m.answer.note ? `<p class="note">${esc(m.answer.note)}</p>` : ''}`;
     let html = '';
     const overlayButtons = () =>
       `<h2>Heat map</h2><div class="row">${m.overlays
-        .map((o) => `<button data-ov="${o}" class="${o === m.overlay ? 'on' : ''}">${o === 'off' ? 'Off' : OVERLAYS[o].label}</button>`)
-        .join('')}</div>${this.legend(m.overlay)}`;
+        .map((o) => `<button data-ov="${o}" class="${o === m.overlay ? 'on' : ''}">${o === 'off' ? 'Off' : o === 'score' ? esc(m.scoreRamp.label) : OVERLAYS[o].label}</button>`)
+        .join('')}</div>${this.legend(m.overlay, m)}`;
     if (m.mode === 'orbit' || m.mode === 'flight') {
-      html += `<div class="row"><button class="primary" data-a="tour">Tour: 4 stops</button></div><h2>Choose a landing site</h2><div class="list">${m.sites
-        .map((s) => `<button data-site="${s.id}"><span>${esc(s.name)}</span><small>${s.group === 'artemis' ? 'Artemis' : 'IM-2, 2025'}</small></button>`)
-        .join('')}</div>`;
-      html += overlayButtons() + presetButtons();
+      html += `<div class="row"><button class="primary" data-a="tour">Tour: 4 stops</button></div>` + presetButtons() + overlayButtons();
       if (m.zones.length) {
-        html += `<h2>Top ${m.zones.length} zones for these priorities</h2><div class="list">${m.zones
+        html += `<h2>Top ${m.zones.length} zones for what is ticked</h2><div class="list">${m.zones
           .map((z) => `<button data-zone="${z.id}"><span>#${z.rank} ${esc(z.name)}</span><small>score ${z.score}, ${z.areaKm2.toFixed(1)} km2${z.detail ? '' : ', 430 m terrain'}</small></button>`)
           .join('')}</div>`;
       }
+      html += `<h2>Or choose a landing site</h2><div class="list">${m.sites
+        .map((s) => `<button data-site="${s.id}"><span>${esc(s.name)}</span><small>${s.group === 'artemis' ? 'Artemis' : 'IM-2, 2025'}</small></button>`)
+        .join('')}</div>`;
       html += `<p class="note">Relief: NASA LOLA, 440 km across, lit by the Sun's real direction at the chosen time. Drag to turn, scroll to zoom, click a marker.</p>`;
     } else if (m.mode === 'land' || m.mode === 'stand') {
-      html += overlayButtons() + presetButtons();
+      html += presetButtons() + overlayButtons();
       if (m.spot) {
         const s = m.spot;
         const steep = s.slopeDeg != null && s.slopeDeg > 10;
@@ -311,7 +333,7 @@ export class Hud {
             <tr><td>Position</td><td>${esc(s.latLon)}</td></tr>
             <tr><td>Elevation</td><td>${Math.round(s.elevationM).toLocaleString('en-US')} m</td></tr>
             <tr><td>Slope</td><td class="${steep ? 'steep' : 'okc'}">${s.slopeDeg == null ? 'no data' : `${s.slopeDeg}&deg;`}${steep ? ' too steep to land' : ''}</td></tr>
-            ${s.scorePct == null ? '' : `<tr><td>Goldilocks map score</td><td class="${s.failed.length ? 'steep' : 'okc'}">${Math.round(s.scorePct)}${s.failed.length ? `, fails: ${esc(s.failed.join(', '))}` : ', passes every limit'}</td></tr>`}
+            ${s.scorePct == null ? '' : `<tr><td>Score for what is ticked</td><td class="${s.failed.length ? 'steep' : 'okc'}">${Math.round(s.scorePct)}${s.failed.length ? `, fails: ${esc(s.failed.join(', '))}` : ', passes every limit'}</td></tr>`}
           </table>
           <table style="margin-top:10px">
             <tr><th></th><th>NASA map</th><th>Our model</th></tr>
@@ -335,9 +357,17 @@ export class Hud {
     this.side.style.display = html ? '' : 'none';
   }
 
-  private legend(o: OverlayId): string {
+  private legend(o: OverlayId, m: HudModel): string {
     if (o === 'off') {
       return '';
+    }
+    if (o === 'score' && m.scoreRamp.label === FLAT_LABEL) {
+      return ''; // one flat colour where the limits pass: nothing to scale
+    }
+    if (o === 'score' && m.scoreRamp.max !== OVERLAYS.score.max) {
+      // One parameter by itself: dark at its reject bound, full colour at its ideal (the sentence gives the bounds).
+      const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
+      return `<div class="legend"><span>reject</span><span class="ramp" style="background:linear-gradient(90deg, ${hex(m.scoreRamp.a)}, ${hex(m.scoreRamp.b)})"></span><span>ideal</span></div>`;
     }
     const d = OVERLAYS[o];
     const c = (n: number) => `#${n.toString(16).padStart(6, '0')}`;

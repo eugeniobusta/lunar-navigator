@@ -36,14 +36,31 @@ export interface PanelButton {
   label: string;
   on?: boolean;
   primary?: boolean;
+  /** A tick box: drawn with its box (ticked or not), then `chip`, then the label, left-aligned. */
+  check?: boolean;
+  /** Colour of the chip of a tick box, "#rrggbb". */
+  chip?: string;
+  /** Shown but not pressable. */
+  locked?: boolean;
+}
+
+export interface PanelLine {
+  text: string;
+  color?: PanelColor;
+  big?: boolean;
+  small?: boolean;
 }
 
 export interface PanelModel {
   title: string;
   subtitle: string;
   /** Every line is wrapped over as many rows as it needs. */
-  lines: { text: string; color?: PanelColor; big?: boolean; small?: boolean }[];
+  lines: PanelLine[];
   rows: PanelButton[][];
+  /** Lines under the buttons: text that changes with a press goes here, so the buttons stay where they are. */
+  after?: PanelLine[];
+  /** Button height on the 1024 px canvas (default 50). */
+  buttonH?: number;
   /** 0..1 position in the 30-day window, or null to hide the time bar. */
   timeFrac: number | null;
   credits: string;
@@ -122,24 +139,29 @@ export class VrPanel {
     g.fillText(m.subtitle, W - pad, y);
     g.textAlign = 'left';
     y += 22;
-    for (const line of m.lines) {
-      const size = line.big ? 32 : line.small ? 19 : 25;
-      g.font = `${line.big ? 600 : 400} ${size}px ${FONT}`;
-      g.fillStyle = C[line.color ?? 'text'];
-      for (const part of this.wrap(line.text, W - 2 * pad)) {
-        y += size + (line.small ? 5 : 9);
-        g.fillText(part, pad, y, W - 2 * pad);
+    const text = (lines: PanelLine[]) => {
+      for (const line of lines) {
+        const size = line.big ? 32 : line.small ? 19 : 25;
+        g.font = `${line.big ? 600 : 400} ${size}px ${FONT}`;
+        g.fillStyle = C[line.color ?? 'text'];
+        for (const part of this.wrap(line.text, W - 2 * pad)) {
+          y += size + (line.small ? 5 : 9);
+          g.fillText(part, pad, y, W - 2 * pad);
+        }
       }
-    }
+    };
+    text(m.lines);
     y += 20;
-    const bh = 50;
+    const bh = m.buttonH ?? 50;
     for (const row of m.rows) {
       const gap = 10;
       const bw = (W - 2 * pad - gap * (row.length - 1)) / row.length;
       row.forEach((b, i) => {
         const r = { x: pad + i * (bw + gap), y, w: bw, h: bh };
-        this.buttons.push({ id: b.id, r });
-        const hovered = this.hover === b.id;
+        if (!b.locked) {
+          this.buttons.push({ id: b.id, r });
+        }
+        const hovered = !b.locked && this.hover === b.id;
         g.fillStyle = b.primary ? C.sun : b.on ? C.text : hovered ? C.rim : C.panel;
         g.strokeStyle = hovered ? C.text : C.rim;
         g.lineWidth = 3;
@@ -147,14 +169,44 @@ export class VrPanel {
         g.roundRect(r.x, r.y, r.w, r.h, 8);
         g.fill();
         g.stroke();
-        g.fillStyle = b.primary || b.on ? '#191612' : C.text;
-        g.font = `600 23px ${FONT}`;
-        g.textAlign = 'center';
-        g.fillText(b.label, r.x + r.w / 2, r.y + bh / 2 + 8, r.w - 12);
-        g.textAlign = 'left';
+        g.font = `600 ${bh > 56 ? 26 : 23}px ${FONT}`;
+        if (b.check != null) {
+          // Tick box, colour chip, name: the website's list, at controller size.
+          const box = 30;
+          const by = r.y + (bh - box) / 2;
+          g.strokeStyle = b.locked ? C.text2 : C.text;
+          g.fillStyle = b.check ? (b.locked ? C.text2 : C.text) : C.panel;
+          g.beginPath();
+          g.roundRect(r.x + 16, by, box, box, 5);
+          g.fill();
+          g.stroke();
+          if (b.check) {
+            g.strokeStyle = '#191612';
+            g.lineWidth = 5;
+            g.beginPath();
+            g.moveTo(r.x + 23, by + 16);
+            g.lineTo(r.x + 29, by + 23);
+            g.lineTo(r.x + 40, by + 8);
+            g.stroke();
+          }
+          g.globalAlpha = b.check ? 1 : 0.45;
+          g.fillStyle = b.chip ?? C.ok;
+          g.beginPath();
+          g.roundRect(r.x + 60, by + 2, box - 4, box - 4, 5);
+          g.fill();
+          g.globalAlpha = 1;
+          g.fillStyle = b.check && !b.locked ? C.text : C.text2;
+          g.fillText(b.label, r.x + 100, r.y + bh / 2 + 9, r.w - 112);
+        } else {
+          g.fillStyle = b.primary || b.on ? '#191612' : C.text;
+          g.textAlign = 'center';
+          g.fillText(b.label, r.x + r.w / 2, r.y + bh / 2 + 8, r.w - 12);
+          g.textAlign = 'left';
+        }
       });
       y += bh + 10;
     }
+    text(m.after ?? []);
     this.bar = null;
     if (m.timeFrac != null) {
       const r = { x: pad, y: y + 6, w: W - 2 * pad, h: 44 };

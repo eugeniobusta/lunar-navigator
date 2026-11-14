@@ -1,4 +1,5 @@
-// App shell: header controls, the sky panorama, then one tab at a time.
+// App shell: the header with the navigation, then one page at a time. The landing map is home. The pages about
+// one site (its sky, landing days, comparison, battery) share the site controls and the sky panorama.
 import { lazy, Suspense, useEffect, type ComponentType } from "react";
 import { SkyPanorama } from "./charts/SkyPanorama";
 import { SiteSelect } from "./components/ui";
@@ -14,15 +15,17 @@ import { startUrlSync } from "./state/urlSync";
 
 // Loaded on demand so their code stays out of the main bundle.
 const Moon3D = lazy(() => import("./routes/Moon3D").then((m) => ({ default: m.Moon3D })));
-const WhereToLand = lazy(() => import("./routes/WhereToLand").then((m) => ({ default: m.WhereToLand })));
+const LandingMap = lazy(() => import("./routes/LandingMap").then((m) => ({ default: m.LandingMap })));
 const Data = lazy(() => import("./routes/Data").then((m) => ({ default: m.Data })));
 // "Move the lander" appears as soon as web/src/routes/Grid.tsx exists (it must export `Grid`).
 const gridModule = Object.values(import.meta.glob<{ Grid: ComponentType }>("./routes/Grid.tsx"))[0];
 const Grid = gridModule ? lazy(() => gridModule().then((m) => ({ default: m.Grid }))) : null;
 
-const TABS: [Tab, string][] = [["overview", "Overview"], ["land", "Where to land"], ["windows", "Window Finder"], ["compare", "Compare sites"],
+const TABS: [Tab, string][] = [["map", "Map"], ["overview", "Site sky"], ["windows", "Window Finder"], ["compare", "Compare"],
   ...(Grid ? [["grid", "Move the lander"] as [Tab, string]] : []),
-  ["power", "Battery"], ["moon3d", "3D Moon"], ["data", "Data"], ["method", "Method"]];
+  ["power", "Battery"], ["data", "Data"], ["method", "Method"]];
+/** The pages about one site and one time window: they show the site controls and the sky panorama. */
+const SITE_PAGES: Tab[] = ["overview", "windows", "compare", "grid", "power", "moon3d"];
 
 export default function App() {
   const st = useStore();
@@ -40,27 +43,25 @@ export default function App() {
   // Near the south pole Earth always hangs low in the north; elsewhere that sentence would be wrong.
   const polar = (site?.lat ?? 0) < -75;
 
+  const sitePage = SITE_PAGES.includes(st.tab);
+
   return (
     <div className="app">
       <header className="top">
         <div className="brand">
           <h1>Lunar Landing Site Navigator</h1>
-          <p>When will a south-pole lander have sunlight for power and Earth in view for a direct link home?</p>
+          <p>Where, and when, a lander at the Moon's south pole has sunlight for power and Earth in view for a link home.</p>
         </div>
-        <div className="controls">
-          <SiteSelect label="Landing site" sites={st.sites} value={st.siteId} onChange={st.setSite} />
-          <label className="field">
-            <span>Landing date (UTC)</span>
-            <input type="date" value={dateValue} min={minDate} max={maxDate}
-              onChange={(e) => { const ms = Date.parse(e.target.value + "T00:00:00Z"); if (!Number.isNaN(ms)) st.setStartIdx((ms - eph.startMs) / (eph.stepS * 1000)); }} />
-          </label>
-          <label className="field">
-            <span>Mission length</span>
-            <select value={st.windowDays} onChange={(e) => st.setWindowDays(+e.target.value)}>
-              {[...new Set([1, 3, 7, 14, 30, 90, 365, st.windowDays])].sort((a, b) => a - b).map((d) => <option key={d} value={d}>{d === 1 ? "1 day" : `${d} days`}</option>)}
-            </select>
-          </label>
-        </div>
+        <nav className="tabs" role="tablist" aria-label="Pages">
+          {TABS.map(([t, label]) => (
+            <button key={t} role="tab" aria-selected={st.tab === t} className={st.tab === t ? "tab on" : "tab"}
+              // On a phone the tab row scrolls sideways. Focusing a half-hidden tab makes the browser scroll the row
+              // under the finger, and the tap is then lost. So a pointer press does not move focus (the keyboard
+              // still does), and the chosen tab is brought into view afterwards.
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={(e) => { st.setTab(t); e.currentTarget.scrollIntoView({ block: "nearest", inline: "nearest" }); }}>{label}</button>
+          ))}
+        </nav>
       </header>
 
       {mock && (
@@ -69,38 +70,46 @@ export default function App() {
         </p>
       )}
 
-      <section className="hero" aria-label={`Sky from ${site?.name}`}>
-        <div className="hero-head">
-          <p>
-            You are standing at <strong>{site?.name}</strong>. This is the whole horizon around you, unrolled flat:
-            the left and right edges are both south.{polar ? " North points towards Earth." : ""}
-          </p>
-          <a className="vr-link primary" href={xrUrl(st.siteId, idxToMs(st.startIdx + Math.min(st.cursor, n - 1)))}>
-            Stand on the Moon (3D / VR)
-          </a>
-        </div>
-        {view && hz ? (
-          <>
-            <SkyPanorama series={view.series} horizon={hz.value} cursor={st.cursor} sunR={eph.sunSemiDiam[st.startIdx] ?? 0.27} />
-            <label className="scrub">
-              <span>{fmtDate(idxToMs((view.series.startIdx) + Math.min(st.cursor, n - 1)))}</span>
-              <input type="range" min={0} max={n - 1} value={Math.min(st.cursor, n - 1)}
-                onChange={(e) => st.setCursor(+e.target.value)} aria-label="Time within the mission window" />
+      {sitePage && (
+        <>
+          <div className="site-bar">
+            <SiteSelect label="Landing site" sites={st.sites} value={st.siteId} onChange={st.setSite} />
+            <label className="field">
+              <span>Landing date (UTC)</span>
+              <input type="date" value={dateValue} min={minDate} max={maxDate}
+                onChange={(e) => { const ms = Date.parse(e.target.value + "T00:00:00Z"); if (!Number.isNaN(ms)) st.setStartIdx((ms - eph.startMs) / (eph.stepS * 1000)); }} />
             </label>
-          </>
-        ) : <p className="note">Loading terrain…</p>}
-      </section>
-
-      <nav className="tabs" role="tablist">
-        {TABS.map(([t, label]) => (
-          <button key={t} role="tab" aria-selected={st.tab === t} className={st.tab === t ? "tab on" : "tab"}
-            // On a phone the tab row scrolls sideways. Focusing a half-hidden tab makes the browser scroll the row
-            // under the finger, and the tap is then lost. So a pointer press does not move focus (the keyboard
-            // still does), and the chosen tab is brought into view afterwards.
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={(e) => { st.setTab(t); e.currentTarget.scrollIntoView({ block: "nearest", inline: "nearest" }); }}>{label}</button>
-        ))}
-      </nav>
+            <label className="field">
+              <span>Mission length</span>
+              <select value={st.windowDays} onChange={(e) => st.setWindowDays(+e.target.value)}>
+                {[...new Set([1, 3, 7, 14, 30, 90, 365, st.windowDays])].sort((a, b) => a - b).map((d) => <option key={d} value={d}>{d === 1 ? "1 day" : `${d} days`}</option>)}
+              </select>
+            </label>
+            <button className="link back" onClick={() => st.setTab("map")}>Back to the map</button>
+          </div>
+          <section className="hero" aria-label={`Sky from ${site?.name}`}>
+            <div className="hero-head">
+              <p>
+                You are standing at <strong>{site?.name}</strong>. This is the whole horizon around you, unrolled flat:
+                the left and right edges are both south.{polar ? " North points towards Earth." : ""}
+              </p>
+              <a className="vr-link primary" href={xrUrl(st.siteId, idxToMs(st.startIdx + Math.min(st.cursor, n - 1)))}>
+                Stand on the Moon (3D / VR)
+              </a>
+            </div>
+            {view && hz ? (
+              <>
+                <SkyPanorama series={view.series} horizon={hz.value} cursor={st.cursor} sunR={eph.sunSemiDiam[st.startIdx] ?? 0.27} />
+                <label className="scrub">
+                  <span>{fmtDate(idxToMs((view.series.startIdx) + Math.min(st.cursor, n - 1)))}</span>
+                  <input type="range" min={0} max={n - 1} value={Math.min(st.cursor, n - 1)}
+                    onChange={(e) => st.setCursor(+e.target.value)} aria-label="Time within the mission window" />
+                </label>
+              </>
+            ) : <p className="note">Loading terrain…</p>}
+          </section>
+        </>
+      )}
 
       <main>
         {st.tab === "overview" && <Overview />}
@@ -110,7 +119,7 @@ export default function App() {
         {st.tab === "method" && <Method />}
         <Suspense fallback={<p className="note">Loading…</p>}>
           {st.tab === "grid" && Grid && <Grid />}
-          {st.tab === "land" && <WhereToLand />}
+          {st.tab === "map" && <LandingMap />}
           {st.tab === "moon3d" && <Moon3D />}
           {st.tab === "data" && <Data />}
         </Suspense>

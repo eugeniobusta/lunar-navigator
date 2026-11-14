@@ -28,6 +28,7 @@ pages on 14 November 2026:
 | NAIF generic kernels (de421.bsp, moon_pa_de421_1900-2050.bpc, moon_080317.tf, pck00008.tpc) | "SPICE kernels placed on the NAIF server may be downloaded and used by anyone"; redistribution is permitted if unmodified; acknowledgement is encouraged. We do not redistribute the kernels. | https://naif.jpl.nasa.gov/naif/rules.html |
 | Yale Bright Star Catalogue, 5th rev. ed. (Hoffleit & Warren 1991), JSON conversion by Bretton Wade | The catalogue page states no licence; the JSON conversion repository is MIT-licensed (its LICENSE file, read 14 November 2026). `stars.json` holds positions and magnitudes of 287 stars from it. | https://github.com/brettonw/YaleBrightStarCatalog |
 | Wueller et al. (2026), JGR Planets, doi:10.1029/2025JE009434 (site coordinates) | CC BY 4.0 according to the licence registered with Crossref (we could not open the publisher's page to confirm). | https://api.crossref.org/works/10.1029/2025JE009434 |
+| IAU Gazetteer of Planetary Nomenclature (USGS Astrogeology Science Center), names and positions of 19 lunar features | The gazetteer pages we read state no licence. We cite it and link each feature to its own page. | https://planetarynames.wr.usgs.gov/Page/About |
 
 `web/public/data/terrain/south_pole_sun.u8` and `south_pole_earth.u8` are resampled copies of the NASA PGDA maps,
 not our own results: credit NASA GSFC PGDA and cite Mazarico et al. (2011) when you use them.

@@ -4,7 +4,7 @@ import type { Ephemeris, Horizon } from "../lib/analysis";
 import type { Selection } from "../lib/analysis/suitability";
 import { loadEphemeris, loadHorizon, loadSites, type Loaded, type Site } from "../lib/data";
 
-export type Tab = "overview" | "land" | "windows" | "compare" | "grid" | "power" | "moon3d" | "data" | "method";
+export type Tab = "map" | "overview" | "windows" | "compare" | "grid" | "power" | "moon3d" | "data" | "method";
 
 interface State {
   ready: boolean;
@@ -19,6 +19,9 @@ interface State {
   windowDays: number;
   cursor: number; // sample offset within the window
   tab: Tab;
+  /** The spot clicked on the landing map: [lat, east lon], or null. */
+  mapSpot: [number, number] | null;
+  setMapSpot: (spot: [number, number] | null) => void;
   /** A point picked in the Layers view of Where to land, passed on to the 3D view: [lat, east lon], or null. */
   spot: [number, number] | null;
   /** Where to land: the chosen preset (suitability/weights.json), or null when the ticks were set by hand. */
@@ -49,8 +52,10 @@ export const useStore = create<State>((set, get) => ({
   startIdx: 0,
   windowDays: 30,
   cursor: 0,
-  tab: "overview",
+  tab: "map",
   spot: null,
+  mapSpot: null,
+  setMapSpot: (mapSpot) => set({ mapSpot }),
   landPreset: "everything",
   landSelection: null,
   setLandChoice: (preset, selection) => set({ landPreset: preset, landSelection: selection }),

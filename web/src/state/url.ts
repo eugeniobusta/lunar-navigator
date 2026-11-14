@@ -1,7 +1,8 @@
 // View state <-> URL query string, so any view can be shared as a link and survives a reload.
 // ?site=mma01&compare=hw02&date=2027-03-14&days=30&tab=compare&preset=ice
 // Where to land: preset=<key> for a preset; otherwise the ticked parameters as pick=sunlight,earth and any
-// importances as imp=sunlight:high. Old links with exact weights, w=42,28,..., still open.
+// importances as imp=sunlight:high and turned-round directions as flip=temperature. Old links with exact weights,
+// w=42,28,..., still open. The spot clicked on the map travels as spot=<lat>,<east lon>.
 // date is UTC ISO-8601: "YYYY-MM-DD" at 00:00, else "YYYY-MM-DDTHH:MMZ" (Window Finder can pick any hour).
 
 export interface UrlView {
@@ -18,6 +19,10 @@ export interface UrlView {
   importance?: Record<string, string> | null;
   /** Where to land: exact weights from an old link, in the order of ctx.termKeys. */
   weights?: number[] | null;
+  /** Landing map: ticked parameters whose preferred direction is turned round. */
+  flipped?: string[] | null;
+  /** Landing map: the clicked spot as [latitude, east longitude] in degrees. */
+  spot?: [number, number] | null;
 }
 
 /** What a parsed value is checked against. */
@@ -85,6 +90,13 @@ export function parseQuery(search: string, ctx: UrlContext): Partial<UrlView> {
       if (list.includes(k) && (level === "low" || level === "high")) imp[k] = level;
     }
     if (out.ticked && Object.keys(imp).length) out.importance = imp;
+    const flip = (q.get("flip") ?? "").split(",").filter((k) => list.includes(k));
+    if (out.ticked && flip.length) out.flipped = [...new Set(flip)];
+  }
+  const spot = q.get("spot");
+  if (spot && /^-?\d{1,2}(\.\d{1,6})?,-?\d{1,3}(\.\d{1,6})?$/.test(spot)) {
+    const [lat, lon] = spot.split(",").map(Number);
+    if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) out.spot = [lat, lon];
   }
   return out;
 }
@@ -109,6 +121,9 @@ export function buildQuery(v: UrlView, startMs: number, stepS: number, defaultPr
     q.set("pick", v.ticked.join(","));
     const imp = Object.entries(v.importance ?? {}).filter(([k, l]) => v.ticked!.includes(k) && l !== "normal");
     if (imp.length) q.set("imp", imp.map(([k, l]) => `${k}:${l}`).join(","));
+    const flip = (v.flipped ?? []).filter((k) => v.ticked!.includes(k));
+    if (flip.length) q.set("flip", flip.join(","));
   }
+  if (v.spot) q.set("spot", `${v.spot[0]},${v.spot[1]}`);
   return `?${q.toString().replace(/%3A/g, ":").replace(/%2C/g, ",")}`;
 }

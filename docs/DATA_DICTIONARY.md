@@ -126,6 +126,22 @@ A 1024 x 1024 picture of the south pole for the 3D view (docs/INTERFACES.md sect
 Each pixel is the mean of the 120 m source over its ~430 m footprint, so sharp ridges are smoothed. The two
 visibility grids are resampled NASA data (cite Mazarico et al. 2011), not our own results.
 
+## basemap/ (the relief and the names under the landing map)
+
+Written by `scripts/export_basemap.py`. Same projection as the terrain grids: south polar stereographic on a
+1737.4 km sphere, row 0 the northern edge, lon 0 (towards Earth) up, lon 90 E to the right.
+
+| File | What it is |
+|------|------------|
+| `basemap/relief.jpg` | Shaded relief, 2048 x 2048 pixels over the 440 km square of the suitability grids (about 215 m per pixel), 8-bit greyscale. |
+| `basemap/relief_wide.jpg` | Shaded relief of the whole LOLA map (to 75 deg S), 2048 x 2048 pixels, about 447 m per pixel. |
+| `basemap/basemap.json` | `images[]` (`file`, `size` in pixels, `half_width_m`: the image covers -half_width_m to +half_width_m in x and y), `projection`, `shading` (method, the four light directions `azimuths_deg` with their `weights`, `altitude_deg`, `vertical_exaggeration`, `note`), `sources`. |
+| `basemap/features.json` | `source`, `note`, and `features[]`: `id` (gazetteer feature ID), `name`, `type` (Crater, Mons, Lacus), `lat`, `lon` (centre, degrees, east positive), `diameter_km`, `rank` (major: always labelled; minor: labelled when zoomed in), `url` (the feature's gazetteer page). |
+
+The relief is computed shading of the LOLA heights, lit from four directions at once so every slope reads. It is
+not a photograph and not the real sunlight. The feature list is copied from the IAU Gazetteer of Planetary
+Nomenclature as read on 14 Nov 2026 (`docs/research/iau_features.csv`).
+
 ## terrain/sites/<site_id>/tile.json and its five binary grids
 
 A 512 x 512 close-up of the terrain around each site with `terrain = "dem"`, at the elevation map's own 120 m

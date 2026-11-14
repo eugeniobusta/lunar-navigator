@@ -19,7 +19,8 @@ import validate_pgda as pgda
 
 DATA = ROOT / "web" / "public" / "data"
 VALIDATION = DATA / "validation"
-FORMATS = {".json": "JSON", ".geojson": "GeoJSON", ".csv": "CSV", ".u16": "binary, little-endian uint16", ".u8": "binary, uint8"}
+FORMATS = {".json": "JSON", ".geojson": "GeoJSON", ".csv": "CSV", ".u16": "binary, little-endian uint16", ".u8": "binary, uint8",
+           ".jpg": "JPEG image, 8-bit greyscale"}
 
 
 def write_csv(path, header, rows):
@@ -102,6 +103,10 @@ def describe(rel, names):
         "suitability/zones_layers.csv": "The six layer values at each zone's best cell, for re-ranking zones under other weights.",
         "suitability/site_values.csv": "The landing criteria values at each site with modelled terrain, for the 'Why here?' box.",
         "suitability/artemis_points.csv": "The nine Artemis points: layer values, model numbers, score and rank under each preset.",
+        "basemap/basemap.json": "Extents, shading method and sources of the two relief images of the landing map.",
+        "basemap/relief.jpg": "Shaded relief of the south pole from the LOLA elevation map, 2048 x 2048 over 440 km (about 215 m per pixel).",
+        "basemap/relief_wide.jpg": "Shaded relief of the whole LOLA map down to 75 deg S, 2048 x 2048 (about 447 m per pixel).",
+        "basemap/features.json": "Named craters and mountains near the south pole, positions from the IAU Gazetteer of Planetary Nomenclature.",
         "terrain/south_pole.json": "Grid definition, site positions and sources for the south-pole terrain files.",
         "terrain/south_pole_height.u16": "South-pole terrain heights, 1024 x 1024, about 430 m per pixel.",
         "terrain/south_pole_sun.u8": "NASA PGDA average sunlight, percent, on the same grid.",

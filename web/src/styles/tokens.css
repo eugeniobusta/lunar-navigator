@@ -14,6 +14,11 @@
   --cloud: #DCE8FF;     /* Earth as small text and highlights: earth blue is too dark for AA on small text */
   --eclipse: #E0457B;
   --lichen: #8FC28A;
+  /* Traffic lights: landing suitability only. Green = good, amber = acceptable, red = poor or unsafe. */
+  --go: #6FBF73;
+  --caution: #F0B429;
+  --stop: #E5484D;
+  --nodata: #7A746B;
   /* One colour per landing parameter ("Where to land"). Sunlight, Earth in view, never out of contact (cloud),
      landing slope (lichen) and hollow depth (regolith) reuse the colours above; these five are their own. */
   --p-nights: #E8862A;
@@ -31,4 +36,6 @@
   --font-head: "Barlow Semi Condensed", "Barlow", system-ui, sans-serif;
   --r: 4px;
   --gap: 16px;
+  /* Spacing scale */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px;
 }

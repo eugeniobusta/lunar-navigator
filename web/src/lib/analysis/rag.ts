@@ -257,3 +257,37 @@ export function legend(sel: Selection): { title: string; green: string; amber: s
     return { title: "combined", green: `score ${SCORE_GREEN} to 100`, amber: `score ${SCORE_AMBER} to ${SCORE_GREEN - 1}`, red: `score under ${SCORE_AMBER}` };
   return { title: "limits", green: "", amber: "", red: "" };
 }
+
+/** A layer byte in words, in real units: "57 % of the time", and at the clipped ends the range it stands for. */
+export function byteText(term: LayerKey, q: number, limitBits = 0): string {
+  const { unit } = BOUNDS[term], u = unit === "°" || unit === "%" ? unit : ` ${unit}`;
+  const hard = HARD_LIMITS.find((l) => l.term === term);
+  const r = classRanges(term);
+  if (q >= 255) return r.green;
+  if (q <= 0) return hard && !(limitBits & hard.bit) ? `about ${fmt(BOUNDS[term].reject)}${u}` : r.red;
+  if (hard && limitBits & hard.bit) return r.red; // the byte was rounded up by a step; the exact limit says it fails
+  const v = byteValue(term, q);
+  return `${Math.abs(v) >= 100 ? v.toFixed(0) : unit === "m" && Math.abs(v) < 10 ? v.toFixed(2) : fmt(Math.round(v * 10) / 10)}${u}`;
+}
+
+/**
+ * The values of one map cell as explain.ts reads them, from its layer bytes. Where a NASA limit fails the value is
+ * put beyond the bound, so the sentence says "rejected" as the exact limit does. Zone-only parameters (longest
+ * night, longest time without Earth) are not known at a cell and are left out.
+ */
+export function cellValues(q: ArrayLike<number>, limitBits: number, latDeg: number): PointValues {
+  const out: PointValues = { latDeg };
+  LAYER_KEYS.forEach((term, i) => {
+    const b = BOUNDS[term], hard = HARD_LIMITS.find((l) => l.term === term);
+    let v = byteValue(term, q[i]);
+    if (hard && limitBits & hard.bit) v = b.reject + (b.ideal > b.reject ? -1 : 1);
+    else if (hard && q[i] <= 0) v = b.reject + (b.ideal > b.reject ? 0 : -0.01);
+    else if (q[i] <= 0) v = b.reject + (b.ideal > b.reject ? -0.01 : 0); // at or beyond the reject bound
+    if (term === "ice" && q[i] <= 0) v = Infinity;
+    out[valueKey(term)] = v;
+  });
+  return out;
+}
+
+/** One word for each class. */
+export const RAG_WORD: Record<Rag, string> = { green: "Good", amber: "Acceptable", red: "Poor", grey: "No data" };

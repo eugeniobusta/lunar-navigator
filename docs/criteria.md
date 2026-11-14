@@ -70,7 +70,7 @@ rerun; docs/criteria.csv is written from the same table.
 
 ### What matters for your mission: tick boxes
 
-On the "Where to land" tab the reader ticks the parameters that matter. The hard limits never move. The score of a
+On the Map page the reader ticks the parameters that matter. The hard limits never move. The score of a
 spot is then the plain mean of the ticked parameters' sub-scores (each 0 at its reject bound, 1 at its ideal
 bound). "Fine-tune importance" lets a ticked parameter count half (low), once (normal) or twice (high).
 One parameter ticked shows that parameter's own map; two or more show the combined score and re-rank the zones.

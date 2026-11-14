@@ -11,7 +11,7 @@ const SOURCES: Source[] = [
   {
     name: "LOLA LDEM_75S_120M",
     what: "Elevation map of the lunar south pole (75°S to 90°S) at 120 m per pixel, from the Lunar Orbiter Laser Altimeter on NASA's Lunar Reconnaissance Orbiter. Data set LRO-L-LOLA-4-GDR-V1.0, PDS Geosciences Node.",
-    use: "The skyline around every landing site, and the 3D terrain.",
+    use: "The skyline around every landing site, the slopes, the shaded relief under the landing map, and the 3D terrain.",
     url: "https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/polar/float_img/",
     terms: "NASA Planetary Data System archive. The PDS pages we read state no licence and no restrictions; PDS asks users to cite the data they use.",
     termsUrl: "https://pds.nasa.gov/datastandards/citing/",
@@ -48,6 +48,14 @@ const SOURCES: Source[] = [
     url: "https://doi.org/10.1029/2025JE009434",
     terms: "CC BY 4.0, according to the licence the publisher registered with Crossref.",
     termsUrl: "https://api.crossref.org/works/10.1029/2025JE009434",
+  },
+  {
+    name: "IAU Gazetteer of Planetary Nomenclature",
+    what: "The official names of lunar craters and mountains with their centre latitude, longitude and diameter, kept by the USGS Astrogeology Science Center for the International Astronomical Union.",
+    use: "The names and positions of the craters and mountains on the landing map (19 features, read on 14 Nov 2026).",
+    url: "https://planetarynames.wr.usgs.gov/",
+    terms: "The gazetteer pages we read state no licence. We cite it as the source and link each feature to its own gazetteer page in basemap/features.json.",
+    termsUrl: "https://planetarynames.wr.usgs.gov/Page/About",
   },
 ];
 

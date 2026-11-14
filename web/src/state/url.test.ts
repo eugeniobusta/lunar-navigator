@@ -80,4 +80,18 @@ describe("Where to land selection", () => {
     expect(parseQuery("?w=101,0,0,0,0,0,0,0,0,0", landCtx)).toEqual({}); // out of range
     expect(parseQuery("?w=a,b", landCtx)).toEqual({});
   });
+  it("turned-round directions travel with the ticks, and only for ticked parameters", () => {
+    const q = buildQuery({ ...base, tab: "map", ticked: ["sunlight", "temperature"], flipped: ["temperature", "ice"] }, startMs, 3600);
+    expect(q).toBe("?site=mma01&compare=hw02&date=2026-11-03&days=30&tab=map&pick=sunlight,temperature&flip=temperature");
+    expect(parseQuery(q, { ...landCtx, tabs: ["map"] })).toMatchObject({ tab: "map", ticked: ["sunlight", "temperature"], flipped: ["temperature"] });
+    expect(parseQuery("?pick=sunlight&flip=temperature", landCtx).flipped).toBeUndefined();
+    expect(parseQuery("?preset=ice&flip=ice", landCtx).flipped).toBeUndefined(); // a preset has no flips
+  });
+  it("the clicked spot travels as latitude and east longitude", () => {
+    const q = buildQuery({ ...base, tab: "map", preset: "everything", spot: [-84.0173, 23.4217] }, startMs, 3600);
+    expect(q).toBe("?site=mma01&compare=hw02&date=2026-11-03&days=30&tab=map&spot=-84.0173,23.4217");
+    expect(parseQuery(q, landCtx).spot).toEqual([-84.0173, 23.4217]);
+    expect(parseQuery("?spot=-88,0", landCtx).spot).toEqual([-88, 0]);
+    for (const bad of ["?spot=91,0", "?spot=-85,200", "?spot=abc", "?spot=-85", "?spot=-85,1,2"]) expect(parseQuery(bad, landCtx).spot).toBeUndefined();
+  });
 });

@@ -1,0 +1,20 @@
+feature_id,name,feature_type,lat,lon,diameter_km,rank,approval,url
+247,Amundsen,Crater,-84.44,83.07,103.39,major,Approved,https://planetarynames.wr.usgs.gov/Feature/247
+953,Cabeus,Crater,-85.33,-42.13,100.58,major,Approved,https://planetarynames.wr.usgs.gov/Feature/953
+1439,de Gerlache,Crater,-88.48,-88.34,32.71,major,Approved,https://planetarynames.wr.usgs.gov/Feature/1439
+1919,Faustini,Crater,-87.18,84.31,42.48,major,Approved,https://planetarynames.wr.usgs.gov/Feature/1919
+14502,Haworth,Crater,-87.45,-5.17,51.42,major,Approved,https://planetarynames.wr.usgs.gov/Feature/14502
+3603,Malapert,Crater,-85.0,11.4,72.38,major,Approved,https://planetarynames.wr.usgs.gov/Feature/3603
+4321,Nobile,Crater,-85.28,53.27,79.27,major,Approved,https://planetarynames.wr.usgs.gov/Feature/4321
+5450,Shackleton,Crater,-89.67,129.78,20.92,major,Approved,https://planetarynames.wr.usgs.gov/Feature/5450
+5494,Shoemaker,Crater,-88.14,45.91,51.82,major,Approved,https://planetarynames.wr.usgs.gov/Feature/5494
+16004,Henson,Crater,-88.57,-130.63,43.0,minor,Approved,https://planetarynames.wr.usgs.gov/Feature/16004
+14535,Kocher,Crater,-84.47,-134.02,24.03,minor,Approved,https://planetarynames.wr.usgs.gov/Feature/14535
+16415,Lacus Tenebrarum,Lacus,-86.71,-87.67,85.0,minor,Approved,https://planetarynames.wr.usgs.gov/Feature/16415
+16394,Mons Kocher,Mons,-85.46,-118.06,67.0,minor,Approved,https://planetarynames.wr.usgs.gov/Feature/16394
+16338,Mons Malapert,Mons,-85.98,-1.67,67.0,minor,Approved,https://planetarynames.wr.usgs.gov/Feature/16338
+16070,Mons Mouton,Mons,-84.6,31.0,130.0,minor,Approved,https://planetarynames.wr.usgs.gov/Feature/16070
+15325,Slater,Crater,-88.08,111.29,25.12,minor,Approved,https://planetarynames.wr.usgs.gov/Feature/15325
+5782,Sverdrup,Crater,-88.32,-153.39,32.83,minor,Approved,https://planetarynames.wr.usgs.gov/Feature/5782
+16395,Whitaker,Crater,-84.67,0.69,20.0,minor,Approved,https://planetarynames.wr.usgs.gov/Feature/16395
+6541,Wiechert,Crater,-84.03,164.7,40.82,minor,Approved,https://planetarynames.wr.usgs.gov/Feature/6541

@@ -346,3 +346,19 @@ layer byte back as a value, pixel geometry, colour tokens). There is one set of 
 **"Why here?"** `web/src/lib/analysis/explain.ts` (pure TypeScript, importable from `xr/`):
 `explain(valuesFromRow(row), criteriaRows)` turns a row of zones.csv or site_values.csv into one sentence per
 criterion: value, verdict (`good` / `acceptable` / `rejected`), the range, and the reason from criteria.csv.
+
+---------------------------------------------------------------------------------------------------
+## 12. Basemap of the landing map  (owner: Eugenio; consumer: the Map page; the VR view may read it) — web/public/data/basemap/
+
+Written by `scripts/export_basemap.py` (part of `make data`). Additive: no earlier file changes.
+
+- `relief.jpg`: 2048 x 2048 greyscale shaded relief over x, y in [-220 km, +220 km] (the section-8 square).
+- `relief_wide.jpg`: 2048 x 2048 greyscale shaded relief over the whole LOLA map, half-width in `basemap.json`.
+- `basemap.json`: `{ version, projection, images: [{ file, size, half_width_m }], shading: {...}, sources: [...] }`.
+- `features.json`: `{ version, source, note, features: [{ id, name, type, lat, lon, diameter_km, rank, url }] }`,
+  positions from the IAU Gazetteer of Planetary Nomenclature; `rank` is "major" or "minor".
+
+Projection and orientation as section 8: row 0 = northern edge, lon 0 up, lon 90 E right.
+
+Traffic-light classes are not a file: they are computed in the browser from the section 10 and 11 files by
+`web/src/lib/analysis/rag.ts` (docs/criteria.md section 8).

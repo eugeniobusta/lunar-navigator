@@ -20,3 +20,4 @@
 - Sat 10:15, Claude (local): Horizon lower bound is the curvature dip of the observer's own height, not a fixed -5 deg. Why: mmo01 stands at 6.4 km and correctly sees down to -5.06 deg.
 - Sat 10:15, Claude (local): mmp06 and nr208 kept at their tabulated coordinates although the DEM puts them in local hollows (horizon above 1-3 deg all round). Why: sites.json belongs to Eugenio; flagged for the coordinate check against Wueller et al.
 - Sat 10:30, Claude (local): PGDA comparison reports centre-of-disc (what the app shows) and, separately, PGDA's own definitions and a 0 m observer. Why: the 2 m mast and the any-part rule explain the gaps and should be visible, not hidden.
+- Sat 11:15, Claude (local): Test files are excluded from the app's tsc build; a root vercel.json builds web/ for Git deploys. Why: Vercel uploads only web/ from the CLI, so a test importing ../tests/fixtures broke the production build.

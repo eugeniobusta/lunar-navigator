@@ -1,0 +1,12 @@
+# Decisions (append one line each: date-time, who, decision, why)
+
+- Sat 09:00, team: Static web app (React/TS/Vite) + Python precompute. Why: demo must not depend on venue Wi-Fi or a server.
+- Sat 09:00, team: One global ephemeris file (Sun/Earth in MOON_ME) + per-site horizon masks; browser computes alt/az. Why: any site, instant, tiny data.
+- Sat 09:00, team: Skyfield + DE421 + moon_pa_de421; validate against JPL Horizons. Why: offline, documented lunar frame.
+- Sat 09:00, team: LOLA LDEM_75S_120M for horizons (232 MB), 150 km range, observer 2 m. Why: covers all candidate regions + far terrain; same resolution as PGDA validation maps.
+- Sat 09:00, team: App date range 2026-11-01 to 2029-12-31, hourly. Why: covers Griffin-1, Blue Moon MK1, Artemis IV (early 2028).
+- Sat 09:00, team: Sunlit / Earth-visible = disc CENTRE above horizon; power uses visible disc fraction. Why: standard and explainable.
+- Sat 09:00, team: d3 is the only chart library. Why: one library, full control.
+- Sat 09:10, Eugenio: Generated JSON in web/public/data/ IS committed (ephemeris ~2-3 MB, horizons small); raw data/ is not. Why: Vercel deploys straight from the repo.
+- Sat 09:10, Eugenio: React pinned to 18 (Vite template ships 19). Why: CLAUDE.md stack.
+- Sat 09:10, Eugenio: Unverified mission sites (griffin1, bluemoon1, change7) left out of sites.json until coordinates are confirmed. Why: never show a guessed site as exact.

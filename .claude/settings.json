@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./data/**)",
+      "Read(./web/public/data/ephemeris.json)",
+      "Read(./web/public/data/horizons/**)"
+    ]
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "mock": true,
+  "sites": [
+    {
+      "id": "mma01",
+      "name": "Malapert Massif",
+      "group": "artemis",
+      "lat": -85.9425,
+      "lon": -0.94365,
+      "terrain": "dem",
+      "has_grid": false,
+      "note": "MOCK",
+      "source": "MOCK",
+      "coords_quality": "published"
+    },
+    {
+      "id": "hw02",
+      "name": "Haworth",
+      "group": "artemis",
+      "lat": -86.8076,
+      "lon": -21.7194,
+      "terrain": "dem",
+      "has_grid": false,
+      "note": "MOCK",
+      "source": "MOCK",
+      "coords_quality": "published"
+    },
+    {
+      "id": "apollo11",
+      "name": "Apollo 11",
+      "group": "historic",
+      "lat": 0.6741,
+      "lon": 23.473,
+      "terrain": "flat",
+      "has_grid": false,
+      "note": "MOCK",
+      "source": "MOCK",
+      "coords_quality": "published"
+    }
+  ]
+}

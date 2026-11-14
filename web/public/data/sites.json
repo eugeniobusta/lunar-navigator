@@ -1,0 +1,173 @@
+{
+  "version": 1,
+  "sites": [
+    {
+      "id": "pcb03",
+      "name": "Peak near Cabeus B",
+      "group": "artemis",
+      "lat": -83.563,
+      "lon": -68.2009,
+      "terrain": "dem",
+      "has_grid": false,
+      "note": "Artemis candidate region (representative point PCB03).",
+      "source": "Wueller et al. 2026, JGR Planets, doi:10.1029/2025JE009434 (verify against the paper)",
+      "coords_quality": "published"
+    },
+    {
+      "id": "hw02",
+      "name": "Haworth",
+      "group": "artemis",
+      "lat": -86.8076,
+      "lon": -21.7194,
+      "terrain": "dem",
+      "has_grid": false,
+      "note": "Artemis candidate region (representative point HW02).",
+      "source": "Wueller et al. 2026, JGR Planets, doi:10.1029/2025JE009434 (verify against the paper)",
+      "coords_quality": "published"
+    },
+    {
+      "id": "mma01",
+      "name": "Malapert Massif",
+      "group": "artemis",
+      "lat": -85.9425,
+      "lon": -0.94365,
+      "terrain": "dem",
+      "has_grid": false,
+      "note": "Artemis candidate region (representative point MMA01).",
+      "source": "Wueller et al. 2026, JGR Planets, doi:10.1029/2025JE009434 (verify against the paper)",
+      "coords_quality": "published"
+    },
+    {
+      "id": "mmp06",
+      "name": "Mons Mouton Plateau",
+      "group": "artemis",
+      "lat": -84.5961,
+      "lon": 30.4525,
+      "terrain": "dem",
+      "has_grid": false,
+      "note": "Artemis candidate region (representative point MMP06).",
+      "source": "Wueller et al. 2026, JGR Planets, doi:10.1029/2025JE009434 (verify against the paper)",
+      "coords_quality": "published"
+    },
+    {
+      "id": "mmo01",
+      "name": "Mons Mouton",
+      "group": "artemis",
+      "lat": -85.416,
+      "lon": 31.8506,
+      "terrain": "dem",
+      "has_grid": false,
+      "note": "Artemis candidate region (representative point MMO01).",
+      "source": "Wueller et al. 2026, JGR Planets, doi:10.1029/2025JE009434 (verify against the paper)",
+      "coords_quality": "published"
+    },
+    {
+      "id": "nr107",
+      "name": "Nobile Rim 1",
+      "group": "artemis",
+      "lat": -85.1978,
+      "lon": 37.1774,
+      "terrain": "dem",
+      "has_grid": false,
+      "note": "Artemis candidate region (representative point NR107).",
+      "source": "Wueller et al. 2026, JGR Planets, doi:10.1029/2025JE009434 (verify against the paper)",
+      "coords_quality": "published"
+    },
+    {
+      "id": "nr208",
+      "name": "Nobile Rim 2",
+      "group": "artemis",
+      "lat": -83.9064,
+      "lon": 57.8114,
+      "terrain": "dem",
+      "has_grid": false,
+      "note": "Artemis candidate region (representative point NR208).",
+      "source": "Wueller et al. 2026, JGR Planets, doi:10.1029/2025JE009434 (verify against the paper)",
+      "coords_quality": "published"
+    },
+    {
+      "id": "dgr203",
+      "name": "de Gerlache Rim 2",
+      "group": "artemis",
+      "lat": -88.1408,
+      "lon": -71.6955,
+      "terrain": "dem",
+      "has_grid": false,
+      "note": "Artemis candidate region (representative point DGR203).",
+      "source": "Wueller et al. 2026, JGR Planets, doi:10.1029/2025JE009434 (verify against the paper)",
+      "coords_quality": "published"
+    },
+    {
+      "id": "sp07",
+      "name": "Slater Plain",
+      "group": "artemis",
+      "lat": -87.1306,
+      "lon": 127.857,
+      "terrain": "dem",
+      "has_grid": false,
+      "note": "Artemis candidate region (representative point SP07).",
+      "source": "Wueller et al. 2026, JGR Planets, doi:10.1029/2025JE009434 (verify against the paper)",
+      "coords_quality": "published"
+    },
+    {
+      "id": "im2",
+      "name": "IM-2 Athena (Mons Mouton), Mar 2025",
+      "group": "mission",
+      "lat": -84.78,
+      "lon": 29.13,
+      "terrain": "dem",
+      "has_grid": false,
+      "note": "Intended landing site. Lander tipped in a crater; mission ended within a day.",
+      "source": "LROC, approximate intended site",
+      "coords_quality": "approximate"
+    },
+    {
+      "id": "apollo11",
+      "name": "Apollo 11",
+      "group": "historic",
+      "lat": 0.6741,
+      "lon": 23.473,
+      "terrain": "flat",
+      "has_grid": false,
+      "note": "Earth always high; two-week day and night.",
+      "source": "docs/SITES.md",
+      "coords_quality": "published"
+    },
+    {
+      "id": "ch3",
+      "name": "Chandrayaan-3 Vikram",
+      "group": "historic",
+      "lat": -69.373,
+      "lon": 32.319,
+      "terrain": "flat",
+      "has_grid": false,
+      "note": "Outside the 75S DEM, treated as flat. Mission lasted one lunar day.",
+      "source": "docs/SITES.md",
+      "coords_quality": "published"
+    },
+    {
+      "id": "ce4",
+      "name": "Chang'e-4 (far side)",
+      "group": "historic",
+      "lat": -45.4446,
+      "lon": 177.5991,
+      "terrain": "flat",
+      "has_grid": false,
+      "note": "Earth never visible: needs a relay satellite.",
+      "source": "docs/SITES.md",
+      "coords_quality": "published"
+    },
+    {
+      "id": "bg1",
+      "name": "Blue Ghost 1 (Mare Crisium)",
+      "group": "historic",
+      "lat": 18.56,
+      "lon": 61.81,
+      "terrain": "flat",
+      "has_grid": false,
+      "note": "Contrast site, flat terrain.",
+      "source": "docs/SITES.md",
+      "coords_quality": "approximate"
+    }
+  ]
+}

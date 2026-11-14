@@ -1,0 +1,24 @@
+# Raw NASA data (hundreds of MB). Download with `make download`, share by USB.
+data/*
+!data/.gitkeep
+*.img
+*.IMG
+*.TIF
+*.tif
+*.bsp
+*.bpc
+
+# Python
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+
+# Web
+node_modules/
+web/dist/
+
+# Local
+.DS_Store
+.env
+.claude/settings.local.json

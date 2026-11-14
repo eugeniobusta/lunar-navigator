@@ -54,8 +54,8 @@ const SOURCES: Source[] = [
     what: "The official names of lunar craters and mountains with their centre latitude, longitude and diameter, kept by the USGS Astrogeology Science Center for the International Astronomical Union.",
     use: "The names and positions of the craters and mountains on the landing map (19 features, read on 14 Nov 2026).",
     url: "https://planetarynames.wr.usgs.gov/",
-    terms: "The gazetteer pages we read state no licence. We cite it as the source and link each feature to its own gazetteer page in basemap/features.json.",
-    termsUrl: "https://planetarynames.wr.usgs.gov/Page/About",
+    terms: "The gazetteer's FAQ states: \"Everything in the Gazetteer of Planetary Nomenclature is in the public domain.\" Suggested citation: International Astronomical Union Working Group for Planetary System Nomenclature, \"Gazetteer of Planetary Nomenclature\", accessed 14 Nov 2026.",
+    termsUrl: "https://planetarynames.wr.usgs.gov/Page/FAQ",
   },
 ];
 

@@ -89,7 +89,7 @@ def main():
     feats = features()
     (OUT / "features.json").write_text(json.dumps({
         "version": 1,
-        "source": "IAU Gazetteer of Planetary Nomenclature (USGS Astrogeology Science Center), https://planetarynames.wr.usgs.gov, read on 14 Nov 2026",
+        "source": "International Astronomical Union Working Group for Planetary System Nomenclature. \"Gazetteer of Planetary Nomenclature.\" (accessed 14 Nov 2026). https://planetarynames.wr.usgs.gov/ (public domain, as its FAQ states)",
         "note": "Centre latitude and east longitude in degrees, diameter in km, as listed by the gazetteer.",
         "features": feats}, indent=1))
     (OUT / "basemap.json").write_text(json.dumps({

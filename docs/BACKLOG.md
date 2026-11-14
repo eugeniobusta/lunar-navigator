@@ -38,8 +38,8 @@ Start with docs/XR.md (how to run, file map, known issues, Quest test). Branches
 2. `feat/ahmed-lander`: "Replace the procedural lander in xr/src/objects.ts (makeLander) with the lander from
    xr/reference/ahmed_concept.html (copy the file there first). Keep the returned panel and dish groups so they
    still turn to the real Sun and Earth."
-3. `feat/ahmed-score-layer`: "Make loadScoreLayer and loadZones in xr/src/data.ts match the files the website
-   session ships in web/public/data/suitability/, and check the Goldilocks heat map and zone outlines in Orbit and Land."
+3. `feat/ahmed-zone-outlines`: "Draw each Goldilocks zone in xr/ as its true outline instead of an equal-area ring:
+   trace the passing cells in suitability/sites/<id>_limits.u8 (value 0) around the zone's best cell, in Land only."
 4. `feat/ahmed-vr-comfort`: "In VR, fade to black for 200 ms when switching between Orbit, the raised view and
    Stand, and let the left thumbstick turn the view in 30 degree steps."
 5. `feat/ahmed-earth-phase-labels`: "Name the brightest stars and show the Earth's phase and the Sun's azimuth as

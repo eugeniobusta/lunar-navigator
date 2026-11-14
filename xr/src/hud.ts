@@ -236,12 +236,12 @@ export class Hud {
       html += `<h2>Choose a landing site</h2><div class="list">${m.sites
         .map((s) => `<button data-site="${s.id}"><span>${esc(s.name)}</span><small>${s.group === 'artemis' ? 'Artemis' : 'IM-2, 2025'}</small></button>`)
         .join('')}</div>`;
+      html += overlayButtons();
       if (m.zones.length) {
         html += `<h2>Best Goldilocks zones</h2><div class="list">${m.zones
           .map((z) => `<button data-zone="${z.rank}"><span>#${z.rank} ${esc(z.name)}</span><small>${z.score == null ? '' : `score ${Math.round(z.score)}, `}${z.areaKm2.toFixed(1)} km2</small></button>`)
           .join('')}</div>`;
       }
-      html += overlayButtons();
       html += `<p class="note">Relief: NASA LOLA, 440 km across, lit by the Sun's real direction at the chosen time. Drag to turn, scroll to zoom, click a marker.</p>`;
     } else if (m.mode === 'land' || m.mode === 'stand') {
       html += overlayButtons();

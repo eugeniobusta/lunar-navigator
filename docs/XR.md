@@ -65,10 +65,10 @@ IWSDK scene: everything is generated from data at run time.
 ## Known issues
 
 - Not yet tested on a real Quest 3: only in the IWSDK emulator. Frame rate on the headset is unmeasured.
-- Goldilocks zones, the score layer and past landings appear only when `suitability/zones.geojson`, a score grid
-  and `missions.csv` exist in `web/public/data/`. The score loader expects `suitability/score.json` (fields of
-  `terrain/south_pole.json` plus `files.score`, uint8, 255 = no data): adjust `loadScoreLayer` in `data.ts` to the
-  format the website session ships.
+- Goldilocks zones are drawn as rings with the zone's area around its best cell (zones.geojson holds points, not
+  outlines); the true shapes are what the "Goldilocks score" heat map shows (only cells that pass every hard limit
+  are coloured). Orbit rings the best 40 zones and lists the best 8.
+- Zones, the score layer and past landings are optional files: if one is missing its feature is hidden, nothing breaks.
 - Ordinary objects (lander, markers, lines, panel, controllers) always draw in front of terrain, because terrain
   and sky use their own logarithmic depth range (see the comment in `terrain.ts`). From far away the lander can
   show through a ridge.

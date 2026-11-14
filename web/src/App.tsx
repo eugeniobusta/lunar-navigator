@@ -114,7 +114,7 @@ export default function App() {
   return (
     <div className="shell">
       {nav}
-      <div className={tab === "land" ? "page wide" : "page"}>
+      <div className={tab === "land" || tab === "windows" ? "page wide" : "page"}>
         <div className="page-head">
           <h1 className="display">{page?.[1]}</h1>
           <p>{page?.[2]}</p>

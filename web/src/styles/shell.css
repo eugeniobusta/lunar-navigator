@@ -216,3 +216,65 @@ details.fold.small > summary::after { width: 24px; height: 24px; font-size: 1rem
     border-radius: 0; box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.6); }
   .glance { grid-template-columns: 1fr; }
 }
+
+/* Every page: calmer, bigger, more like the homepage. */
+.page main h3, .section-title { font-family: var(--font-head); font-size: 1rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; }
+.section-title { margin: 40px 0 14px; }
+.section-title.first { margin-top: 0; }
+.page main .prose h3 { text-transform: none; letter-spacing: 0; font-size: 1.125rem; }
+.panel > .controls, .card .controls, details.fold .controls { padding: 16px; background: var(--dust); border: 1px solid var(--rim); border-radius: var(--r); }
+details.fold .controls { margin-bottom: 4px; }
+.verdict { font-size: clamp(1.375rem, 2.4vw, 1.875rem); text-transform: none; }
+.stat { padding: 16px 18px; }
+.stat-value { font-size: 1.875rem; line-height: 1.1; }
+.stat-label { margin-top: 4px; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.75rem; }
+table.compare thead th { color: var(--ash); font-size: 0.8125rem; letter-spacing: 0.1em; text-transform: uppercase; }
+button.primary.big { padding: 16px 28px; font-family: var(--font-head); font-size: 1rem; letter-spacing: 0.12em; text-transform: uppercase; }
+.vr-link.primary { font-family: var(--font-head); letter-spacing: 0.08em; text-transform: uppercase; font-size: 1rem; }
+
+/* Window Finder */
+.mission-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.mission-card { display: flex; flex-direction: column; gap: 4px; padding: 18px 20px; text-align: left; background: var(--dust); border: 1px solid var(--rim); border-radius: var(--r); }
+.mission-card b { font-family: var(--font-head); font-size: 1.375rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.mission-card span { color: var(--bone); }
+.mission-card small { color: var(--ash); font-size: 0.8125rem; }
+.mission-card.on { border-color: var(--bone); box-shadow: inset 0 0 0 1px var(--bone); }
+.run-row { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; margin-top: 18px; }
+.run-row .note { margin: 0; flex: 1 1 300px; }
+.window-head { display: flex; align-items: center; gap: 32px; flex-wrap: wrap; padding: 24px; background: var(--dust); border: 1px solid var(--rim); border-radius: var(--r); }
+.window-head .donut .key { display: none; }
+.window-head .donut svg { width: 170px; height: 170px; }
+.window-copy { flex: 1 1 420px; min-width: 0; }
+.page main h3.headline { margin: 0 0 16px; font-size: clamp(1.5rem, 2.6vw, 2.25rem); letter-spacing: 0.02em; line-height: 1.1; }
+.tiles.three { grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0 0 8px; }
+.window-body { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(0, 2.2fr); gap: 16px; margin-top: 16px; align-items: start; }
+.cal-card { min-width: 0; }
+.cal-day { border-radius: 4px; }
+
+/* Compare sites */
+.duel-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; margin: 24px 0 8px; }
+.duel-head > div { display: flex; flex-direction: column; gap: 4px; padding: 18px 20px; background: var(--dust); border: 1px solid var(--rim); border-radius: var(--r); }
+.duel-head > div:last-child { text-align: right; align-items: flex-end; }
+.duel-head b { font-family: var(--font-head); font-size: clamp(1.25rem, 2.4vw, 2rem); text-transform: uppercase; letter-spacing: 0.03em; line-height: 1.05; }
+.duel-head small { color: var(--ash); text-transform: uppercase; letter-spacing: 0.1em; font-size: 0.75rem; }
+.duel-head .swatch { width: 28px; height: 4px; border-radius: 2px; }
+.vs { font-family: var(--font-head); font-size: 1.5rem; color: var(--ash); text-transform: uppercase; letter-spacing: 0.1em; }
+.duel { display: grid; gap: 2px; margin: 8px 0 24px; }
+.duel-row { display: grid; grid-template-columns: minmax(0, 13em) 1fr 1fr; gap: 20px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--rim); }
+.duel-label small { display: block; color: var(--ash); font-size: 0.75rem; }
+.duel-cell { display: grid; grid-template-columns: 1fr 5.5em; gap: 12px; align-items: center; }
+.duel-cell b { font-weight: 400; color: var(--ash); font-variant-numeric: tabular-nums; text-align: right; }
+.duel-cell.better b { color: var(--lichen); font-weight: 600; }
+.duel-lines { display: grid; grid-template-columns: 1fr; gap: 16px; }
+.duel-lines .card h3 { display: flex; align-items: center; gap: 10px; color: var(--bone); }
+.duel-lines .card .swatch { width: 24px; height: 4px; border-radius: 2px; }
+
+@media (max-width: 760px) {
+  .mission-cards, .tiles.three, .window-body { grid-template-columns: 1fr; }
+  .duel-row { grid-template-columns: 1fr 1fr; }
+  .duel-label { grid-column: 1 / -1; }
+  .duel-head { grid-template-columns: 1fr; }
+  .duel-head > div:last-child { text-align: left; align-items: flex-start; }
+  .vs { display: none; }
+}
+.cal { padding-bottom: 6px; scrollbar-width: thin; scrollbar-color: var(--rim) transparent; color-scheme: dark; }

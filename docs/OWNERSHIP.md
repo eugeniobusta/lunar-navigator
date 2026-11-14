@@ -16,6 +16,7 @@ Update Sat 09:30: the build is split between two AI sessions so humans only do w
 | web/src/lib/analysis/**, web/src/workers/**, web/src/styles/tokens.css, web/src/components/ui/** | Chinh | feat/chinh-* |
 | web/package.json, web/vite.config.ts, web/src/App.tsx, web/src/routes/**, web/src/state/**, web/src/charts/**, web/src/mocks/**, vercel.json | Rahan | feat/rahan-* |
 | web/src/lib/power/**, web/src/lib/serial/**, web/src/routes/power/**, firmware/** (incl. firmware/ring/) | Ahmed | feat/ahmed-* |
+| xr/** (VR view, IWSDK; built by Eugenio's local Claude Code, handed to Ahmed: docs/XR.md) | Ahmed | feat/ahmed-* |
 | web/src/content/**, docs/PITCH.md, media/**, README.md (story sections) | Luke | feat/luke-* |
 
 Shared-file rule: if you need a new route, dependency, or contract field, post in the team chat and the owner adds it.

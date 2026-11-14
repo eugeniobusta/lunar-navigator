@@ -31,7 +31,7 @@ def test_validation_csvs():
 
 def test_dictionary_covers_every_file_and_column():
     text = (ROOT / "docs" / "DATA_DICTIONARY.md").read_text()
-    for name in ("index.json", "sites.json", "ephemeris.json", "_grid.json", "south_pole.json", "south_pole_height.u16",
+    for name in ("index.json", "stars.json", "sites.json", "ephemeris.json", "_grid.json", "south_pole.json", "south_pole_height.u16",
                  "south_pole_sun.u8", "south_pole_earth.u8", "tile.json", "height.u16", "far.u16", "sun.u8", "earth.u8", "slope.u8", "validation/jpl.csv", "validation/pgda.csv"):
         assert name in text, name
     for csv_name in ("validation/jpl.csv", "validation/pgda.csv", "suitability/zones.csv", "criteria.csv", "missions.csv"):
@@ -43,7 +43,7 @@ def test_dictionary_covers_every_file_and_column():
     for key in json.loads((DATA / "suitability" / "summary.json").read_text()):
         assert f"`{key}`" in text, key
     for doc in ("sites.json", "ephemeris.json", "horizons/mma01.json", "horizons/mma01_grid.json", "terrain/south_pole.json",
-                "terrain/sites/mma01/tile.json"):
+                "terrain/sites/mma01/tile.json", "stars.json"):
         d = json.loads((DATA / doc).read_text())
         d = d["sites"][0] if doc == "sites.json" else d
         for key in d:

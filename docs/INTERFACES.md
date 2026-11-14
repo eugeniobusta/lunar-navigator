@@ -248,3 +248,28 @@ nearest_artemis_km, near_artemis
 Related tables at `web/public/data/`: `criteria.csv` (parameter, kind, unit, ideal, acceptable, reject, weight_pct,
 reason, source) and `missions.csv` (every lunar landing attempt; the `c_*` columns hold our criteria at the polar ones).
 Every column is described in docs/DATA_DICTIONARY.md.
+
+---------------------------------------------------------------------------------------------------
+## 11. stars.json  (owner: Eugenio; consumer: the VR view in xr/) — web/public/data/stars.json
+
+Written by `scripts/export_stars.py` (part of `make data`). Real stars for the VR sky: the 287 stars of the Yale
+Bright Star Catalogue brighter than V = 3.5, and the Moon's orientation from the same kernels as the ephemeris.
+
+```json
+{
+  "version": 1,
+  "source": "Yale Bright Star Catalogue ...; Moon orientation: Skyfield, moon_pa_de421_1900-2050.bpc",
+  "mag_limit": 3.5,
+  "n_stars": 287,
+  "stars": [x0, y0, z0, V0, x1, y1, z1, V1, ...],   // ICRF unit vector (J2000 catalogue position) and V magnitude
+  "names": { "0": "Sirius" },                        // proper names by star index, where the catalogue has one
+  "frame": "ICRF to MOON_ME_DE421",
+  "start_utc": "2026-11-01T00:00:00Z",
+  "step_s": 21600,
+  "n": 4629,
+  "quat_xyzw": [x0, y0, z0, w0, ...]                 // rotation ICRF -> MOON_ME at start_utc + i * step_s
+}
+```
+A star's MOON_ME direction at time t is its ICRF vector rotated by the quaternion interpolated (slerp) between the
+two nearest samples; alt/az then follows docs/SCIENCE.md section 2. Proper motion since J2000 and aberration
+(under 0.01 deg together) are ignored: the stars are scenery, not a measurement.

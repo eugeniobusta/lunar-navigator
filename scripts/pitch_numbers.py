@@ -168,9 +168,18 @@ def artemis_under_presets(out):
         fails = "yes" if pt["passes_hard_limits"] == "yes" else f"no ({pt['failed_limits']})"
         out.append(f"| {pt['name']} | {fails} | "
                    + " | ".join(f"{int(pt['rank_' + p['key']]):,} ({pt['score_' + p['key']]})" for p in presets) + " |")
+    missions = list(csv.DictReader((DATA / "missions.csv").open()))
+    outcomes = {o: sum(m["outcome"] == o for m in missions) for o in ("landed", "tipped over", "crashed", "lost before landing")}
     best = {p["label"]: min(points, key=lambda pt, k=p["key"]: int(pt["rank_" + k])) for p in presets}
     out += ["", "Best-placed Artemis point per preset: "
-            + "; ".join(f"{label}: {pt['name']}" for label, pt in best.items()) + ".", ""]
+            + "; ".join(f"{label}: {pt['name']}" for label, pt in best.items()) + ".", "",
+            "## 7. Past landings", "",
+            f"- Lunar soft-landing attempts in missions.csv, {missions[0]['landing_date_utc'][:4]} to "
+            f"{max(m['landing_date_utc'] for m in missions)[:4]}: **{len(missions)}** ("
+            + ", ".join(f"{n} {o}" for o, n in outcomes.items()) + ").",
+            "- " + "; ".join(f"{m['name']}: slope {m['c_landing_slope_deg']} deg across 120 m, sunlight {float(m['c_sun_pct']):.0f} %, "
+                             f"Earth in view {float(m['c_earth_pct']):.0f} %, passes every hard limit: {m['c_passes_hard_limits']}"
+                             for m in missions if m["in_criteria_area"] == "yes") + ".", ""]
 
 
 def main():

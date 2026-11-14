@@ -78,3 +78,8 @@ Each point is scored like a zone and placed among the 4,224 zones whose 6.5-day 
 | Slater Plain | yes | 752 (46) | 253 (43) | 1,537 (40) | 995 (62) |
 
 Best-placed Artemis point per preset: Balanced: Malapert Massif; Power first: Mons Mouton; Radio link first: Malapert Massif; Ice science first: Mons Mouton.
+
+## 7. Past landings
+
+- Lunar soft-landing attempts in missions.csv, 1965 to 2025: **41** (24 landed, 4 tipped over, 11 crashed, 2 lost before landing).
+- IM-1 Odysseus: slope 14.3 deg across 120 m, sunlight 36 %, Earth in view 100 %, passes every hard limit: no; IM-2 Athena: slope 3.6 deg across 120 m, sunlight 47 %, Earth in view 93 %, passes every hard limit: yes.

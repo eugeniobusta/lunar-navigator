@@ -80,3 +80,22 @@ any-part definition (Earth), averaging period (PGDA ~18.6 yr vs ours 2009-2028).
 - Line-of-sight only: no link budget, no DSN station scheduling, no thermal model.
 - 120 m terrain: very local boulders and small craters are not resolved.
 - Historic/far-side sites use a flat horizon.
+
+## 6. Artemis coordinates vs the source paper
+All nine Artemis points in `sites.json` were checked on 14 Nov 2026 against Wueller et al. 2026
+(doi:10.1029/2025JE009434): Table A1 of the publisher PDF (4 decimals) and `LandingSites.dbf` in the paper's Zenodo
+data set (identical to our values digit for digit). Nine of nine confirmed; none changed.
+Peak near Cabeus B (83.56 S) and Nobile Rim 2 (83.91 S) lie outside NASA's 6 deg limit in the paper too, and the
+Mons Mouton Plateau point was chosen by the authors for access to a cold permanent shadow, not for sunlight.
+Notes and quotes: docs/research/artemis_coordinates.md.
+
+## 7. Automated tests and release check (14 Nov 2026)
+- `make test`: 53 Python tests and 96 browser-maths tests pass. `make e2e`: 5 end-to-end browser tests pass
+  (every tab opens with content and no console error, the Window Finder returns a calendar, Where to land answers
+  clicks and presets, a shared link reopens the same view). CI runs all of them on every pull request.
+- Release check with a scripted browser at 1440 x 900 and 390 x 844: every tab, all 14 sites, every preset and
+  control; no console errors, no failed requests, no sideways scrolling; every control reachable by keyboard shows
+  a visible focus; no page text below WCAG AA contrast (chart colours are checked by calculation, lowest 4.1 for
+  large text).
+- Links on the Data tab: 222 distinct, all open without a login. Two (the Wueller et al. DOI and its Zenodo record)
+  refuse scripted requests with HTTP 403 and open normally in a browser.

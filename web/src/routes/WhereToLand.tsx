@@ -110,6 +110,8 @@ export function WhereToLand() {
   const [numbers, setNumbers] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [pick, setPick] = useState<number | null>(null); // a cell of the south-pole grid
+  // The ten sliders are folded away on a phone, so the map is not a screen and a half below the presets.
+  const [slidersOpen, setSlidersOpen] = useState(() => typeof window === "undefined" || window.innerWidth >= 640);
   const [mapRef, mapPx] = useWidth<HTMLDivElement>(640, 200);
 
   useEffect(() => {
@@ -264,6 +266,8 @@ export function WhereToLand() {
               aria-pressed={sameWeights(weights, p.weights)} onClick={() => setWeights(p.weights)}>{p.label}</button>
           ))}
         </div>
+        <details className="weights" open={slidersOpen} onToggle={(e) => setSlidersOpen(e.currentTarget.open)}>
+        <summary>Adjust each weight</summary>
         <div className="sliders">
           {[...config.layers, ...config.zone_terms].map((t) => (
             <label key={t.key} className="field">
@@ -273,6 +277,7 @@ export function WhereToLand() {
             </label>
           ))}
         </div>
+        </details>
         {needLayers && !layers && <p className="note">Loading the map layers…</p>}
       </div>
 

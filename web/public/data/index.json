@@ -119,7 +119,7 @@
   },
   {
    "path": "index.json",
-   "bytes": 39786,
+   "bytes": 42049,
    "format": "JSON",
    "description": "This list: every published file with its size, format and description."
   },
@@ -128,6 +128,60 @@
    "bytes": 17710,
    "format": "CSV",
    "description": "Every lunar soft-landing attempt: where, when, outcome, lesson, and our criteria at the polar ones."
+  },
+  {
+   "path": "sitemap/bowl_depth_m.u8",
+   "bytes": 1048576,
+   "format": "binary, uint8",
+   "description": "Site Map (demo) factor layer 'bowl_depth_m', raw value on the 1024 x 1024 south-pole grid (encoding in sitemap/layers.json; 255 = no data)."
+  },
+  {
+   "path": "sitemap/earth_pct.u8",
+   "bytes": 1048576,
+   "format": "binary, uint8",
+   "description": "Site Map (demo) factor layer 'earth_pct', raw value on the 1024 x 1024 south-pole grid (encoding in sitemap/layers.json; 255 = no data)."
+  },
+  {
+   "path": "sitemap/eva_slope_deg.u8",
+   "bytes": 1048576,
+   "format": "binary, uint8",
+   "description": "Site Map (demo) factor layer 'eva_slope_deg', raw value on the 1024 x 1024 south-pole grid (encoding in sitemap/layers.json; 255 = no data)."
+  },
+  {
+   "path": "sitemap/ice_depth_m.u8",
+   "bytes": 1048576,
+   "format": "binary, uint8",
+   "description": "Site Map (demo) factor layer 'ice_depth_m', raw value on the 1024 x 1024 south-pole grid (encoding in sitemap/layers.json; 255 = no data)."
+  },
+  {
+   "path": "sitemap/landing_slope_deg.u8",
+   "bytes": 1048576,
+   "format": "binary, uint8",
+   "description": "Site Map (demo) factor layer 'landing_slope_deg', raw value on the 1024 x 1024 south-pole grid (encoding in sitemap/layers.json; 255 = no data)."
+  },
+  {
+   "path": "sitemap/layers.json",
+   "bytes": 4343,
+   "format": "JSON",
+   "description": "Site Map (demo): grid, factor list, encodings, reject/ideal bounds and sources of the factor layers."
+  },
+  {
+   "path": "sitemap/psr_distance_km.u8",
+   "bytes": 1048576,
+   "format": "binary, uint8",
+   "description": "Site Map (demo) factor layer 'psr_distance_km', raw value on the 1024 x 1024 south-pole grid (encoding in sitemap/layers.json; 255 = no data)."
+  },
+  {
+   "path": "sitemap/sun_pct.u8",
+   "bytes": 1048576,
+   "format": "binary, uint8",
+   "description": "Site Map (demo) factor layer 'sun_pct', raw value on the 1024 x 1024 south-pole grid (encoding in sitemap/layers.json; 255 = no data)."
+  },
+  {
+   "path": "sitemap/temp_avg_k.u8",
+   "bytes": 1048576,
+   "format": "binary, uint8",
+   "description": "Site Map (demo) factor layer 'temp_avg_k', raw value on the 1024 x 1024 south-pole grid (encoding in sitemap/layers.json; 255 = no data)."
   },
   {
    "path": "sites.json",

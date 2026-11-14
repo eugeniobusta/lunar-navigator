@@ -25,7 +25,7 @@ test("the homepage: hero, numbers, a section per feature, back to the top", asyn
   const errors = watchErrors(page);
   await page.goto("/");
   await expect(page).toHaveURL(/tab=home/);
-  await expect(page.getByRole("img", { name: /The Moon's south pole, 440 km across/ })).toBeVisible();
+  await expect(page.getByRole("img", { name: /^The Moon, two-thirds lit/ })).toBeVisible();
   await expect(page.locator(".home-stats")).toContainText("5,297");
   await expect(page.getByRole("heading", { name: "Where is it safe to land?" })).toBeVisible();
   // Back to the top: hidden at the top, shown a screen down, and it works.

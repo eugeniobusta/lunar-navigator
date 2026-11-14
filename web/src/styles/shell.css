@@ -322,3 +322,15 @@ button.primary.big { padding: 16px 28px; font-family: var(--font-head); font-siz
   .why-list .why-verdict { display: none; }
   .why-detail { padding-left: 46px; }
 }
+
+/* NASA photos on the homepage */
+.hero-globe.photo { box-shadow: none; border-radius: 0; width: min(86vh, 56vw); right: -4vw; margin-top: calc(var(--nav-h) / 2); }
+.hero-globe.photo::after { display: none; }
+.hero-globe.photo .globe { object-fit: contain; border-radius: 0; }
+.hero-credit { position: absolute; z-index: 3; right: 24px; bottom: 16px; margin: 0; color: var(--ash); font-size: 0.6875rem; letter-spacing: 0.04em; }
+.feature-art img { display: block; width: 100%; height: 100%; object-fit: cover; animation: drift 40s ease-in-out infinite alternate; }
+.home-data { position: relative; overflow: hidden; }
+.home-data > :not(.home-data-bg) { position: relative; z-index: 2; }
+.home-data-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.6; }
+.home-data::before { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.9)); }
+@media (prefers-reduced-motion: reduce) { .feature-art img { animation: none; } }

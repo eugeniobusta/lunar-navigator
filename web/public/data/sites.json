@@ -20,7 +20,7 @@
       "lat": -86.8076,
       "lon": -21.7194,
       "terrain": "dem",
-      "has_grid": false,
+      "has_grid": true,
       "note": "Artemis candidate region (representative point HW02).",
       "source": "Wueller et al. 2026, JGR Planets, doi:10.1029/2025JE009434 (verify against the paper)",
       "coords_quality": "published"
@@ -32,7 +32,7 @@
       "lat": -85.9425,
       "lon": -0.94365,
       "terrain": "dem",
-      "has_grid": false,
+      "has_grid": true,
       "note": "Artemis candidate region (representative point MMA01).",
       "source": "Wueller et al. 2026, JGR Planets, doi:10.1029/2025JE009434 (verify against the paper)",
       "coords_quality": "published"
@@ -68,7 +68,7 @@
       "lat": -85.1978,
       "lon": 37.1774,
       "terrain": "dem",
-      "has_grid": false,
+      "has_grid": true,
       "note": "Artemis candidate region (representative point NR107).",
       "source": "Wueller et al. 2026, JGR Planets, doi:10.1029/2025JE009434 (verify against the paper)",
       "coords_quality": "published"

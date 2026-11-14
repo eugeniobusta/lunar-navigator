@@ -39,8 +39,19 @@ export function Windows() {
     return [...m.entries()];
   }, [ran, st.eph]);
 
-  const color = scaleSequential([0.4, 1], (t) => `color-mix(in oklab, var(--surface-2), var(--sun) ${Math.round(t * 100)}%)`).clamp(true);
+  const color = scaleSequential([0, 1], (t) => `color-mix(in oklab, var(--rim), var(--lichen) ${Math.round(60 + t * 40)}%)`).clamp(true);
   const feasible = ran ? ran.days.filter((d) => d.feasible).length : 0;
+  // Runs of consecutive days that work, as text: the calendar is wide, and this reads at a glance.
+  const clusters = useMemo(() => {
+    const out: [number, number][] = [];
+    for (const d of ran?.days ?? []) {
+      if (!d.feasible) continue;
+      const last = out[out.length - 1];
+      if (last && d.dayIdx === last[1] + 1) last[1] = d.dayIdx; else out.push([d.dayIdx, d.dayIdx]);
+    }
+    return out;
+  }, [ran]);
+  const dayLabel = (dayIdx: number) => new Date(idxToMs(dayIdx * 24)).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
   const set = (k: keyof MissionSpec) => (v: number) => setSpec({ ...spec, [k]: v });
 
   return (
@@ -68,6 +79,13 @@ export function Windows() {
       {ran && (
         <>
           <h3>{feasible} of {ran.days.length} days have a landing time that works</h3>
+          {clusters.length > 0 && (
+            <p className="lede">
+              First chances to land: {clusters.slice(0, 3).map(([a, b]) => (a === b ? dayLabel(a) : `${dayLabel(a)} to ${dayLabel(b)}`)).join("; ")}
+              {clusters.length > 3 ? `; then ${clusters.length - 3} more.` : "."}
+            </p>
+          )}
+          <p className="note cal-hint">Scroll the calendar sideways to see the whole month.</p>
           <div className="cal" role="grid">
             {byMonth.map(([month, days]) => (
               <div key={month} className="cal-row" role="row">
@@ -86,7 +104,7 @@ export function Windows() {
               </div>
             ))}
           </div>
-          <p className="note">Brighter days score higher (mean of sunlight and Earth coverage). Choose a day to open that mission in Overview.</p>
+          <p className="note">Green days work. Stronger green means more safety margin above the mission's needs. Choose a day to open that mission in Overview.</p>
         </>
       )}
     </section>

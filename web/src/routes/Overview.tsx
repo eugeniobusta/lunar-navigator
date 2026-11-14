@@ -3,6 +3,7 @@ import { Timeline } from "../charts/Timeline";
 import { MetricGrid, Stat } from "../components/ui";
 import { fmtDate, fmtHours, idxToMs, useSiteView } from "../state/derived";
 import { useStore } from "../state/store";
+import { verdict } from "./verdict";
 
 export function Overview() {
   const siteId = useStore((s) => s.siteId);
@@ -22,7 +23,13 @@ export function Overview() {
 
   return (
     <section className="panel">
+      <p className="verdict">{verdict(view.metrics)}</p>
       <Timeline series={s} startMs={idxToMs(s.startIdx)} stepS={eph.stepS} cursor={k} onCursor={setCursor} />
+      <ul className="key">
+        <li><span className="swatch sun" />Sunlight: power</li>
+        <li><span className="swatch earth" />Earth in view: direct radio link</li>
+        <li><span className="swatch eclipse" />Dark, or no link</li>
+      </ul>
       <div className="now">
         <h2>{fmtDate(idxToMs(s.startIdx + k))}</h2>
         <div className="stats">

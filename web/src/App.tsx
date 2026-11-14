@@ -1,10 +1,10 @@
 // App shell: header controls, the sky panorama, then one tab at a time.
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, type ComponentType } from "react";
 import { SkyPanorama } from "./charts/SkyPanorama";
 import { SiteSelect } from "./components/ui";
 import { Compare } from "./routes/Compare";
 import { Method } from "./routes/Method";
-import { MoonBox } from "./routes/MoonBox";
+import { xrUrl } from "./routes/xr";
 import { Overview } from "./routes/Overview";
 import { Power } from "./routes/Power";
 import { Windows } from "./routes/Windows";
@@ -14,9 +14,13 @@ import { useStore, type Tab } from "./state/store";
 // Loaded on demand so their code stays out of the main bundle.
 const Moon3D = lazy(() => import("./routes/Moon3D").then((m) => ({ default: m.Moon3D })));
 const Data = lazy(() => import("./routes/Data").then((m) => ({ default: m.Data })));
+// "Move the lander" appears as soon as web/src/routes/Grid.tsx exists (it must export `Grid`).
+const gridModule = Object.values(import.meta.glob<{ Grid: ComponentType }>("./routes/Grid.tsx"))[0];
+const Grid = gridModule ? lazy(() => gridModule().then((m) => ({ default: m.Grid }))) : null;
 
-const TABS: [Tab, string][] = [["overview", "Overview"], ["compare", "Compare sites"], ["windows", "Window Finder"],
-  ["power", "Battery"], ["moonbox", "MoonBox"], ["method", "Method"], ["moon3d", "3D Moon"], ["data", "Data"]];
+const TABS: [Tab, string][] = [["overview", "Overview"], ["windows", "Window Finder"], ["compare", "Compare sites"],
+  ...(Grid ? [["grid", "Move the lander"] as [Tab, string]] : []),
+  ["power", "Battery"], ["moon3d", "3D Moon"], ["data", "Data"], ["method", "Method"]];
 
 export default function App() {
   const st = useStore();
@@ -31,6 +35,8 @@ export default function App() {
   const dateValue = fmtDate(idxToMs(st.startIdx), false);
   const minDate = fmtDate(eph.startMs, false), maxDate = fmtDate(idxToMs(eph.n - 1), false);
   const n = view?.series.sunlit.length ?? 1;
+  // Near the south pole Earth always hangs low in the north; elsewhere that sentence would be wrong.
+  const polar = (site?.lat ?? 0) < -75;
 
   return (
     <div className="app">
@@ -62,6 +68,15 @@ export default function App() {
       )}
 
       <section className="hero" aria-label={`Sky from ${site?.name}`}>
+        <div className="hero-head">
+          <p>
+            You are standing at <strong>{site?.name}</strong>. This is the whole horizon around you, unrolled flat:
+            the left and right edges are both south.{polar ? " North points towards Earth." : ""}
+          </p>
+          <a className="vr-link primary" href={xrUrl(st.siteId, idxToMs(st.startIdx + Math.min(st.cursor, n - 1)))}>
+            Stand on the Moon (3D / VR)
+          </a>
+        </div>
         {view && hz ? (
           <>
             <SkyPanorama series={view.series} horizon={hz.value} cursor={st.cursor} sunR={eph.sunSemiDiam[st.startIdx] ?? 0.27} />
@@ -83,19 +98,21 @@ export default function App() {
 
       <main>
         {st.tab === "overview" && <Overview />}
-        {st.tab === "compare" && <Compare />}
         {st.tab === "windows" && <Windows />}
+        {st.tab === "compare" && <Compare />}
         {st.tab === "power" && <Power />}
-        {st.tab === "moonbox" && <MoonBox />}
         {st.tab === "method" && <Method />}
         <Suspense fallback={<p className="note">Loading…</p>}>
+          {st.tab === "grid" && Grid && <Grid />}
           {st.tab === "moon3d" && <Moon3D />}
           {st.tab === "data" && <Data />}
         </Suspense>
       </main>
 
       <footer className="foot">
-        Built by team Claude's Plan at HackAthlone 2026, NASA Space Apps Challenge. Data: NASA LOLA, NASA Goddard PGDA, JPL DE421. Not an official NASA product.
+        Built by team Claude's Plan at HackAthlone 2026 with AI coding assistants (Claude). Data: NASA LOLA,
+        NASA Goddard PGDA, JPL Horizons and DE421. Results are our own computations, not NASA's; this is not an
+        official NASA product and implies no NASA endorsement.
       </footer>
     </div>
   );

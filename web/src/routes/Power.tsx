@@ -1,6 +1,7 @@
 // Battery survival: does this lander make it through the dark hours of this window?
 import { scaleLinear, line, area } from "d3";
 import { useMemo, useState } from "react";
+import { useWidth } from "../charts/useWidth";
 import { NumberField, Stat } from "../components/ui";
 import { simulatePower, type PanelMode, type PowerConfig } from "../lib/power";
 import { fmtHours, useSiteView } from "../state/derived";
@@ -15,11 +16,12 @@ export function Power() {
   const view = useSiteView(siteId);
   const [cfg, setCfg] = useState<PowerConfig>({ mode: "vertical_tracking", panelAzDeg: 0, areaM2: 3,
     efficiency: 0.28, batteryWh: 4000, loadW: 200, initialSocPct: 100 });
+  const [chartRef, W] = useWidth<HTMLDivElement>();
   const res = useMemo(() => (view && eph ? simulatePower(view.series, cfg, eph.stepS) : null), [view, eph, cfg]);
   if (!view || !eph || !res) return <p className="note">Loading the site…</p>;
   const set = (k: keyof PowerConfig) => (v: number) => setCfg({ ...cfg, [k]: v });
 
-  const W = 1000, H = 220, M = { l: 44, r: 12, t: 10, b: 24 };
+  const H = 220, M = { l: 44, r: 12, t: 10, b: 24 };
   const n = res.socWh.length;
   const x = scaleLinear().domain([0, n]).range([M.l, W - M.r]);
   const y = scaleLinear().domain([0, 100]).range([H - M.b, M.t]);
@@ -52,16 +54,21 @@ export function Power() {
         <Stat value={`${Math.ceil(res.batteryNeededWh).toLocaleString()} Wh`} label="battery needed to never run out" />
         <Stat tone="sun" value={`${(res.energyGenWh / 1000).toFixed(0)} kWh`} label="generated over the window" />
       </div>
-      <svg className="soc" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Battery charge and solar generation over the window">
+      <div ref={chartRef}>
+      <svg className="soc" width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Battery charge and solar generation over the window">
         <path d={genPath} className="gen" />
         <line x1={M.l} x2={W - M.r} y1={loadY} y2={loadY} className="load" />
         <path d={socPath} className="socline" />
+        {idx.filter((i) => res.socWh[i] <= 0).map((i) => (
+          <rect key={i} x={x(i)} y={H - M.b - 4} width={Math.max(1, x(i + 1) - x(i))} height={4} className="empty" />
+        ))}
         {[0, 50, 100].map((t) => (
           <text key={t} x={M.l - 8} y={y(t)} dy="0.32em" textAnchor="end" className="tick">{t}%</text>
         ))}
         <text x={W - M.r} y={loadY - 6} textAnchor="end" className="tick">load {cfg.loadW} W</text>
       </svg>
-      <p className="note">Amber area: solar power. Line: battery charge. Panels flat on the deck catch almost nothing at the pole, because the Sun never climbs more than a few degrees.</p>
+      </div>
+      <p className="note">Yellow area: solar power. Line: battery charge. Pink marks along the bottom: battery empty. Panels flat on the deck catch almost nothing at the pole, because the Sun never climbs more than a few degrees.</p>
     </section>
   );
 }

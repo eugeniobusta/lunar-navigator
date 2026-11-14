@@ -160,7 +160,7 @@ The two visibility grids are NASA data (cite Mazarico et al. 2011), not our own 
 ## suitability/ (landing criteria and Goldilocks zones)
 
 Where a crewed lander could set down, by NASA's Artemis III requirements and our 0 to 100 score
-(docs/criteria.md, docs/INTERFACES.md section 10).
+(docs/criteria.md, docs/INTERFACES.md section 11).
 
 | File | Encoding | Value |
 |------|----------|-------|
@@ -257,6 +257,21 @@ Research notes: docs/research/missions_notes.md.
 | `c_passes_hard_limits` | yes / no | Whether the spot passes every hard limit. |
 | `c_failed_limits` | | The limits it fails: `landing_slope`, `eva_slope`, `sunlight`, `earth`, `latitude`. |
 | `c_longest_dark_h`, `c_longest_no_earth_h` | h | Our model at that spot, Nov 2026 to Dec 2029. |
+## stars.json
+
+Real stars for the VR sky (docs/INTERFACES.md section 11).
+
+| Field | Type | Unit | Meaning |
+|-------|------|------|---------|
+| `version` | integer | | Format version (1). |
+| `source` | string | | Catalogue and kernels used. |
+| `mag_limit` | number | mag | Faintest V magnitude included: 3.5. |
+| `n_stars` | integer | | Number of stars: 287. |
+| `stars` | number[4 * n_stars] | -, mag | Per star: x, y, z of its ICRF unit vector (J2000 catalogue position), then its V magnitude. Brightest first. |
+| `names` | object | | Proper name by star index, where the catalogue gives one. |
+| `frame` | string | | What the quaternions do: rotate ICRF vectors into MOON_ME_DE421. |
+| `start_utc`, `step_s`, `n` | string, number, integer | UTC, s | Time of the first orientation, spacing (6 hours) and count. |
+| `quat_xyzw` | number[4 * n] | | Unit quaternions (x, y, z, w), one per time step. |
 
 ## validation/jpl.csv
 

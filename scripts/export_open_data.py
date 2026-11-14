@@ -60,6 +60,8 @@ def describe(rel, names):
         return "Landing sites: coordinates, source and coordinate quality."
     if rel == "ephemeris.json":
         return "Hourly Sun direction and Earth position seen from the Moon's centre, MOON_ME frame, Nov 2026 to Dec 2029."
+    if rel == "stars.json":
+        return "Bright stars (Yale Bright Star Catalogue) and the Moon's orientation every 6 hours, for the VR sky."
     if rel == "index.json":
         return "This list: every published file with its size, format and description."
     if rel.startswith("horizons/") and stem.endswith("_grid"):

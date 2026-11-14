@@ -8,6 +8,7 @@ setup:      ## install Python and web dependencies
 test:       ## pytest + vitest
 	uv run pytest -q
 	cd web && npm test
+	cd xr && npm test
 
 download:   ## fetch raw NASA data into data/ (~520 MB, run once, share by USB)
 	uv run python scripts/download_data.py
@@ -18,6 +19,7 @@ data:       ## full precompute pipeline -> web/public/data/ (needs make download
 	uv run python scripts/export_terrain.py
 	uv run python scripts/export_site_tiles.py
 	uv run python scripts/build_suitability.py
+	uv run python scripts/export_stars.py
 	uv run python scripts/export_open_data.py
 
 mocks:      ## regenerate web/src/mocks/

@@ -3,6 +3,14 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "keywords": [
+    "moon",
+    "lunar-south-pole",
+    "landing-sites",
+    "nasa-space-apps",
+    "open-data",
+    "ai-assisted"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

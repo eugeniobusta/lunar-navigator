@@ -54,6 +54,23 @@ Live app: https://claudes-plan-lunar-navigator.vercel.app (open the **Data** tab
 - **Rebuild it yourself**: `git clone https://github.com/eugeniobusta/lunar-navigator.git && cd lunar-navigator`,
   then `make download` (about 1 GB) and `make data` (about 2 minutes on our laptop).
 
+## Use of AI
+
+This project was built with AI coding assistants: Claude Code (Claude Fable 5.2 and Claude Opus 5.5) and
+OpenAI Codex.
+
+- **What they did**: wrote most of the code (the Python data pipeline, the web app, the VR view), the tests, the
+  visual design and these documents, working from prompts and reviews by the team (docs/PROMPTS.md). Two research
+  runs with web search gathered the sources for the landing criteria and the list of past landings
+  (docs/research/).
+- **What keeps it honest**: every number in the app and in the pitch comes from code we ran, not from a model's
+  memory. Sun and Earth positions are checked against JPL Horizons (largest difference 0.0007 degrees) and long-run
+  sunlight and Earth visibility against NASA's PGDA maps (largest difference 4.3 percentage points):
+  docs/VALIDATION.md. Every change goes through a pull request with automated tests, and thresholds we chose
+  ourselves are marked "team choice" in docs/criteria.csv.
+- **What it is not**: results are our own computations from open NASA and JPL data. This is not an official NASA
+  product and implies no NASA endorsement.
+
 ## Team: Claude's Plan
 
 Eugenio Busta (lead) · Kien · Chinh · Rahan · Ahmed Diallo · Luke

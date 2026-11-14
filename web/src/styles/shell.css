@@ -334,27 +334,3 @@ button.primary.big { padding: 16px 28px; font-family: var(--font-head); font-siz
 .home-data-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0.6; }
 .home-data::before { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.9)); }
 @media (prefers-reduced-motion: reduce) { .feature-art img { animation: none; } }
-
-/* Homepage: pictures fade in and out of the black and overlap, so one dissolves into the next. */
-.home { background: var(--void); }
-.feature { background: transparent; border-bottom: 0; pointer-events: none; }
-.feature-copy, .feature-copy * { pointer-events: auto; }
-.feature + .feature, .feature + .home-data { margin-top: -16vh; }
-.feature-art, .feature::before {
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 24%, #000 76%, transparent 100%);
-  mask-image: linear-gradient(to bottom, transparent 0%, #000 24%, #000 76%, transparent 100%); }
-.home-data { background: transparent; pointer-events: none; padding-top: 180px; }
-.home-data .reveal, .home-data .reveal * { pointer-events: auto; }
-.home-data-bg, .home-data::before {
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 35%);
-  mask-image: linear-gradient(to bottom, transparent 0%, #000 35%); }
-.home-hero { -webkit-mask-image: linear-gradient(to bottom, #000 88%, transparent 100%); mask-image: linear-gradient(to bottom, #000 88%, transparent 100%); }
-.home-stats { border-top: 0; }
-.reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.8s ease, transform 0.8s ease; }
-.reveal.in { opacity: 1; transform: none; }
-@media (max-width: 760px) {
-  .feature + .feature, .feature + .home-data { margin-top: 0; }
-  .feature-art { -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 18%, #000 82%, transparent 100%);
-    mask-image: linear-gradient(to bottom, transparent 0%, #000 18%, #000 82%, transparent 100%); }
-}
-@media (prefers-reduced-motion: reduce) { .reveal { transform: none; transition: opacity 0.3s; } }

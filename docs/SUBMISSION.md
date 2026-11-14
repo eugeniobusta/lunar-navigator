@@ -33,15 +33,13 @@ will it have sunlight for power, and will it see Earth for a direct radio link?
 - **Window Finder.** Describe the mission and get every landing day that works. A 14-day mission at Malapert Massif
   (at least 70 % sunlight, 50 % Earth in view, no night longer than 48 hours) can land on 32 of the next 365 days,
   in 13 short clusters at most 3 days long.
-- **Where to land.** Every 120 m square within 6 degrees of the pole is tested against NASA's Artemis III landing
-  requirements. 14.3 % of the ground passes all of them (14,928 of 104,184 km2), in 5,297 "Goldilocks zones",
-  ranked by a 0 to 100 score. Tick boxes say what matters for the mission (or pick Power first, Radio link, Ice
-  science) and the map and the ranking follow; one box ticked shows that parameter by itself; "Why here?" explains
-  any zone in plain sentences.
-- **Battery.** Does a given solar array and battery survive the dark hours of the chosen window?
-- **3D / VR.** The same data as a place: choose a site from orbit, land, and stand 2 m above the ground under the
-  real Sun and Earth. Works on a laptop and on a Meta Quest 3.
-- **Data.** Every source with its terms, every file we computed, free to download.
+- **The landing map (home page).** Every 120 m square within 6 degrees of the pole is tested against NASA's
+  Artemis III landing requirements, drawn over shaded relief with the craters named. 14.3 % of the ground passes
+  all of them (14,928 of 104,184 km2), in 5,297 "Goldilocks zones", ranked by a 0 to 100 score. The map shows
+  three classes: green good, amber acceptable, red poor; ground that fails a NASA limit is hatched red and says
+  which limit. Tick boxes in four groups say what matters for the mission (or pick Power first, Radio link, Ice
+  science); five parameters can be turned round (prefer colder ground, for ice). Click any spot for its
+  measurements, what is good and weak there, how sure the numbers are, and what to do next.
 
 **How it works.** A Python pipeline computes, once, the position of the Sun and Earth as seen from the Moon for
 every hour (Skyfield with JPL's DE421 ephemeris), and for each site the terrain skyline: from NASA's LOLA elevation
@@ -83,11 +81,11 @@ A Meta Quest 3 for VR. Formulas are in docs/SCIENCE.md, the criteria in docs/cri
 | NASA data | How we used it |
 |-----------|----------------|
 | **LRO LOLA elevation map LDEM_75S_120M** (PDS Geosciences Node) | The terrain: the skyline around every site, slopes for the landing and walking limits, and the 3D ground. |
-| **NASA Goddard PGDA lunar polar illumination and Earth visibility maps** (product 69, AVGVISIB_75S_120M_201608) | The long-run sunlight and Earth-in-view layers of "Where to land", the permanent shadows, and an independent check of our own model (within 3.5 and 4.3 percentage points). |
+| **NASA Goddard PGDA lunar polar illumination and Earth visibility maps** (product 69, AVGVISIB_75S_120M_201608) | The long-run sunlight and Earth-in-view layers of the landing map, the permanent shadows, and an independent check of our own model (within 3.5 and 4.3 percentage points). |
 | **JPL DE421 ephemeris and NAIF lunar orientation and frame kernels** (de421.bsp, moon_pa_de421_1900-2050.bpc, moon_080317.tf, pck00008.tpc) | The position of the Sun and Earth as seen from the Moon, every hour from November 2026 to December 2029. |
 | **JPL Horizons API** | An independent check of those positions (largest difference 0.0007 degrees). |
 | **LRO Diviner Polar Resource Product** (PDS Geosciences Node) | Mean ground temperature and the depth at which water ice is stable, two of the soft criteria. |
-| **NASA "Artemis Human Landing System Update" (2024), NTRS 20240009596** | The six hard limits of "Where to land": within 6 degrees of the pole, landing slope under 10 degrees, EVA slope under 20 degrees within 2 km, direct communication with Earth, lit for the surface stay, 100 m x 100 m accuracy. |
+| **NASA "Artemis Human Landing System Update" (2024), NTRS 20240009596** | The six hard limits of the landing map: within 6 degrees of the pole, landing slope under 10 degrees, EVA slope under 20 degrees within 2 km, direct communication with Earth, lit for the surface stay, 100 m x 100 m accuracy. |
 | **NASA NSSDCA "Lunar Artifact Impacts and Landings"** | Positions and outcomes of the 41 lunar landing attempts in our lessons table. |
 | **NASA releases on the Artemis III candidate regions** (19 Aug 2022, 28 Oct 2024) | The 6.5-day stay and the names of the nine regions. |
 
@@ -116,7 +114,7 @@ docs/PARAMETERS.md.
 - GitHub and GitHub Actions for code and tests; Vercel for hosting.
 
 **Team concept.** The idea of standing on the Moon in VR and choosing the exact landing point comes from our
-teammate Ahmed's concept for the 3D view; the project site's "3D Moon" tab and `/xr/` build on it.
+teammate Ahmed's concept for the 3D view; the map's "Stand here in 3D / VR" and `/xr/` build on it.
 
 **Licences.** Our code is MIT; the data we derived is CC BY 4.0; NASA and JPL source data keeps its providers'
 terms (DATA_LICENSE.md quotes each one). The NASA insignia is not used. This is not an official NASA product.
@@ -138,6 +136,6 @@ Artemis coordinates. No AI-generated images, video or audio are in the project, 
   percentage points).
 - Every threshold in the landing criteria carries its source with a quotation; the ones we chose ourselves are
   marked "team choice".
-- Every change went through a pull request with automated tests: 53 Python tests, 108 browser-maths tests and 5
+- Every change went through a pull request with automated tests: 56 Python tests, 143 browser-maths tests and 6
   end-to-end browser tests.
 - The app, the README and the Data tab each state that the project was built with AI assistance.

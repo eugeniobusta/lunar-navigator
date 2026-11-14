@@ -11,7 +11,7 @@
   },
   {
    "path": "basemap/features.json",
-   "bytes": 4262,
+   "bytes": 4348,
    "format": "JSON",
    "description": "Named craters and mountains near the south pole, positions from the IAU Gazetteer of Planetary Nomenclature."
   },

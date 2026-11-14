@@ -47,7 +47,8 @@ if __name__ == "__main__":
             fetch(url)
         except requests.RequestException as e:
             print("FAILED", url, e)
-    load = Loader(str(DATA))
+    (DATA / "kernels").mkdir(exist_ok=True)
+    load = Loader(str(DATA / "kernels"))  # prompt K1 expects the kernels in data/kernels/
     for k in KERNELS:
         try:
             load(k)

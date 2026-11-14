@@ -1,5 +1,19 @@
-/* Design tokens (owner: Chinh). Colors, type, spacing. Light and dark. */
+/* Design tokens. Colour carries meaning: amber = sunlight, blue = Earth. */
 :root {
-  --bg: #0b0d12;
-  --fg: #e8ebf2;
+  --bg: #161b26;          /* shadowed regolith */
+  --surface: #1c2230;
+  --surface-2: #252d3e;
+  --line: #333c50;
+  --terrain: #8a8f99;
+  --terrain-edge: #b6b9bf;
+  --text: #ebe7de;
+  --muted: #a3a6ad;
+  --sun: #f2b84b;
+  --earth: #5fa8e8;
+  --good: #7cc68a;
+  --bad: #e07a6a;
+  --font: "Barlow", system-ui, sans-serif;
+  --font-head: "Barlow Semi Condensed", "Barlow", system-ui, sans-serif;
+  --r: 4px;
+  --gap: 16px;
 }

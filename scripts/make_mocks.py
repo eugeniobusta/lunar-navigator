@@ -9,7 +9,7 @@ import math
 from pathlib import Path
 
 OUT = Path(__file__).resolve().parents[1] / "web" / "src" / "mocks"
-N = 48  # hourly samples
+N = 24 * 60  # hourly samples (60 days, enough to exercise every screen)
 SYNODIC_H = 29.530589 * 24
 
 

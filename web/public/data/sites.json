@@ -45,9 +45,9 @@
       "lon": 30.4525,
       "terrain": "dem",
       "has_grid": false,
-      "note": "Artemis candidate region (representative point MMP06).",
+      "note": "Artemis candidate region (representative point MMP06). Representative point sits in a local hollow; coordinates under review.",
       "source": "Wueller et al. 2026, JGR Planets, doi:10.1029/2025JE009434 (verify against the paper)",
-      "coords_quality": "published"
+      "coords_quality": "verify"
     },
     {
       "id": "mmo01",
@@ -81,9 +81,9 @@
       "lon": 57.8114,
       "terrain": "dem",
       "has_grid": false,
-      "note": "Artemis candidate region (representative point NR208).",
+      "note": "Artemis candidate region (representative point NR208). Representative point sits in a local hollow; coordinates under review.",
       "source": "Wueller et al. 2026, JGR Planets, doi:10.1029/2025JE009434 (verify against the paper)",
-      "coords_quality": "published"
+      "coords_quality": "verify"
     },
     {
       "id": "dgr203",

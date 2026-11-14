@@ -1,47 +1,24 @@
-Big refinement round. Read docs/REFINEMENT_BRIEF.md: it is our acceptance checklist (P0 science before P1 bugs before
-P2 UX before P3 visuals; nothing invented; nothing claimed untested). Where this message differs from it, this message
-wins. The VR session works in parallel and will import your shared code, so do PART A first and merge it before the rest.
-
-AUDIT (15 minutes, no edits): the brief's section 1 audit, short, as docs/AUDIT.md. Then fix in priority order.
-
-PART A, shared logic in web/src/lib/analysis/ (pure TS; branch feat/eugenio-rag-model):
-1. Traffic-light classification for every parameter from docs/criteria.csv: green = good range (safest), amber =
-   acceptable, red = rejected. Discrete 3 classes per pixel plus the exact value for tooltips. Missing data = grey,
-   never green.
-2. Direction: each parameter has a "prefer" direction from criteria.csv, and the ones where a mission might want the
-   opposite (landing slope, ice nearby, ice depth, temperature, hollow depth) can be flipped by the user ("prefer
-   less" / "prefer more"); flipping swaps green and red for that parameter only. NASA hard limits never flip and
-   always win: a pixel failing one is red with the label "unsafe: fails <limit>".
-3. Groups: Safe ground (landing slope, walkable ground, hollow depth), Power and heat (sunlight, short nights,
-   temperature), Radio link (Earth in view, never out of contact), Ice and science (ice nearby, ice depth). A group
-   tick = all its parameters.
-4. Combined map for any selection: weighted score as now, then green >= 70, amber 40-69, red < 40, and red where any
-   hard limit fails. Thresholds in docs/criteria.md with the reasoning. Tests: every class boundary, flips, missing
-   data, hard-limit override, and that "NASA-style balance" still reproduces the published scores exactly.
-
-PART B, the website (branch feat/eugenio-map-first), map first:
-1. The site opens on the landing map: the south pole within 6 deg as the main element, full width, with a real
-   relief basemap (hillshade from our LOLA DEM, already in data/) under the traffic-light overlay. Smooth zoom and pan
-   (mouse, trackpad, touch), latitude rings (84, 86, 88 deg), a compass rose that says "South Pole" at the centre and
-   points "towards Earth (0 deg E)", labels for the major craters (Shackleton, Haworth, Shoemaker, Faustini,
-   de Gerlache, Cabeus, Malapert, Nobile, Amundsen) with positions from the IAU Gazetteer of Planetary Nomenclature
-   (cite it in the Data tab), Artemis sites and past landings as distinct markers.
-2. Layer panel, expand and retract: the 4 groups, each a tick box with a chevron; open a group to see its
-   parameters, each with tick box, plain one-line meaning, the flip control where allowed, an importance control
-   (low / normal / high) and an opacity slider. Presets as a small row above. Opacity only changes how it looks,
-   never the score (test it). One legend under the map: green / amber / red with the real-unit ranges of whatever
-   is shown, plus grey = no data and a hatch = fails a NASA limit (never colour alone). Colour-blind mode keeps working.
-3. Click any spot: a side panel with coordinates, score and class, the measurements, "good here" and "weak here"
-   generated from explain.ts, failed limits, data uncertainty, and four actions: "See its sky" (the skyline view,
-   which becomes a page you reach from here), "Find landing days", "Compare with...", "Stand here in 3D / VR".
-4. Navigation: Map (home), Site sky, Window Finder, Compare, Battery, Data, Method. Keep every existing feature;
-   update URL state, smoke tests, README tour links.
-PART C, visual redesign away from the generic AI look (branch feat/eugenio-instrument-ui): direction "mission
-chart": the map dominates; one quiet side panel like a flight plan; hierarchy from type size and weight, not boxes;
-no all-caps labels, no pill buttons everywhere, no identical bordered cards, no decorative gradients or glows; sentence
-case; tabular numbers; one icon set used consistently; consistent spacing scale. Keep Earthrise for the chrome and the
-sky; traffic-light colours only for suitability: green #6FBF73, amber #F0B429, red #E5484D (check AA and CVD with the
-colour-blind mode). Screenshot every screen at 1920x1080, 1440x900 and 390x844 and critique until it reads as a
-professional mission-planning tool and a first-time visitor understands it in 5 seconds.
-PART D, the brief's sections 7-8 end-to-end QA on the live site after deploy, backup screenshots of every essential
-screen in media/screenshots/final/, docs/AUDIT.md updated with what was fixed and what remains. Then report and wait.
+LUNAR GOLDILOCKS ANALYSER: ENGINEERING REFINEMENT & VALIDATION MASTER EXECUTION PROMPT
+ROLE: senior systems engineer, scientific software engineer, geospatial data analyst, UX engineer and QA engineer.
+PROJECT STAGE: final engineering refinement, verification, validation and presentation readiness.
+OBJECTIVE: a scientifically defensible, accurate, functional, intuitive and presentation-ready lunar South Pole landing-site suitability analyser.
+0. NON-NEGOTIABLE CONSTRAINTS: work in the existing repo; inspect before modifying; preserve working functionality; preserve NASA-derived datasets; don't rebuild or reprocess data unnecessarily; never fabricate measurements, scores, coordinates or validation results; no unnecessary dependencies; no full redesign without justification; science accuracy over aesthetics; never claim a feature works untested; never claim external validation not performed; never silently discard missing or invalid data; change incrementally and verify each change; record outstanding issues instead of hiding them. This is refinement, not greenfield.
+1. AUDIT: inspect structure, framework, entry points, components, data files and formats, loading, coordinate reference systems, coverage, map and rendering, scoring, normalisation, interactions, external APIs and assets, dependencies, build and runtime config. Report: A working components, B incomplete components, C confirmed bugs, D suspected bugs, E scientific uncertainties, F UI/UX weaknesses, G performance limits, H top-priority improvements.
+2. SCIENTIFIC DATA VALIDATION (~120 m South Pole data; inspect actual files, inventory may be incomplete): LOLA slope; traversability within ~2 km; long-term sunlight %; hourly illumination 2026-2029; Earth visibility %; longest communication blackout; longest darkness; PSR mask; distance to PSRs; Diviner temperature; signal delay.
+2.1 Geographic: coverage, CRS, transformations, axis orientation, longitude conventions, alignment between datasets, grid resolution, heatmap positioning, map-to-data correspondence; detect displaced layers.
+2.2 Measurements, per parameter: units, conversions, invalid and missing values, expected ranges, spatial consistency, rounding, displayed vs source values, derived calculations.
+2.3 Independent validation: NASA LRO LOLA, Diviner, LRO NAC imagery, South Pole illumination maps, PDS Geosciences Node, LROC QuickMap (https://ode.rsl.wustl.edu/moon/, https://wms.lroc.asu.edu/lroc/, https://svs.gsfc.nasa.gov/). Compare representative locations; check for shared source observations before claiming independence. Record: parameter, dataset, independent reference, method, agreement, differences, remaining uncertainty. Never invent statistics.
+3. SCORING: check normalisation, weighting, directionality, missing values, extremes, correlated parameters, consistency, classification. Hard constraints (unsafe) vs weighted preferences (trade-offs). Steep terrain must never score excellent because of sunlight. Temperature judged against operating conditions, not "hotter or colder is better". Opacity or display settings never change scores. Acceptance: scores reproducible from measurements; every contribution explainable; failed safety constraints shown; missing data can't raise scores; rankings consistent; no unjustified weights.
+4. UI/UX: five-second comprehension for a non-technical person. Priority: 1 main South Pole map, 2 overall suitability, 3 candidate locations, 4 individual parameters, 5 selected-location explanation, 6 detailed science. Remove redundancy, jargon, duplicates, developer or debug elements, clutter.
+4.2 Main map: accurate geography, aligned heatmap, clear suitability colours, labels, smooth zoom and navigation, clickable locations, clear legend, responsive. Green suitable, amber moderate, red unsuitable; never colour alone.
+4.3 Layers, only those backed by real data (slope, traversability, sunlight, temperature, Earth visibility, blackout, darkness, PSRs): each with toggle, opacity, gradient, legend, units, short explanation.
+4.4 Selected location: coordinates, score, classification, measurements, advantages, disadvantages, failed constraints, uncertainty; explanations generated from actual measurements, never hardcoded.
+4.5 Comparison: overall suitability, terrain, sunlight, temperature, communication, darkness, advantages, disadvantages; ranking reasons obvious.
+5. VISUALS: terrain rendering, elevation, craters, textures, lighting, orientation, zoom, performance; imagery only if it accurately shows the region, with attribution; lightweight useful transitions (layer switch, heatmap appearance, selection, zoom, panels); consistent typography, spacing, colours, icons, panels, legends, score indicators, loading states; professional and scientifically credible.
+6. AUDIO (optional): narration, explanations, subtle UI sounds; never present invented lunar sounds as real; label narration vs UI vs simulated audio; verify licences and attribution for images, audio, video, fonts, icons, assets.
+7. FUNCTIONAL VALIDATION: data (coordinates, units, alignment, scores, missing values, classifications, consistency); mapping (layers, positioning, zoom, selection, legends, opacity, interactions); interface (buttons, controls, location info, stale scores, overlaps, navigation, responsiveness); performance (rendering, calculations, asset size, memory, console errors, exceptions). Separate confirmed from suspected; fix causes, not symptoms.
+8. END-TO-END QA: launch, map loads, correct region, heatmap, every layer, opacity, selection, measurements correct, score correct, explanations update, comparison, navigation, nothing critical broken, reload works, no critical console errors. Cross-check every displayed figure against data. Test on the presentation computer, screen resolution and browser, fresh reload, load times. Backup screenshots of every essential screen.
+9. PRESENTATION READINESS: demo flow: introduce the South Pole, overall heatmap, explain colours, select a location, show measurements and score, advantages and disadvantages, compare with another, explain criteria. Each explanation readable in under 5 seconds.
+10. PRIORITIES: P0 scientific integrity (geography, datasets, measurements, scoring); P1 functional reliability (bugs, map, calculations, interactions); P2 UX (simplify, five-second rule, selection, explanations); P3 visuals (rendering, imagery, heatmap, animations); P4 media and polish (audio, licensing, responsive, screenshots). Never let a lower priority delay a critical defect.
+11. ACCEPTANCE: geography verified; datasets preserved; measurements traceable; scoring reproducible and defensible; safety constraints work; heatmap geographically accurate; displayed values match source; understandable without technical knowledge; selection and comparison work; five-second explanations; polished rendering; nothing critical broken; presentation hardware tested; backup screenshots exist; limitations documented.
+12. Start by inspecting; implement the highest-priority improvements incrementally; after each change test, verify, check nothing else broke, record issues. Preserve what is correct, simplify what is unnecessary, correct what is inaccurate, fix what is broken, label what cannot be verified.

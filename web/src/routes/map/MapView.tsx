@@ -94,7 +94,8 @@ export function MapView(p: Props) {
     const t0 = performance.now(), target = clampView(to);
     const step = (now: number) => {
       const t = still ? 1 : Math.min(1, (now - t0) / 220), e = 1 - (1 - t) ** 4;
-      setView((v) => { from ??= v; return { cx: from.cx + (target.cx - from.cx) * e, cy: from.cy + (target.cy - from.cy) * e, k: from.k * (target.k / from.k) ** e }; });
+      // The last frame lands exactly on the target, so "the whole region" is the whole region to the last digit.
+      setView((v) => { from ??= v; return t >= 1 ? target : { cx: from.cx + (target.cx - from.cx) * e, cy: from.cy + (target.cy - from.cy) * e, k: from.k * (target.k / from.k) ** e }; });
       if (t < 1) anim.current = requestAnimationFrame(step);
     };
     anim.current = requestAnimationFrame(step);

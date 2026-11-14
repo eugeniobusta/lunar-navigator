@@ -2,6 +2,7 @@
 
 Run once on the fastest connection: uv run python scripts/download_data.py
 """
+import time
 from pathlib import Path
 
 import requests
@@ -20,24 +21,42 @@ FILES = [
 KERNELS = ["de421.bsp", "moon_pa_de421_1900-2050.bpc", "moon_080317.tf", "pck00008.tpc"]
 
 
-def fetch(url: str) -> None:
+def fetch(url: str, tries: int = 8) -> None:
+    """Download with retries; a broken connection resumes from the .part file (HTTP Range)."""
     out = DATA / url.rsplit("/", 1)[1]
-    with requests.get(url, stream=True, timeout=60) as r:
-        r.raise_for_status()
-        size = int(r.headers.get("content-length", 0))
-        if out.exists() and size and out.stat().st_size == size:
-            print("ok  ", out.name)
-            return
-        tmp = out.with_suffix(out.suffix + ".part")
-        done = 0
-        with open(tmp, "wb") as f:
-            for chunk in r.iter_content(1 << 20):
-                f.write(chunk)
-                done += len(chunk)
-                if size:
-                    print(f"\r{out.name}: {done / size:6.1%}", end="", flush=True)
-        tmp.rename(out)
-        print(f"\rdone {out.name} ({done / 1e6:.1f} MB)")
+    tmp = out.with_suffix(out.suffix + ".part")
+    if out.exists() and out.stat().st_size > 0:
+        print("ok  ", out.name)
+        return
+    last = None
+    for attempt in range(tries):
+        done = tmp.stat().st_size if tmp.exists() else 0
+        try:
+            headers = {"Range": f"bytes={done}-"} if done else {}
+            with requests.get(url, stream=True, timeout=60, headers=headers) as r:
+                if r.status_code == 416:  # the .part file is already complete
+                    break
+                r.raise_for_status()
+                if done and r.status_code != 206:  # server ignored the Range header: start again
+                    done = 0
+                size = done + int(r.headers.get("content-length", 0))
+                with open(tmp, "ab" if done else "wb") as f:
+                    for chunk in r.iter_content(1 << 20):
+                        f.write(chunk)
+                        done += len(chunk)
+                        if size:
+                            print(f"\r{out.name}: {done / size:6.1%}", end="", flush=True)
+                if size and done < size:
+                    raise requests.ConnectionError(f"short read {done}/{size}")
+            break
+        except requests.RequestException as e:
+            last = e
+            print(f"\nretry {attempt + 1}/{tries} {out.name}: {e}")
+            time.sleep(3)
+    else:
+        raise requests.ConnectionError(f"gave up after {tries} tries: {last}")
+    tmp.rename(out)
+    print(f"\rdone {out.name} ({out.stat().st_size / 1e6:.1f} MB)")
 
 
 if __name__ == "__main__":

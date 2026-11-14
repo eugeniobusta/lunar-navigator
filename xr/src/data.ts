@@ -6,6 +6,11 @@ import {
   type HeightGrid,
   type HeightGridMeta,
 } from '../../web/src/lib/analysis/demHorizon';
+import { heightAt } from '../../web/src/lib/analysis/demHorizon';
+import type { CriterionRow } from '../../web/src/lib/analysis/explain';
+import { LAYER_KEYS, type Preset } from '../../web/src/lib/analysis/suitability';
+import { parseCsv } from '../../web/src/lib/data/csv';
+import { FALLBACK_PRESETS, buildZones, type Summary, type ZoneRow } from './guide.js';
 
 export const DATA_URL = '/data/';
 
@@ -34,19 +39,8 @@ export interface SiteTile {
   slope: Uint8Array;
   suitability: Suitability | null;
   site: { x_m: number; y_m: number; height_m: number };
-}
-
-export interface Zone {
-  rank: number;
-  /** The zone's best cell. */
-  lat: number;
-  lon: number;
-  score: number | null;
-  areaKm2: number;
-  /** Nearest Artemis region, by name. */
-  near: string;
-  sunPct: number | null;
-  earthPct: number | null;
+  /** True if the tile was resampled from the ~430 m south-pole grid (a zone outside every 120 m site tile). */
+  coarse: boolean;
 }
 
 export interface Mission {
@@ -150,36 +144,104 @@ export async function loadSiteTile(siteId: string): Promise<SiteTile> {
     slope: new Uint8Array(slope),
     suitability: await suitability,
     site: meta.site,
+    coarse: false,
   };
 }
 
-/** suitability/zones.geojson (docs/INTERFACES.md section 10): the best zones as points at their best cell. */
-export async function loadZones(): Promise<Zone[] | null> {
-  type Feature = { properties?: Record<string, unknown>; geometry?: { type: string; coordinates: number[] } };
-  const f = await json<{ features?: Feature[] }>('suitability/zones.geojson');
-  if (!f?.features) {
+const csv = async (p: string) => {
+  const r = await get(p);
+  return r ? parseCsv(await r.text()) : null;
+};
+
+/** The zones of zones.csv with their layer bytes (docs/INTERFACES.md section 10). Null if either file is missing. */
+export async function loadZones(): Promise<ZoneRow[] | null> {
+  const [zones, layers] = await Promise.all([csv('suitability/zones.csv'), csv('suitability/zones_layers.csv')]);
+  return zones && layers ? buildZones(zones, layers) : null;
+}
+
+/** criteria.csv: the reasons quoted by "Why here?". Empty if missing (the sentences then end without a reason). */
+export async function loadCriteria(): Promise<CriterionRow[]> {
+  return ((await csv('criteria.csv')) ?? []) as unknown as CriterionRow[];
+}
+
+/** suitability/site_values.csv: the criteria values at each site's own point, by site id. */
+export async function loadSiteValues(): Promise<Map<string, Record<string, string>>> {
+  return new Map(((await csv('suitability/site_values.csv')) ?? []).map((r) => [r.id, r]));
+}
+
+/** The priority presets of suitability/weights.json; only "Balanced" if the file is missing. */
+export async function loadPresets(): Promise<Preset[]> {
+  const f = await json<{ presets?: Preset[] }>('suitability/weights.json');
+  return f?.presets?.length ? f.presets : FALLBACK_PRESETS;
+}
+
+export const loadSummary = () => json<Summary>('suitability/summary.json');
+
+/** The six per-criterion layers of a grid, in LAYER_KEYS order. Null unless all six are there. */
+async function loadLayers(path: (key: string) => string, size: number): Promise<Uint8Array[] | null> {
+  const bufs = await Promise.all(LAYER_KEYS.map((k) => bytes(path(k))));
+  if (bufs.some((b) => !b || b.byteLength !== size * size)) {
     return null;
   }
-  const zones: Zone[] = [];
-  for (const feat of f.features) {
-    const p = feat.properties ?? {};
-    const g = feat.geometry;
-    if (g?.type !== 'Point' || typeof p.rank !== 'number') {
+  return bufs.map((b) => new Uint8Array(b!));
+}
+export const loadPoleLayers = (size: number) => loadLayers((k) => `suitability/layers/south_pole_${k}.u8`, size);
+export const loadSiteLayers = (siteId: string, size: number) => loadLayers((k) => `suitability/layers/sites/${siteId}_${k}.u8`, size);
+
+/** Nearest-pixel copy of a byte grid of `g` onto a `size` x `size` grid of `pixelM` centred on x, y. 255 outside. */
+export function resampleBytes(src: Uint8Array, g: HeightGrid, x: number, y: number, size: number, pixelM: number): Uint8Array {
+  const out = new Uint8Array(size * size).fill(255);
+  const half = (size * pixelM) / 2;
+  for (let r = 0; r < size; r++) {
+    const sr = Math.floor((g.yMaxM - (y + half - (r + 0.5) * pixelM)) / g.pixelM);
+    if (sr < 0 || sr >= g.size) {
       continue;
     }
-    const num = (v: unknown) => (typeof v === 'number' ? v : null);
-    zones.push({
-      rank: p.rank,
-      lat: g.coordinates[1],
-      lon: g.coordinates[0],
-      score: num(p.score),
-      areaKm2: num(p.area_km2) ?? 0,
-      near: typeof p.nearest_artemis_region === 'string' ? p.nearest_artemis_region : '',
-      sunPct: num(p.sun_pct),
-      earthPct: num(p.earth_pct),
-    });
+    for (let c = 0; c < size; c++) {
+      const sc = Math.floor((x - half + (c + 0.5) * pixelM - g.xMinM) / g.pixelM);
+      if (sc >= 0 && sc < g.size) {
+        out[r * size + c] = src[sr * g.size + sc];
+      }
+    }
   }
-  return zones.sort((a, b) => a.rank - b.rank);
+  return out;
+}
+
+function resampleHeights(g: HeightGrid, x: number, y: number, size: number, pixelM: number): HeightGrid {
+  const data = new Uint16Array(size * size);
+  const half = (size * pixelM) / 2;
+  const span = g.heightMaxM - g.heightMinM;
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      const h = heightAt(g, x - half + (c + 0.5) * pixelM, y + half - (r + 0.5) * pixelM);
+      // Outside the south-pole grid nothing is known: the reference sphere (height 0) stands in.
+      data[r * size + c] = Math.round((Math.max(0, Math.min(1, ((Number.isNaN(h) ? 0 : h) - g.heightMinM) / span))) * 65535);
+    }
+  }
+  return { size, pixelM, xMinM: x - half, yMaxM: y + half, heightMinM: g.heightMinM, heightMaxM: g.heightMaxM, data };
+}
+
+/**
+ * A tile around stereographic x, y for a zone that no 120 m site tile covers, on the same layout as a site tile
+ * (512 x 512 at 120 m, far field 512 x 512 at 600 m) but resampled from the ~430 m south-pole grid: the heights
+ * are interpolated, the NASA maps keep their own pixels, and there is no slope map.
+ */
+export function tileFromPole(id: string, pole: SouthPole, suit: Suitability | null, x: number, y: number): SiteTile {
+  const g = pole.grid;
+  const grid = resampleHeights(g, x, y, 512, 120);
+  const pick = (src: Uint8Array) => resampleBytes(src, g, x, y, 512, 120);
+  const raw = suit ? pick(suit.raw) : null;
+  return {
+    siteId: id,
+    grid,
+    far: resampleHeights(g, x, y, 512, 600),
+    sun: pick(pole.sun),
+    earth: pick(pole.earth),
+    slope: new Uint8Array(512 * 512).fill(255),
+    suitability: raw && suit ? { raw, passScore: raw.map((v) => (v <= 100 ? v : 255)), limits: suit.limits ? pick(suit.limits) : null } : null,
+    site: { x_m: x, y_m: y, height_m: heightAt(grid, x, y) },
+    coarse: true,
+  };
 }
 
 /** Decoded suitability grids on a height grid's layout (docs/INTERFACES.md section 10). */

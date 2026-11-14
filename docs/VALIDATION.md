@@ -89,7 +89,7 @@ Peak near Cabeus B (83.56 S) and Nobile Rim 2 (83.91 S) lie outside NASA's 6 deg
 Mons Mouton Plateau point was chosen by the authors for access to a cold permanent shadow, not for sunlight.
 Notes and quotes: docs/research/artemis_coordinates.md.
 
-## 7. Automated tests and release check (14 Nov 2026)
+## 7. Automated tests and release check (14 Nov 2026, before the map-first round; see section 8 for the current state)
 - `make test`: 53 Python tests and 108 browser-maths tests pass. `make e2e`: 5 end-to-end browser tests pass
   (every tab opens with content and no console error, the Window Finder returns a calendar, Where to land answers
   clicks and presets, a shared link reopens the same view). CI runs all of them on every pull request.
@@ -99,3 +99,65 @@ Notes and quotes: docs/research/artemis_coordinates.md.
   large text).
 - Links on the Data tab: 222 distinct, all open without a login. Two (the Wueller et al. DOI and its Zenodo record)
   refuse scripted requests with HTTP 403 and open normally in a browser.
+
+## 8. Refinement round: geography, traffic lights and the end-to-end check (14 Nov 2026)
+
+**What each parameter was checked against**
+
+| Parameter | Our data | Reference | Method | Agreement | What stays uncertain |
+|-----------|----------|-----------|--------|-----------|----------------------|
+| Geography: projection, row order, longitude sign | The 1024 x 1024 terrain grid | IAU Gazetteer of Planetary Nomenclature: centre and diameter of nine named craters | Mean height on the rim circle minus mean height at 0.3 of the radius, at the gazetteer's coordinates (`tests/test_basemap.py`) | All nine are depressions, 2.0 to 3.8 km deep. With the longitude sign flipped only four would pass | The gazetteer is independent of our grids; the heights are LOLA's |
+| Map to data | The map on screen | The files | A click 40 px right of the pole must report 90 deg E at the latitude the scale bar implies; an Artemis marker must report its site's coordinates | Exact to the displayed three decimals at both screen sizes | None found |
+| Sun and Earth positions | Skyfield with JPL DE421 | JPL Horizons | 3 sites x 20 times (section 1) | Largest difference 0.0007 deg | None that matters here |
+| Long-run sunlight and Earth in view | NASA PGDA product 69 (used as published) and our own hour-by-hour model | Each other | 9 Artemis points (section 4) | Within 3.5 and 4.3 percentage points | Both are computed from LOLA terrain, so this is not independent of the terrain |
+| Signal delay | Light time from the ephemeris: 1.19 to 1.357 s | NASA NSSDC Moon Fact Sheet distance range, 357,000 to 407,000 km | Distance divided by the speed of light gives 1.19 to 1.36 s | Agrees | None |
+| Landing slope, walkable ground | Computed from LOLA at 120 m | Not checked against a second product | | Not performed | Baseline is 120 m against NASA's 100 m; hazards under 120 m are invisible |
+| Temperature, ice depth | Diviner Polar Resource Product, as published | Not checked against a second source | | Not performed | A thermal model on a mesh of about 0.5 km |
+| Permanent shadow | PGDA average sunlight of exactly 0, patches of 1 km2 or more | Not checked against a published PSR map | | Not performed | The 1 km2 cut is a team choice |
+
+**Missing data.** Inside the 6 degree region none of the eight layers has a missing source value (checked on all
+7,235,020 cells of the 120 m grid). "No stable ice within 2.87 m" (41.7 % of the region) is an answer and scores 0.
+The code still treats a no-data cell as grey, never green, and a ticked parameter with no value as zero.
+
+**Classes read back from 8-bit layers.** Against the source values the class differs in 0.11 % to 0.23 % of map
+pixels per parameter (0.67 % for ice depth), always within one step of a boundary. For the four parameters bounded
+by a NASA limit, red comes from the exact limit, not from the byte.
+
+**Scoring rules, tested** (`rag.test.ts`, `paint.test.ts`, `suitability.test.ts`): every class boundary of
+docs/criteria.csv; flipped directions; missing data; a cell that fails a NASA limit is red under every preset and
+every single parameter, checked on all 1,048,576 map cells; opacity changes only the alpha of a pixel;
+"NASA-style balance" still reproduces every published score.
+
+**Colour.** On the page background the class colours measure 8.1 (green), 9.7 (amber) and 4.6 (red) to 1. Under
+simulated deuteranopia green and red differ by a CIELAB distance of only 15, so colour is never the only signal:
+the legend carries words, unsafe ground is hatched, and the colour-blind palette (yellow, grey, dark blue) keeps
+every pair at 39 or more for protanopia, deuteranopia and tritanopia.
+
+**End-to-end check on the live site** (`web/e2e/tools/qa-live.mjs`, run at 1440 x 900 and 390 x 844 against
+https://claudes-plan-lunar-navigator.vercel.app at commit 7a1dcd4): 29 of 29 checks pass.
+
+- The map is the home page; layers painted 0.7 s after a fresh load at 1440 x 900 and 0.6 s at 390 x 844 (this
+  machine and network; not measured on the presentation computer).
+- Rings, compass and the nine crater names are on the map; green, amber and red are all drawn.
+- 18 spots (six zones, twelve other points, safe and unsafe): the score, the class, the failed limits and every
+  measurement shown equal what this script computes from the files with its own arithmetic.
+- Each of the eight layers alone: its own name, its legend in real units, a different picture. The two
+  parameters without a map say so.
+- Opacity changes the picture and not the answer.
+- The ten best zones under each of the five presets equal an independent ranking of zones.csv; under NASA-style
+  balance they are zones 1 to 10 with the published scores.
+- The spot panel's reasons change with the ticks. Compare's two overall scores equal site_values.csv.
+- Seven pages render; a reload keeps the view; the 3D / VR link carries the clicked point; keyboard zoom works;
+  no console errors at either size; `/xr/` answers.
+- 228 distinct links on the Data page: all open except the Wueller et al. DOI, which answers 403 to scripts and
+  opens in a browser.
+
+On its first run this script caught a real fault: a link a few metres off a zone's centre showed the cell's map
+score (83) under a headline that gave the zone's score (76). Fixed in PR #40.
+
+**Not done.** The presentation computer, its screen and its browser were not tested: someone has to open the site
+on it. The VR scene inside `/xr/` was not looked at by this session. Automated tests on main: 56 Python,
+143 browser-maths, 6 browser smoke tests.
+
+Backup screenshots of every essential screen at 1920 x 1080, 1440 x 900 and 390 x 844, taken from the live site:
+`media/screenshots/final/` (`web/e2e/tools/screens.mjs`).

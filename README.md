@@ -76,6 +76,8 @@ under CC BY 4.0; the code is MIT.
 | Long-run Earth visibility against NASA's PGDA map, 9 Artemis sites | within 4.3 percentage points |
 | Skyline sampling against a 30 times finer march | under-reads by at most 0.08° |
 | Artemis coordinates against Wueller et al. 2026, Table A1 | all nine confirmed |
+| Map geography against the IAU gazetteer: nine named craters | all nine are depressions of our terrain at their listed positions |
+| Every figure shown at 18 spots on the live map, recomputed from the files | all agree (29 of 29 end-to-end checks) |
 
 Details, and what the tool does not model: [docs/VALIDATION.md](docs/VALIDATION.md). An honest limit: the IM-2
 lander's 2025 landing spot passes every one of our limits on the 120 m map; it fell into a crater 20 m across.

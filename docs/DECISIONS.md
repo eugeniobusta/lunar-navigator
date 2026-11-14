@@ -16,3 +16,6 @@
 - Sat 09:30, Claude: "hoursBelowZero" = hours where the battery could not cover the load. Why: reaching exactly 0 Wh with the load met is not a failure.
 - Sat 10:00, team: Team name is "Claude's Plan". Used in the README, the app footer and the submission.
 - Sat 10:00, Claude (local): Sun semi-diameter uses the IAU nominal solar radius 695,700 km; ephemeris code lives in engine/ephem.py so the long-run validation reuses it. Why: one method for app data and validation.
+- Sat 10:15, Claude (local): Horizon marching keeps the SCIENCE.md step (1.5 % growth). Why: measured against a 30x finer march it under-reads the horizon by at most 0.08 deg (mean 0.004 deg) at our sites.
+- Sat 10:15, Claude (local): Horizon lower bound is the curvature dip of the observer's own height, not a fixed -5 deg. Why: mmo01 stands at 6.4 km and correctly sees down to -5.06 deg.
+- Sat 10:15, Claude (local): mmp06 and nr208 kept at their tabulated coordinates although the DEM puts them in local hollows (horizon above 1-3 deg all round). Why: sites.json belongs to Eugenio; flagged for the coordinate check against Wueller et al.

@@ -15,3 +15,4 @@
 - Sat 09:30, Claude: Window Finder score = mean of Sun% and Earth% over the best window that day; every landing hour is tried. Why: simple, explainable to judges.
 - Sat 09:30, Claude: "hoursBelowZero" = hours where the battery could not cover the load. Why: reaching exactly 0 Wh with the load met is not a failure.
 - Sat 10:00, team: Team name is "Claude's Plan". Used in the README, the app footer and the submission.
+- Sat 10:00, Claude (local): Sun semi-diameter uses the IAU nominal solar radius 695,700 km; ephemeris code lives in engine/ephem.py so the long-run validation reuses it. Why: one method for app data and validation.

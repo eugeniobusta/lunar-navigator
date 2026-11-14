@@ -11,8 +11,8 @@ test:       ## pytest + vitest
 download:   ## fetch raw NASA data into data/ (~520 MB, run once, share by USB)
 	uv run python scripts/download_data.py
 
-data:       ## full precompute pipeline -> web/public/data/ (Kien fills this in)
-	@echo "TODO(Kien): ephemeris, horizons, grids"
+data:       ## full precompute pipeline -> web/public/data/ (needs make download first)
+	uv run python scripts/build_ephemeris.py
 
 mocks:      ## regenerate web/src/mocks/
 	uv run python scripts/make_mocks.py

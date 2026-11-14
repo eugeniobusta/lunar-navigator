@@ -248,14 +248,15 @@ export function makeRocket(): Group {
   return g;
 }
 
+// Markers and lines ignore depth and are drawn in the blended pass, after the terrain caps that fade at their edge.
 export function siteMarker(color: number): Mesh {
-  const m = new Mesh(new SphereGeometry(1, 16, 12), new MeshBasicMaterial({ color, depthTest: false }));
+  const m = new Mesh(new SphereGeometry(1, 16, 12), new MeshBasicMaterial({ color, depthTest: false, transparent: true }));
   m.renderOrder = 4;
   return m;
 }
 
 export function missionMarker(color: number): Mesh {
-  const m = new Mesh(new OctahedronGeometry(1), new MeshBasicMaterial({ color, depthTest: false }));
+  const m = new Mesh(new OctahedronGeometry(1), new MeshBasicMaterial({ color, depthTest: false, transparent: true }));
   m.renderOrder = 4;
   return m;
 }
@@ -275,7 +276,7 @@ export function polyline(points: number[], color: number, opacity = 1, closed = 
   const pts = closed ? [...points, points[0], points[1], points[2]] : points;
   const geo = new BufferGeometry();
   geo.setAttribute('position', new Float32BufferAttribute(pts, 3));
-  const line = new Line(geo, new LineBasicMaterial({ color, transparent: opacity < 1, opacity, depthTest: false }));
+  const line = new Line(geo, new LineBasicMaterial({ color, transparent: true, opacity, depthTest: false }));
   line.frustumCulled = false;
   line.renderOrder = 2;
   return line;

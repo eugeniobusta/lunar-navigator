@@ -10,6 +10,7 @@
 | moon_pa_de421_1900-2050.bpc | ~ | Skyfield `load(...)` (NAIF generic_kernels/pck) | Lunar orientation |
 | moon_080317.tf | small | Skyfield `load(...)` (NAIF generic_kernels/fk/satellites) | MOON_ME frame |
 | bsc5-short.json | 1 MB | https://raw.githubusercontent.com/brettonw/YaleBrightStarCatalog/master/bsc5-short.json (Yale Bright Star Catalogue, 5th ed.) | Real stars in the VR sky |
+| lroc_color_poles_4k.tif, ldem_16_uint.tif (data/moonkit/) | 13 MB, 33 MB | https://svs.gsfc.nasa.gov/4720 (NASA Scientific Visualization Studio, CGI Moon Kit; public domain). `scripts/export_moon_globe.py` downloads them | The whole Moon in the VR view: LROC WAC colour and LOLA relief (display only) |
 | pck00008.tpc | small | Skyfield `load(...)` (NAIF generic_kernels/pck) | Constants |
 
 Optional (only if time): ldem_85s_20m_float.img (920 MB) for near-field refinement within ~150 km of the pole.

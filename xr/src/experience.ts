@@ -10,12 +10,12 @@ import {
   Matrix4,
   Mesh,
   Quaternion,
-  SphereGeometry,
   Vector3,
   VisibilityState,
   createSystem,
   type BufferGeometry,
   type DataTexture,
+  type MeshBasicMaterial,
   type Line,
   type Object3D,
   type Points,
@@ -117,10 +117,27 @@ import {
   type GroundHit,
   type V3,
 } from './geo.js';
+import { fadeShell, globeGeometry, globeMaterial, isHeadset, loadMoonKit, setGlobeMaps, type MoonKit } from './globe.js';
+import {
+  ARROW_TO_LAT,
+  COMPASS_RINGS,
+  POLE_POS,
+  capEdge,
+  earthArrow,
+  globeHeight,
+  orbitCamera,
+  orbitPose,
+  parallel,
+  poleDir,
+  polePoint,
+  rotX,
+  stepZoom,
+  toRoom,
+  type OrbitPose,
+} from './moon.js';
 import { CREDITS, FLAT_LABEL, Hud, statusText, type Actions, type HudModel, type SpotView, type StatusView } from './hud.js';
 import {
   earthBall,
-  farLitMaterial,
   groundRing,
   makeLabel,
   makeLander,
@@ -150,8 +167,9 @@ type Mode = 'loading' | 'orbit' | 'flight' | 'land' | 'stand';
 type Hand = 'left' | 'right';
 
 const WINDOW_H = 720; // the time scrubber covers 30 days
-const POLE_SCALE = 1.6 / 440000; // ORBIT: the 440 km relief is 1.6 m across
-const GLOBE_POS = new Vector3(0, 0.9, -1.3); // where the south pole sits in the room, metres
+const X_AXIS = new Vector3(1, 0, 0);
+const NEAR_ZOOM = 0.55; // ORBIT zoom from which sites, zones and their rings are drawn
+const DIVE = 4; // during the flight to a site the view closes in on it by this much more
 const SKY_D = 250000; // distance at which the Sun and Earth discs are drawn in the 1:1 scenes, metres
 const RAISE_M = 2000; // VR raised viewpoint above the landing point, metres
 const EYE_M = 2; // observer height, as in every horizon file
@@ -199,6 +217,9 @@ interface Marker {
   id: string;
   obj: Object3D;
   label: Label;
+  /** Position and outward direction in the pole frame (metres), and in the room for the zoom in use. */
+  local: V3;
+  localN: V3;
   pos: Vector3;
   normal: Vector3;
   title: string;
@@ -291,8 +312,8 @@ export class ExperienceSystem extends createSystem({}) {
   private autoTime = true;
   private tour: { stop: number; caption: string; why: Why | null; playFrom: number | null } | null = null;
   private showStats = false;
-  private showWhy = false;
-  private showPriorities = false;
+  /** The page of the VR panel: short pages, so every button is large and every line is read at a glance. */
+  private page: 'main' | 'matters' | 'why' | 'sites' | 'zones' = 'main';
   private quality = new QualityGovernor();
   private statsText = '';
   private zoneObjs: Line[] = [];
@@ -329,7 +350,31 @@ export class ExperienceSystem extends createSystem({}) {
   private markers: Marker[] = [];
   private hovered: Marker | null = null;
   private rocket = makeRocket();
-  private flight: { t: number; from: Vector3; to: Vector3; dest: Dest } | null = null;
+  private flight: { t: number; from: Vector3; to: Vector3; local: V3; dest: Dest } | null = null;
+  /** ORBIT zoom: 0 = the whole Moon, 1 = the south pole (moon.ts orbitPose). It runs towards its target. */
+  private zoom = 0;
+  private zoomTarget = 0;
+  private zoomSeconds = 2.6;
+  private pose: OrbitPose = orbitPose(0);
+  private poseQ = new Quaternion();
+  private orbitFar = true;
+  /** A site or zone picked from further out: flown to once the view is down at the pole. */
+  private pendingDest: Dest | null = null;
+  private moonKit: MoonKit | null = null;
+  private globe!: Mesh;
+  private midField: Field | null = null;
+  private midShadow: ShadowPass | null = null;
+  private midMat: ShaderMaterial | null = null;
+  private midMesh: Mesh | null = null;
+  private midGeos: Record<number, BufferGeometry> = {};
+  private midTick = 0;
+  /** `?detail=high|medium|low`: the headset's detail level on the laptop view, to measure it (docs/XR.md). */
+  private forcedLevel: number | null = null;
+  private globeGeos: Record<number, BufferGeometry> = {};
+  private compass = new Group();
+  private compassLabels: { label: Label; local: V3; minZoom: number }[] = [];
+  private fade = fadeShell();
+  private fading: { dir: number; mid: (() => void | Promise<void>) | null } | null = null;
   private scene3: SiteScene | null = null;
   private sun = sunDisc();
   private earth = earthBall();
@@ -350,7 +395,7 @@ export class ExperienceSystem extends createSystem({}) {
 
   // desktop camera
   private cam = {
-    orbit: { az: 0.5, pol: 0.72, dist: 2.7 },
+    orbit: { ...orbitCamera(0), dist: 2.7 },
     land: { az: 0.6, pol: 0.95, dist: 42000 },
     stand: { yaw: 0, pitch: 0.05, fov: 60 },
   };
@@ -380,6 +425,8 @@ export class ExperienceSystem extends createSystem({}) {
   init(): void {
     const params = new URLSearchParams(location.search);
     this.embed = params.get('embed') === '1';
+    const level = LEVELS.findIndex((l) => l.name === params.get('detail'));
+    this.forcedLevel = level < 0 ? null : level;
     const r = this.renderer;
     r.setClearColor(PALETTE.sky, 1);
     this.scene.background = null;
@@ -394,8 +441,7 @@ export class ExperienceSystem extends createSystem({}) {
     this.world.createTransformEntity(this.orbitMarkers);
     this.world.createTransformEntity(this.siteRoot);
     this.world.createTransformEntity(this.sky);
-    this.orbitRoot.position.copy(GLOBE_POS);
-    this.orbitRoot.scale.setScalar(POLE_SCALE);
+    this.scene.add(this.fade);
     this.sky.add(this.sun, this.earth, this.sunLabel.sprite, this.earthLabel.sprite);
     this.sun.frustumCulled = this.earth.frustumCulled = false;
     this.orbitMarkers.add(this.rocket);
@@ -437,10 +483,11 @@ export class ExperienceSystem extends createSystem({}) {
         this.dirtyHud = true;
       },
       setMapOpacity: (a) => this.setMapOpacity(a),
-      goOrbit: () => this.enterOrbit(),
-      goLand: () => this.setMode('land'),
-      goStand: () => this.setMode('stand'),
-      toggleRaised: () => this.setMode(this.mode === 'stand' ? 'land' : 'stand'),
+      goOrbit: () => this.fadeThrough(() => this.enterOrbit()),
+      goLand: () => this.fadeThrough(() => this.setMode('land')),
+      goStand: () => this.fadeThrough(() => this.setMode('stand')),
+      toggleRaised: () => this.fadeThrough(() => this.setMode(this.mode === 'stand' ? 'land' : 'stand')),
+      zoomTo: (z) => this.zoomTo(z),
       toggleEnlarge: () => {
         this.enlarge = !this.enlarge;
         this.dirtyHud = true;
@@ -458,6 +505,17 @@ export class ExperienceSystem extends createSystem({}) {
       enterVR: () => this.world.launchXR(),
     };
     this.hud = new Hud(this.actions, this.embed);
+    // For the frame-rate checks in docs/XR.md: what the renderer drew in the last frame.
+    (window as unknown as { lunarStats: () => object }).lunarStats = () => ({
+      mode: this.mode,
+      zoom: this.zoom,
+      fps: this.quality.fps,
+      ms: this.quality.meanMs,
+      worstMs: this.quality.worstMs,
+      level: this.forcedLevel != null ? LEVELS[this.forcedLevel].name : this.inXR ? LEVELS[this.quality.level].name : 'full',
+      calls: this.renderer.info.render.calls,
+      triangles: this.renderer.info.render.triangles,
+    });
     this.bindDesktopInput();
     this.cleanupFuncs.push(
       this.world.visibilityState.subscribe(() => {
@@ -472,7 +530,7 @@ export class ExperienceSystem extends createSystem({}) {
   }
 
   private async load(params: URLSearchParams): Promise<void> {
-    const [sites, eph, pole, zones, missions, score, stars, criteria, siteValues, prio, summary] = await Promise.all([
+    const [sites, eph, pole, zones, missions, score, stars, criteria, siteValues, prio, summary, moonKit] = await Promise.all([
       loadSites(),
       loadEphemeris(),
       loadSouthPole(),
@@ -484,7 +542,9 @@ export class ExperienceSystem extends createSystem({}) {
       loadSiteValues(),
       loadPriorities(),
       loadSummary(),
+      loadMoonKit(),
     ]);
+    this.moonKit = moonKit;
     if (stars) {
       this.starData = stars;
       this.stars = makeStars(stars.stars, stars.n);
@@ -553,17 +613,52 @@ export class ExperienceSystem extends createSystem({}) {
     this.poleFrame = gridFrame(0, 0);
     this.poleField = buildField(grid, this.poleFrame);
     const upTex = upTexture(this.poleField, this.floatLinear);
-    this.poleShadow = new ShadowPass(this.poleField, upTex);
-    this.poleMat = terrainMaterial({ field: this.poleField, upTex, shadowTex: this.poleShadow.texture });
-    this.poleMesh = new Mesh(this.poleGeometry(2), this.poleMat);
+    const kit = this.moonKit;
+    // Three pieces of the same ground, finest first: our 430 m grid as a round cap at the pole; the CGI Moon Kit's
+    // LOLA heights round it (about 2 km per pixel, out to 35 deg from the pole), both with real shadows; and the
+    // globe beyond, with the kit's colour map and relief. Each fades into the next at its edge.
+    const edge = capEdge((grid.size * grid.pixelM) / 2);
+    let globeHole = edge.holeDeg;
+    if (kit?.polar) {
+      const reach = kit.polarReachDeg;
+      this.midField = buildField(kit.polar, this.poleFrame);
+      const midUp = upTexture(this.midField, this.floatLinear);
+      this.midShadow = new ShadowPass(this.midField, midUp, undefined, undefined, 512, 600000);
+      this.midMat = terrainMaterial({
+        field: this.midField,
+        upTex: midUp,
+        shadowTex: this.midShadow.texture,
+        cap: { inDeg: reach - 1.5, outDeg: reach - 0.3, innerDeg: edge.holeDeg },
+        depthBias: 1.002,
+        baked: true, // it fills most of the view from the pole: one texture read per pixel instead of six
+      });
+      this.midMesh = new Mesh(this.midGeometry(4), this.midMat);
+      this.midMesh.frustumCulled = false;
+      this.midMesh.renderOrder = -2;
+      this.orbitRoot.add(this.midMesh);
+      globeHole = reach - 2;
+      // Mountains outside our grid cast their shadows into it.
+      this.poleShadow = new ShadowPass(this.poleField, upTex, this.midField, midUp, undefined, 320000);
+    } else {
+      this.poleShadow = new ShadowPass(this.poleField, upTex);
+    }
+    this.poleMat = terrainMaterial({ field: this.poleField, upTex, shadowTex: this.poleShadow.texture, cap: edge });
+    this.poleMesh = new Mesh(this.poleGeometry(8), this.poleMat);
     this.poleMesh.frustumCulled = false;
+    this.poleMesh.renderOrder = -1; // blended at its edge, so after what lies under it; before every label
     this.orbitRoot.add(this.poleMesh);
-    // The rest of the Moon: a plain sphere, a little under the lowest relief. Terrain there is not modelled.
-    this.globeMat = farLitMaterial(PALETTE.unmodelled, 0.035, 11);
-    const globe = new Mesh(new SphereGeometry(R_M - 6500, 160, 80), this.globeMat);
-    globe.position.set(0, -R_M, 0);
-    globe.frustumCulled = false;
-    this.orbitRoot.add(globe);
+    for (const m of kit ? [this.poleMat, this.midMat] : []) {
+      if (m) {
+        m.uniforms.tAlbedo.value = kit!.color;
+        m.uniforms.hasAlbedo.value = 1;
+      }
+    }
+    this.globeMat = globeMaterial(globeHole);
+    setGlobeMaps(this.globeMat, kit);
+    this.globe = new Mesh(this.globeGeometryFor(this.globeCols()), this.globeMat);
+    this.globe.frustumCulled = false;
+    this.orbitRoot.add(this.globe, this.compass);
+    this.buildCompass();
     if (this.poleSuit && grid.size === 1024) {
       this.poleScore = this.scoreMap(this.poleSuit, grid.size, () => (this.poleLayers ??= loadPoleLayers(grid.size)));
     }
@@ -596,30 +691,192 @@ export class ExperienceSystem extends createSystem({}) {
       );
     });
     this.rebuildOrbitZones();
+    this.placeOrbit();
+    this.applyQuality();
   }
 
-  /** Height of the south-pole relief at a latitude / longitude, metres (0 off the grid). */
+  /** Quads round the globe's equator: coarse in a headset, fine on a laptop. */
+  private globeCols(): number {
+    return this.inXR || isHeadset() || this.forcedLevel != null ? 128 : 384;
+  }
+
+  private midGeometry(step: number): BufferGeometry {
+    return (this.midGeos[step] ??= fieldGeometry(this.midField!, step));
+  }
+
+  private globeGeometryFor(cols: number): BufferGeometry {
+    return (this.globeGeos[cols] ??= globeGeometry(cols, this.moonKit?.heights ?? null));
+  }
+
+  /** The compass on the pole: latitude rings, a ring at the pole and an arrow along 0 deg E, towards Earth. */
+  private buildCompass(): void {
+    const line = (pts: [number, number][], color: number, opacity: number, closed: boolean) => {
+      const flat: number[] = [];
+      for (const [lat, lon] of pts) {
+        flat.push(...this.poleLocal(lat, lon, 500));
+      }
+      this.compass.add(polyline(flat, color, opacity, closed));
+    };
+    const label = (text: string, lat: number, lon: number, color: number, minZoom: number) => {
+      const l = makeLabel(text, color, 0.02);
+      this.orbitMarkers.add(l.sprite);
+      this.compassLabels.push({ label: l, local: this.poleLocal(lat, lon, 500), minZoom });
+    };
+    for (const lat of COMPASS_RINGS) {
+      line(parallel(-lat), PALETTE.text2, 0.6, true);
+      label(`${lat}\u00b0 S`, -lat, 90, PALETTE.text2, NEAR_ZOOM);
+    }
+    line(parallel(-89.85, 15), PALETTE.text, 1, true);
+    for (const part of earthArrow()) {
+      line(part, 0xdce8ff, 1, false);
+    }
+    label('towards Earth (0\u00b0 E)', ARROW_TO_LAT, 0, 0xdce8ff, 0.3);
+    label('South Pole', -90, 0, PALETTE.text, 0);
+  }
+
+  /** Height of the ground at a latitude / longitude, metres: our south-pole grid where it reaches, else the globe's. */
   private groundH(lat: number, lon: number): number {
-    const [x, y] = stereoXY(lat, lon);
-    const h = lat < -60 ? heightAt(this.pole.grid, x, y) : NaN;
-    return Number.isNaN(h) ? 0 : h;
+    if (lat < -80) {
+      const [x, y] = stereoXY(lat, lon);
+      const h = heightAt(this.pole.grid, x, y);
+      if (!Number.isNaN(h)) {
+        return h;
+      }
+    }
+    return this.moonKit ? globeHeight(this.moonKit.heights, lat, lon) : 0;
   }
 
-  /** Room position of a point of the Moon on the ORBIT relief. */
+  /** A point of the Moon in the pole frame, metres. */
+  private poleLocal(lat: number, lon: number, liftM = 0): V3 {
+    return polePoint(lat, lon, this.groundH(lat, lon) + liftM);
+  }
+
+  /** Room position of a point of the Moon for the zoom in use. */
   private globePos(lat: number, lon: number, liftM = 0): Vector3 {
-    const p = latLonToScene(this.poleFrame, lat, lon, this.groundH(lat, lon) + liftM);
-    return new Vector3(p[0], p[1], p[2]).multiplyScalar(POLE_SCALE).add(GLOBE_POS);
+    return new Vector3(...toRoom(this.pose, this.poleLocal(lat, lon, liftM)));
   }
 
-  private addMarker(m: Omit<Marker, 'pos' | 'normal' | 'label'>, lat: number, lon: number, labelColor: number): void {
-    const pos = this.globePos(lat, lon);
-    const n = dirToScene(this.poleFrame, unitOf(lat, lon));
+  /**
+   * Places the Moon, its markers and the compass for the zoom in use (moon.ts orbitPose). During the flight to a
+   * site the view also closes in on that site.
+   */
+  private placeOrbit(): void {
+    let p = orbitPose(this.zoom);
+    const f = this.flight;
+    if (f) {
+      const e = f.t * f.t * (3 - 2 * f.t);
+      const k = 1 + (DIVE - 1) * e;
+      const site = toRoom(p, f.local);
+      const c: V3 = [0, 1, 2].map((i) => site[i] + (POLE_POS[i] - site[i]) * e) as V3;
+      p = { ...p, scale: p.scale * k, origin: [0, 1, 2].map((i) => c[i] + k * (p.origin[i] - site[i])) as V3 };
+    }
+    this.pose = p;
+    this.poseQ.setFromAxisAngle(X_AXIS, p.tilt);
+    this.orbitRoot.position.set(...p.origin);
+    this.orbitRoot.quaternion.copy(this.poseQ);
+    this.orbitRoot.scale.setScalar(p.scale);
+    for (const m of this.markers) {
+      m.pos.set(...toRoom(p, m.local));
+      m.normal.set(...rotX(m.localN, p.tilt));
+      m.obj.position.copy(m.pos);
+      m.label.sprite.position.copy(m.pos);
+    }
+    const near = this.zoom >= NEAR_ZOOM;
+    for (const o of this.zoneObjs) {
+      o.visible = near;
+    }
+    this.compass.children.forEach((o, i) => {
+      o.visible = i >= COMPASS_RINGS.length || near; // the pole ring and the arrow from further out than the rings
+    });
+    for (const c of this.compassLabels) {
+      c.label.sprite.position.set(...toRoom(p, c.local));
+      c.label.sprite.visible = this.zoom >= c.minZoom;
+    }
+  }
+
+  /** Moves the ORBIT zoom at once. The laptop camera keeps whatever the user turned it by. */
+  private setZoom(z: number): void {
+    z = Math.max(0, Math.min(1, z));
+    if (z === this.zoom) {
+      return;
+    }
+    const a = orbitCamera(this.zoom);
+    const b = orbitCamera(z);
+    const c = this.cam.orbit;
+    c.az += b.az - a.az;
+    c.pol = Math.max(0.05, Math.min(1.5, c.pol + b.pol - a.pol));
+    this.zoom = z;
+    this.placeOrbit();
+    if (z < 0.5 !== this.orbitFar) {
+      this.orbitFar = z < 0.5;
+      this.applyQuality(); // the cap needs less detail from far away
+    }
+  }
+
+  /** Runs the ORBIT zoom to 0 (the whole Moon) or 1 (the south pole). */
+  private zoomTo(z: number, seconds = 2.6): void {
+    if (this.mode !== 'orbit') {
+      return;
+    }
+    this.zoomTarget = z;
+    this.zoomSeconds = seconds;
+    this.pendingDest = z < 1 ? null : this.pendingDest;
+    this.dirtyHud = true;
+  }
+
+  private updateZoom(delta: number): void {
+    if (this.mode !== 'orbit' || this.zoom === this.zoomTarget) {
+      return;
+    }
+    this.setZoom(stepZoom(this.zoom, this.zoomTarget, delta, this.zoomSeconds));
+    const d = this.pendingDest;
+    if (d && this.zoom === 1) {
+      this.pendingDest = null;
+      this.flyTo(d);
+    }
+  }
+
+  /** Fades to black, does `mid`, fades back: every change of scene goes through it. */
+  private fadeThrough(mid: () => void | Promise<void>): void {
+    if (this.fading) {
+      void mid();
+      return;
+    }
+    this.fading = { dir: 1, mid };
+    this.fade.visible = true;
+  }
+
+  private updateFade(delta: number): void {
+    const f = this.fading;
+    if (!f) {
+      return;
+    }
+    const m = this.fade.material as MeshBasicMaterial;
+    this.fade.position.copy(this.camPos);
+    m.opacity = Math.max(0, Math.min(1, m.opacity + (f.dir * delta) / 0.28));
+    if (f.dir === 1 && m.opacity >= 1) {
+      f.dir = 0; // black: change the scene, then come back
+      const mid = f.mid;
+      f.mid = null;
+      void Promise.resolve(mid?.()).finally(() => {
+        f.dir = -1;
+      });
+    } else if (f.dir === -1 && m.opacity <= 0) {
+      this.fading = null;
+      this.fade.visible = false;
+    }
+  }
+
+  private addMarker(m: Omit<Marker, 'pos' | 'normal' | 'local' | 'localN' | 'label'>, lat: number, lon: number, labelColor: number): void {
+    const local = this.poleLocal(lat, lon);
+    const pos = new Vector3(...toRoom(this.pose, local));
+    const localN = poleDir(lat, lon);
     const label = makeLabel(m.title, labelColor, 0.022);
     label.zoom(this.inXR ? 1.9 : 1);
     m.obj.position.copy(pos);
     label.sprite.position.copy(pos);
     this.orbitMarkers.add(m.obj, label.sprite);
-    this.markers.push({ ...m, pos, normal: new Vector3(n[0], n[1], n[2]), label });
+    this.markers.push({ ...m, local, localN, pos, normal: new Vector3(...rotX(localN, this.pose.tilt)), label });
   }
 
   /** The zones in rank order for what is ticked; none when nothing is ticked (nothing is ranked then). */
@@ -643,7 +900,7 @@ export class ExperienceSystem extends createSystem({}) {
    *  cell for the best 40 (the heat map shows the true shapes), a marker for the best 10. */
   private rebuildOrbitZones(): void {
     for (const o of this.zoneObjs) {
-      this.orbitMarkers.remove(o);
+      this.orbitRoot.remove(o);
       o.geometry.dispose();
     }
     this.zoneObjs = [];
@@ -660,12 +917,12 @@ export class ExperienceSystem extends createSystem({}) {
       const color = this.zoneColor(z);
       const pts: number[] = [];
       for (const [lat, lon] of zoneRing(z)) {
-        const p = this.globePos(lat, lon, 400);
-        pts.push(p.x, p.y, p.z);
+        pts.push(...this.poleLocal(lat, lon, 400));
       }
       const ring = polyline(pts, color, Math.max(0.45, 1 - 0.03 * (z.rank - 1)), true);
+      ring.visible = this.zoom >= NEAR_ZOOM;
       this.zoneObjs.push(ring);
-      this.orbitMarkers.add(ring);
+      this.orbitRoot.add(ring);
       if (z.rank <= LISTED_ZONES) {
         this.addMarker(
           {
@@ -772,11 +1029,14 @@ export class ExperienceSystem extends createSystem({}) {
     this.mode = 'orbit';
     this.siteId = null;
     this.place = null;
-    this.showWhy = this.showPriorities = false;
+    this.page = 'main';
     this.spot = null;
     this.status = null;
     this.info = null;
     this.flight = null;
+    this.pendingDest = null;
+    this.zoomTarget = this.zoom;
+    this.placeOrbit();
     this.rocket.visible = false;
     this.orbitRoot.visible = this.orbitMarkers.visible = this.sky.visible = true;
     this.siteRoot.visible = false;
@@ -843,13 +1103,22 @@ export class ExperienceSystem extends createSystem({}) {
       void this.enterLand(dest);
       return;
     }
-    void this.tile(dest); // start the download during the flight
+    void this.tile(dest); // start the download during the descent and the flight
+    if (this.zoom < 1) {
+      // From further out: first down to the pole, then the flight.
+      this.pendingDest = dest;
+      this.zoomTarget = 1;
+      this.zoomSeconds = 2.2;
+      this.dirtyHud = true;
+      return;
+    }
     this.mode = 'flight';
     this.siteId = dest.site.id;
     this.place = dest.site;
-    const from = this.v1.copy(GLOBE_POS).add(this.v2.set(0.9, 0.75, 0.5)).clone();
+    const from = new Vector3(...POLE_POS).add(this.v2.set(0.9, 0.75, 0.5));
     const [lat, lon] = dest.spot ?? [dest.site.lat, dest.site.lon];
-    this.flight = { t: 0, from, to: this.globePos(lat, lon), dest };
+    const local = this.poleLocal(lat, lon);
+    this.flight = { t: 0, from, to: new Vector3(...toRoom(this.pose, local)), local, dest };
     this.rocket.visible = true;
     this.dirtyHud = true;
   }
@@ -861,6 +1130,8 @@ export class ExperienceSystem extends createSystem({}) {
     }
     f.t = Math.min(1, f.t + delta / 2.4);
     const e = f.t * f.t * (3 - 2 * f.t);
+    this.placeOrbit(); // the view closes in on the site while the rocket flies
+    f.to.set(...toRoom(this.pose, f.local));
     const mid = this.v1.copy(f.from).lerp(f.to, 0.5);
     mid.y += 0.55;
     const at = (u: number, out: Vector3) =>
@@ -876,10 +1147,12 @@ export class ExperienceSystem extends createSystem({}) {
       this.rocket.quaternion.setFromUnitVectors(this.v3.set(0, 1, 0), dir.normalize());
     }
     this.rocket.scale.setScalar(0.1 * (1 - 0.6 * e));
-    if (f.t >= 1) {
-      this.flight = null;
-      this.rocket.visible = false;
-      void this.enterLand(f.dest);
+    if (f.t >= 1 && !this.fading) {
+      this.fadeThrough(async () => {
+        this.flight = null;
+        this.rocket.visible = false;
+        await this.enterLand(f.dest);
+      });
     }
   }
 
@@ -922,7 +1195,7 @@ export class ExperienceSystem extends createSystem({}) {
     this.siteRoot.visible = this.sky.visible = true;
     this.mode = 'land';
     this.info = null;
-    this.showWhy = this.showPriorities = false;
+    this.page = 'main';
     // "Why here?" for a zone or a site's own point uses the published row; any other point, what is known there.
     const values = dest.zone?.row ?? (dest.spot ? undefined : this.siteValues.get(site.id));
     this.setSpot(row, col, values ? { title: dest.zone ? `zone #${dest.zone.rank}` : site.name, row: values } : undefined);
@@ -1180,7 +1453,11 @@ export class ExperienceSystem extends createSystem({}) {
       this.poleShadow.render(this.renderer, d, semi);
       this.poleMat.uniforms.sunDir.value.set(d[0], d[1], d[2]);
       this.globeMat.uniforms.sunDir.value.set(d[0], d[1], d[2]);
-      this.light.position.set(d[0], d[1], d[2]);
+      // The ring round the cap is 2 km per pixel and its shadows move slowly: one update in four while time runs.
+      if (this.midShadow && (!this.playing || this.midTick++ % 4 === 0)) {
+        this.midShadow.render(this.renderer, d, semi);
+      }
+      this.midMat?.uniforms.sunDir.value.set(d[0], d[1], d[2]);
       this.light.intensity = 2.5;
       this.status = null;
       return;
@@ -1234,16 +1511,21 @@ export class ExperienceSystem extends createSystem({}) {
     const k = this.enlarge ? ENLARGE : 1;
     const semiSun = eph.sunSemiDiam[Math.min(eph.n - 1, Math.floor(idx))];
     const earthKm = earthKmAt(eph, idx);
-    (this.earth.material as ShaderMaterial).uniforms.sunDir.value.set(this.sunScene[0], this.sunScene[1], this.sunScene[2]);
-    this.placeStars(this.mode === 'orbit' || this.mode === 'flight' || !this.scene3 ? this.poleFrame : this.scene3.frame);
-    if (this.mode === 'orbit' || this.mode === 'flight') {
+    const orbit = this.mode === 'orbit' || this.mode === 'flight';
+    // In ORBIT the Moon is tipped by the zoom, and the Sun, the Earth and the stars turn with it.
+    const sunRoom = orbit ? rotX(this.sunScene, this.pose.tilt) : this.sunScene;
+    (this.earth.material as ShaderMaterial).uniforms.sunDir.value.set(sunRoom[0], sunRoom[1], sunRoom[2]);
+    this.placeStars(orbit || !this.scene3 ? this.poleFrame : this.scene3.frame);
+    if (orbit) {
+      this.stars?.quaternion.premultiply(this.poseQ);
+      this.light.position.set(sunRoom[0], sunRoom[1], sunRoom[2]);
       // To scale with the globe: the Earth at its true distance and size, the Sun at its true angular size.
       const dist = Math.hypot(earthKm[0], earthKm[1], earthKm[2]);
       const e = dirToScene(this.poleFrame, [earthKm[0] / dist, earthKm[1] / dist, earthKm[2] / dist]);
-      const centre = this.v1.copy(GLOBE_POS).setY(GLOBE_POS.y - R_M * POLE_SCALE);
-      this.earth.position.copy(centre).addScaledVector(this.v2.set(e[0], e[1], e[2]), dist * 1000 * POLE_SCALE);
-      this.earth.scale.setScalar(EARTH_R_KM * 1000 * POLE_SCALE * k);
-      this.sun.position.copy(cam).addScaledVector(this.v2.set(this.sunScene[0], this.sunScene[1], this.sunScene[2]), SKY_D);
+      const m = dist * 1000;
+      this.earth.position.set(...toRoom(this.pose, [e[0] * m, e[1] * m - R_M, e[2] * m]));
+      this.earth.scale.setScalar(EARTH_R_KM * 1000 * this.pose.scale * k);
+      this.sun.position.copy(cam).addScaledVector(this.v2.set(sunRoom[0], sunRoom[1], sunRoom[2]), SKY_D);
       this.sun.scale.setScalar(SKY_D * Math.tan(semiSun * D2R) * k);
       this.sun.lookAt(cam);
       this.sunLabel.set('Sun');
@@ -1348,8 +1630,22 @@ export class ExperienceSystem extends createSystem({}) {
       (e: WheelEvent) => {
         e.preventDefault();
         const f = Math.exp(e.deltaY * 0.0012);
-        if (this.mode === 'orbit' || this.mode === 'flight') {
-          this.cam.orbit.dist = Math.max(0.5, Math.min(40, this.cam.orbit.dist * f));
+        if (this.mode === 'orbit') {
+          // One wheel: from close to the pole, out to the pole view, out to the whole Moon, then further away.
+          const c = this.cam.orbit;
+          const dz = -Math.log(f) * 0.6;
+          if (f > 1 ? c.dist < 2.7 : c.dist > 2.7) {
+            c.dist = f > 1 ? Math.min(2.7, c.dist * f) : Math.max(2.7, c.dist * f);
+          } else if (f > 1 ? this.zoom > 0 : this.zoom < 1) {
+            this.pendingDest = null;
+            this.setZoom(this.zoom + dz);
+            if ((this.zoomTarget < 0.5) !== (this.zoom < 0.5)) {
+              this.dirtyHud = true;
+            }
+            this.zoomTarget = this.zoom;
+          } else {
+            c.dist = Math.max(0.5, Math.min(12, c.dist * f));
+          }
         } else if (this.mode === 'land') {
           this.cam.land.dist = Math.max(400, Math.min(110000, this.cam.land.dist * f));
         } else if (this.mode === 'stand') {
@@ -1525,6 +1821,13 @@ export class ExperienceSystem extends createSystem({}) {
       if (axes && Math.abs(axes.x) > 0.25) {
         this.setTime(this.tH + axes.x * delta * 36, true); // thumbstick: up to 36 hours per second
       }
+      if (axes && Math.abs(axes.y) > 0.35 && this.mode === 'orbit') {
+        // Thumbstick forward: down to the pole; back: out to the whole Moon.
+        this.pendingDest = null;
+        this.setZoom(this.zoom - axes.y * delta * 0.5);
+        this.zoomTarget = this.zoom;
+        this.dirtyHud = true;
+      }
       if (pad?.getButtonDown(InputComponent.A_Button) || pad?.getButtonDown(InputComponent.X_Button)) {
         if (this.mode === 'land' || this.mode === 'stand') {
           this.actions.toggleRaised();
@@ -1551,8 +1854,10 @@ export class ExperienceSystem extends createSystem({}) {
     else if (kind === 'next') a.tourNext();
     else if (kind === 'endtour') a.tourEnd();
     else if (kind === 'stats') a.toggleStats();
-    else if (kind === 'why') this.showWhy = !this.showWhy;
-    else if (kind === 'prio') this.showPriorities = !this.showPriorities;
+    else if (kind === 'why') this.page = this.page === 'why' ? 'main' : 'why';
+    else if (kind === 'zoom') a.zoomTo(Number(arg));
+    else if (kind === 'prio') this.page = this.page === 'matters' ? 'main' : 'matters';
+    else if (kind === 'page') this.page = arg as typeof this.page;
     else if (kind === 'term') a.toggleParam(arg);
     this.dirtyHud = true;
   }
@@ -1569,12 +1874,9 @@ export class ExperienceSystem extends createSystem({}) {
     if (this.mode === 'orbit' || this.mode === 'flight') {
       if (!xr) {
         const c = this.cam.orbit;
-        cam.position.set(
-          GLOBE_POS.x + c.dist * Math.sin(c.pol) * Math.sin(c.az),
-          GLOBE_POS.y + c.dist * Math.cos(c.pol),
-          GLOBE_POS.z + c.dist * Math.sin(c.pol) * Math.cos(c.az),
-        );
-        cam.lookAt(GLOBE_POS);
+        const [tx, ty, tz] = this.pose.room;
+        cam.position.set(tx + c.dist * Math.sin(c.pol) * Math.sin(c.az), ty + c.dist * Math.cos(c.pol), tz + c.dist * Math.sin(c.pol) * Math.cos(c.az));
+        cam.lookAt(tx, ty, tz);
         this.setFov(50);
       }
     } else if (this.scene3 && this.spot) {
@@ -1618,7 +1920,7 @@ export class ExperienceSystem extends createSystem({}) {
       ray!.visible = xr;
     }
     const zoom = xr ? 1.9 : 1;
-    for (const l of [this.sunLabel, this.earthLabel, this.spotLabel, this.siteLabel, ...this.markers.map((m) => m.label)]) {
+    for (const l of [this.sunLabel, this.earthLabel, this.spotLabel, this.siteLabel, ...this.markers.map((m) => m.label), ...this.compassLabels.map((c) => c.label)]) {
       l.zoom(zoom);
     }
     this.quality.reset();
@@ -1632,13 +1934,22 @@ export class ExperienceSystem extends createSystem({}) {
 
   /** Terrain and shadow detail: full on the laptop, the automatic level in the headset (perf.ts). */
   private detail(): { meshStep: number; shadowRes: number; shadowEvery: number; foveation: number } {
+    if (this.forcedLevel != null) {
+      return LEVELS[this.forcedLevel];
+    }
     return this.inXR ? LEVELS[this.quality.level] : { meshStep: 1, shadowRes: 512, shadowEvery: 1, foveation: 0 };
   }
 
   private applyQuality(): void {
     const q = this.detail();
-    this.poleMesh.geometry = this.poleGeometry(q.meshStep * 2);
-    this.poleShadow.setResolution(q.shadowRes * 2);
+    // From the whole-Moon view the cap is a few centimetres across: a quarter of the mesh and half the shadow map.
+    this.poleMesh.geometry = this.poleGeometry(q.meshStep * 2 * (this.orbitFar ? 4 : 1));
+    this.poleShadow.setResolution((q.shadowRes * 2) / (this.orbitFar ? 2 : 1));
+    this.globe.geometry = this.globeGeometryFor(this.globeCols());
+    if (this.midMesh) {
+      this.midMesh.geometry = this.midGeometry(q.meshStep * 4);
+      this.midShadow!.setResolution(q.shadowRes * 2);
+    }
     const s = this.scene3;
     if (s) {
       s.mesh.geometry = s.geos[q.meshStep] ??= fieldGeometry(s.field, q.meshStep);
@@ -1666,12 +1977,18 @@ export class ExperienceSystem extends createSystem({}) {
       const all = this.prio.presets.find((p) => p.key === 'everything');
       this.choose(all ? presetSelection(all) : this.prio.initial);
       this.mapHidden = true;
-      this.cam.orbit = { az: 0.5, pol: 0.72, dist: 2.7 };
+      // From the whole Moon, slowly down to the pole.
+      this.zoom = this.zoomTarget = 0;
+      this.orbitFar = true;
+      this.cam.orbit = { ...orbitCamera(0), dist: 2.7 };
       this.enterOrbit();
+      this.applyQuality();
+      this.zoomTo(1, 6);
       t.caption = captionPole(this.eph);
     } else if (stop === 2) {
       this.mapHidden = false;
       this.enterOrbit();
+      this.zoomTo(1);
       t.caption = captionGoldilocks(this.summary);
     } else if (stop === 3) {
       const z = this.zones[0];
@@ -1697,10 +2014,11 @@ export class ExperienceSystem extends createSystem({}) {
     if (!t || this.mode === 'flight' || this.message) {
       return; // still flying or loading: "Next" waits
     }
-    if (t.stop >= TOUR_STOPS) {
-      this.tourEnd();
+    const go = () => (t.stop >= TOUR_STOPS ? this.tourEnd() : this.tourGo(t.stop + 1));
+    if (this.mode === 'land' || this.mode === 'stand') {
+      this.fadeThrough(go);
     } else {
-      this.tourGo(t.stop + 1);
+      go();
     }
   }
 
@@ -1719,13 +2037,19 @@ export class ExperienceSystem extends createSystem({}) {
     const boxes: number[] = [];
     const hNdc = (0.022 * (xr ? 1.9 : 1)) / Math.tan((this.camera.fov * D2R) / 2);
     const wNdc = hNdc / this.camera.aspect;
+    const near = this.zoom >= NEAR_ZOOM;
     for (const m of order) {
+      if (!near && m.kind !== 'mission') {
+        // From the whole Moon only the past landings are marked; sites and zones appear on the way down.
+        m.obj.visible = m.label.sprite.visible = false;
+        continue;
+      }
       const toCam = this.v1.copy(this.camPos).sub(m.pos);
       const dist = toCam.length();
       const facing = toCam.dot(m.normal) > 0;
       m.obj.visible = facing;
       m.obj.scale.setScalar(dist * (m === hot ? 0.011 : 0.007) * (m.kind === 'site' ? 1 : 0.8));
-      let show = facing;
+      let show = facing && (near || !xr || m === hot); // in the headset, far labels only under the ray
       if (show && !xr) {
         const p = this.v2.copy(m.pos).project(this.camera);
         const half = (wNdc * m.label.aspect()) / 2;
@@ -1803,6 +2127,7 @@ export class ExperienceSystem extends createSystem({}) {
       tour: this.tour ? { stop: this.tour.stop, of: TOUR_STOPS, caption: this.tour.caption, why: this.tour.why } : null,
       stats: this.showStats ? this.statsText || 'measuring' : null,
       mode: this.mode,
+      view: this.zoomTarget < 0.5 ? 'moon' : 'pole',
       message: this.message,
       siteName: site?.name ?? null,
       sites: this.sites.filter((s) => s.terrain === 'dem').map((s) => ({ id: s.id, name: s.name, group: s.group })),
@@ -1844,7 +2169,7 @@ export class ExperienceSystem extends createSystem({}) {
     const ans = answer(this.selection, this.prio, this.zones.length, this.zones[0]);
     const prioButton = { id: 'prio', label: 'What matters?' };
     const opacityRow = [0, 0.25, 0.5, 0.75, 1].map((a) => ({ id: `opacity:${a}`, label: a === 0 ? 'Map off' : `Map ${100 * a} %`, on: this.mapOpacity === a }));
-    if (this.showPriorities && !this.tour) {
+    if (this.page === 'matters' && !this.tour) {
       // The website's tick boxes: presets, the locked NASA row, then one large box per parameter.
       const counted = countedTerms(this.selection);
       const presets = this.prio.presets.map((p) => ({ id: `preset:${p.key}`, label: p.label, on: sameSelection(presetSelection(p), this.selection) }));
@@ -1886,29 +2211,47 @@ export class ExperienceSystem extends createSystem({}) {
       };
     }
     if (this.mode === 'orbit' || this.mode === 'flight') {
-      const dem = this.sites.filter((s) => s.terrain === 'dem');
-      const rows: PanelModel['rows'] = [[{ id: 'tour', label: 'Tour: 4 stops', primary: true }, prioButton, statsButton, { id: 'exit', label: 'Exit VR' }]];
-      for (let i = 0; i < dem.length; i += 3) {
-        rows.push(dem.slice(i, i + 3).map((s) => ({ id: `site:${s.id}`, label: s.name, on: s.id === this.siteId })));
+      const back = [{ id: 'page:main', label: 'Back', primary: true }];
+      const title = this.mode === 'flight' ? `Flying to ${site?.name ?? ''}` : null;
+      if (this.page === 'sites') {
+        const dem = this.sites.filter((s) => s.terrain === 'dem');
+        const rows: PanelModel['rows'] = [];
+        for (let i = 0; i < dem.length; i += 2) {
+          rows.push(dem.slice(i, i + 2).map((s) => ({ id: `site:${s.id}`, label: s.name, on: s.id === this.siteId })));
+        }
+        return { title: title ?? 'Landing sites', subtitle: '', lines: [{ text: 'Nine Artemis III regions and the IM-2 landing site.', color: 'text2' }], rows: [...rows, back], buttonH: 62, timeFrac: null, credits: CREDITS };
       }
-      const top = this.ranked().slice(0, LISTED_ZONES);
-      for (let i = 0; i < top.length; i += 2) {
-        rows.push(top.slice(i, i + 2).map((z) => ({ id: `zone:${z.id}`, label: `#${z.rank} ${z.near ? `near ${z.near}` : 'zone'}, score ${z.score}`, on: this.siteId === `zone-${z.id}` })));
+      if (this.page === 'zones') {
+        const top = this.ranked().slice(0, LISTED_ZONES);
+        const rows: PanelModel['rows'] = [];
+        for (let i = 0; i < top.length; i += 2) {
+          rows.push(top.slice(i, i + 2).map((z) => ({ id: `zone:${z.id}`, label: `#${z.rank} ${z.near ? `near ${z.near}` : 'zone'}: ${z.score}`, on: this.siteId === `zone-${z.id}` })));
+        }
+        return { title: title ?? 'Best zones', subtitle: 'score of 100', lines: [], rows: [...rows, back], after: [{ text: ans.text }], buttonH: 62, timeFrac: null, credits: CREDITS };
       }
-      if (this.poleScore) {
-        rows.push(opacityRow);
-      }
+      const far = this.zoomTarget < 0.5;
+      const rows: PanelModel['rows'] = [
+        [
+          { id: 'tour', label: 'Tour', primary: true },
+          { id: 'zoom:0', label: 'Whole Moon', on: far },
+          { id: 'zoom:1', label: 'South pole', on: !far },
+        ],
+        [prioButton, { id: 'page:zones', label: 'Best zones' }, { id: 'page:sites', label: 'Landing sites' }],
+        ...(this.poleScore ? [opacityRow] : []),
+        [statsButton, { id: 'exit', label: 'Exit VR' }],
+      ];
       return {
-        title: this.mode === 'flight' ? `Flying to ${site?.name ?? ''}` : 'Choose a landing site',
+        title: title ?? 'Where to land on the Moon',
         subtitle: date,
-        lines: [{ text: 'Sites, then the 10 best zones for what you ticked. Trigger or pinch to choose.', color: 'text2' }, { text: ans.text }, ...stats],
+        lines: [{ text: ans.text }, ...stats],
         rows,
+        buttonH: 62,
         timeFrac: this.tH / WINDOW_H,
         credits: CREDITS,
       };
     }
     const sp = this.spot;
-    if (this.showWhy && sp) {
+    if (this.page === 'why' && sp) {
       return {
         title: 'Why here?',
         subtitle: sp.why.title,
@@ -1993,14 +2336,16 @@ export class ExperienceSystem extends createSystem({}) {
     }
     if (this.quality.meanMs !== before) {
       const q = this.quality;
-      this.statsText = `${q.fps.toFixed(0)} fps, ${q.meanMs.toFixed(1)} ms per frame. Detail: ${xr ? `${LEVELS[q.level].name} (automatic)` : 'full'}`;
+      this.statsText = `${q.fps.toFixed(0)} fps, ${q.meanMs.toFixed(1)} ms per frame, longest ${q.worstMs.toFixed(1)} ms. Detail: ${xr ? `${LEVELS[q.level].name} (automatic)` : 'full'}`;
       this.dirtyHud ||= this.showStats;
     }
     if (xr) {
       this.updateXRInput(delta);
     }
+    this.updateZoom(delta);
     this.updateFlight(delta);
     this.updateView();
+    this.updateFade(delta);
     if (!xr && this.pointer.inside && !this.drag) {
       this.screenRay(this.pointer.x, this.pointer.y, this.v1, this.v2);
       this.updateHover(this.v1.clone(), this.v2.clone());

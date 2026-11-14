@@ -7,7 +7,7 @@ import { SCORE_RAMP } from './terrain.js';
 export const FLAT_LABEL = 'NASA limits pass';
 
 export const CREDITS =
-  "Terrain: NASA LOLA. Illumination: NASA Goddard PGDA. Ephemeris: JPL DE421. Built by Claude's Plan with AI coding assistants; not an official NASA product.";
+  "Terrain: NASA LOLA. Globe: NASA SVS CGI Moon Kit (LROC colour, LOLA relief). Illumination: NASA Goddard PGDA. Ephemeris: JPL DE421. Built by Claude's Plan with AI coding assistants; not an official NASA product.";
 
 export interface SpotView {
   title: string;
@@ -32,6 +32,8 @@ export interface StatusView {
 
 export interface HudModel {
   mode: 'loading' | 'orbit' | 'flight' | 'land' | 'stand';
+  /** ORBIT: which end of the zoom the view is at or heading to. */
+  view: 'moon' | 'pole';
   message: string | null;
   siteName: string | null;
   sites: { id: string; name: string; group: string }[];
@@ -74,6 +76,8 @@ export interface Actions {
   toggleStats(): void;
   setMapOpacity(a: number): void;
   goOrbit(): void;
+  /** ORBIT zoom: 0 = the whole Moon, 1 = the south pole. */
+  zoomTo(z: number): void;
   goLand(): void;
   goStand(): void;
   toggleRaised(): void;
@@ -90,7 +94,7 @@ const CSS = `
   --cloud:#DCE8FF; --eclipse:#E0457B; --lichen:#8FC28A; --font:"Barlow",system-ui,sans-serif; --head:"Barlow Semi Condensed","Barlow",system-ui,sans-serif; }
 html, body { margin:0; height:100%; background:#000; overflow:hidden; }
 #scene-container { position:fixed; inset:0; }
-#hud { position:fixed; inset:0; pointer-events:none; font-family:var(--font); color:var(--bone); font-size:15px; line-height:1.35; }
+#hud { position:fixed; inset:0; pointer-events:none; font-family:var(--font); color:var(--bone); font-size:15px; line-height:1.35; font-variant-numeric:tabular-nums; }
 #hud * { box-sizing:border-box; }
 #hud .box { pointer-events:auto; background:var(--dust); border:1px solid var(--rim); border-radius:4px; }
 #hud button { font:inherit; color:var(--bone); background:transparent; border:1px solid var(--rim); border-radius:4px; padding:6px 10px; cursor:pointer; }
@@ -99,7 +103,7 @@ html, body { margin:0; height:100%; background:#000; overflow:hidden; }
 #hud button.on { background:var(--bone); color:var(--dust); border-color:var(--bone); }
 #hud button.primary { background:var(--sunlight); color:#191612; border-color:var(--sunlight); font-weight:600; }
 #hud h1 { font:600 18px var(--head); margin:0; letter-spacing:.02em; }
-#hud h2 { font:600 13px var(--head); margin:14px 0 6px; color:var(--ash); text-transform:uppercase; letter-spacing:.08em; }
+#hud h2 { font:600 16px var(--head); margin:18px 0 8px; color:var(--bone); }
 #hud h2:first-child { margin-top:0; }
 #top { position:absolute; top:12px; left:12px; right:12px; display:flex; gap:10px; align-items:center; }
 #top .title { padding:8px 12px; display:flex; gap:12px; align-items:baseline; }
@@ -109,14 +113,20 @@ html, body { margin:0; height:100%; background:#000; overflow:hidden; }
 #top .nav { display:flex; gap:6px; pointer-events:auto; }
 #side { position:absolute; top:64px; left:12px; width:316px; max-height:calc(100% - 190px); overflow:auto; padding:14px; }
 #side .list { display:flex; flex-direction:column; gap:4px; }
-#side .list button { text-align:left; display:flex; justify-content:space-between; gap:8px; }
+#side .list { gap:0; }
+#side .list button { text-align:left; display:flex; justify-content:space-between; gap:8px; border:0; border-bottom:1px solid var(--rim); border-radius:0; padding:7px 2px; }
+#side .list button:hover { color:var(--sunlight); }
 #side .list small { color:var(--ash); }
 #side .row { display:flex; flex-wrap:wrap; gap:6px; }
+#side .seg { display:flex; margin-left:auto; }
+#side .seg button { border-radius:0; padding:6px 8px; }
+#side .seg button:first-child { border-radius:4px 0 0 4px; border-right:0; }
+#side .seg button:last-child { border-radius:0 4px 4px 0; }
 #side .row.opacity { align-items:center; margin-top:8px; gap:4px; color:var(--ash); font-size:13px; }
 #side .row.opacity span { margin-right:4px; }
 #side .row.opacity button { padding:4px 7px; font-size:13px; }
 #side .ticks { display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-top:8px; }
-#side .ticks .tick { display:flex; align-items:center; gap:7px; text-align:left; padding:6px 7px; color:var(--ash); }
+#side .ticks .tick { display:flex; align-items:center; gap:7px; text-align:left; padding:5px 2px; color:var(--ash); border-color:transparent; }
 #side .ticks .tick.ticked { color:var(--bone); }
 #side .ticks .tick:disabled { grid-column:1 / -1; cursor:default; color:var(--ash); }
 #side .ticks .cb { flex:none; width:15px; height:15px; border:1px solid var(--ash); border-radius:3px; font:700 12px/13px var(--font); text-align:center; }
@@ -127,7 +137,7 @@ html, body { margin:0; height:100%; background:#000; overflow:hidden; }
 #side table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
 #side td, #side th { padding:4px 0; text-align:right; border-top:1px solid var(--rim); }
 #side td:first-child, #side th:first-child { text-align:left; color:var(--ash); font-weight:400; }
-#side th { font:600 12px var(--head); color:var(--ash); text-transform:uppercase; letter-spacing:.06em; border-top:0; }
+#side th { font:400 13px var(--font); color:var(--ash); border-top:0; }
 #side .big { font:600 17px var(--head); }
 #side .steep { color:var(--eclipse); font-weight:600; }
 #side .okc { color:var(--lichen); }
@@ -138,7 +148,7 @@ html, body { margin:0; height:100%; background:#000; overflow:hidden; }
 #hud .good { color:var(--lichen); } #hud .acceptable { color:var(--sunlight); } #hud .rejected { color:var(--eclipse); }
 #tour { position:absolute; left:50%; bottom:150px; transform:translateX(-50%); width:min(760px, calc(100% - 24px)); padding:14px 16px; }
 #tour .cap { font-size:19px; line-height:1.35; margin:6px 0 10px; }
-#tour .step { font:600 13px var(--head); color:var(--ash); text-transform:uppercase; letter-spacing:.08em; }
+#tour .step { font:600 14px var(--head); color:var(--ash); }
 #tour ul { margin:0 0 10px; padding:0; list-style:none; columns:2; font-size:14px; font-weight:600; }
 #tour .row { display:flex; gap:8px; }
 #tour:empty { display:none; }
@@ -260,6 +270,8 @@ export class Hud {
       else if (d.s) actions.setSpeed(Number(d.s));
       else if (d.a === 'play') actions.togglePlay();
       else if (d.a === 'orbit') actions.goOrbit();
+      else if (d.a === 'whole') actions.zoomTo(0);
+      else if (d.a === 'pole') actions.zoomTo(1);
       else if (d.a === 'land') actions.goLand();
       else if (d.a === 'stand') actions.goStand();
       else if (d.a === 'raised') actions.toggleRaised();
@@ -319,7 +331,7 @@ export class Hud {
             .map((a) => `<button data-opacity="${a}" class="${a === m.mapOpacity ? 'on' : ''}">${a === 0 ? 'Off' : `${100 * a} %`}</button>`)
             .join('')}</div>`;
     if (m.mode === 'orbit' || m.mode === 'flight') {
-      html += `<div class="row"><button class="primary" data-a="tour">Tour: 4 stops</button></div>` + presetButtons() + mapControls();
+      html += `<div class="row"><button class="primary" data-a="tour">Tour: 4 stops</button><span class="seg"><button data-a="whole" class="${m.view === 'moon' ? 'on' : ''}">Whole Moon</button><button data-a="pole" class="${m.view === 'pole' ? 'on' : ''}">South pole</button></span></div>` + presetButtons() + mapControls();
       if (m.zones.length) {
         html += `<h2>Top ${m.zones.length} zones for what is ticked</h2><div class="list">${m.zones
           .map((z) => `<button data-zone="${z.id}"><span>#${z.rank} ${esc(z.name)}</span><small>score ${z.score}, ${z.areaKm2.toFixed(1)} km2${z.detail ? '' : ', 430 m terrain'}</small></button>`)
@@ -328,7 +340,7 @@ export class Hud {
       html += `<h2>Or choose a landing site</h2><div class="list">${m.sites
         .map((s) => `<button data-site="${s.id}"><span>${esc(s.name)}</span><small>${s.group === 'artemis' ? 'Artemis' : 'IM-2, 2025'}</small></button>`)
         .join('')}</div>`;
-      html += `<p class="note">Relief: NASA LOLA, 440 km across, lit by the Sun's real direction at the chosen time. Drag to turn, scroll to zoom, click a marker.</p>`;
+      html += `<p class="note">The Moon: NASA LROC colour and LOLA relief (CGI Moon Kit). Within 7&deg; of the pole: our 430 m LOLA grid with real shadows, lit by the Sun's real direction at the chosen time. Drag to turn, scroll from the whole Moon down to the pole, click a marker.</p>`;
     } else if (m.mode === 'land' || m.mode === 'stand') {
       html += presetButtons() + mapControls();
       if (m.spot) {

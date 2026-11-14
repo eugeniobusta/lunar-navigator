@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "projection": "simple cylindrical; row 0 = 90 N, column 0 = 180 W, centre column = 0 deg E (MOON_ME)",
+  "color": {
+    "4k": "color_4k.jpg",
+    "2k": "color_2k.jpg"
+  },
+  "relief": {
+    "4k": "relief_4k.jpg",
+    "2k": "relief_2k.jpg",
+    "slope_clamp": 0.5
+  },
+  "height": {
+    "file": "height_720.u16",
+    "cols": 720,
+    "rows": 360,
+    "unit_m": 0.5,
+    "base_radius_m": 1727400.0
+  },
+  "polar": {
+    "file": "polar_height.u16",
+    "size": 1024,
+    "pixel_m": 2139.8442023372886,
+    "x_min_m": -1095600.2315966918,
+    "y_max_m": 1095600.2315966918,
+    "height_min_m": -8915.0,
+    "height_max_m": 6892.0,
+    "reach_deg": 35.0
+  },
+  "credit": "NASA's Scientific Visualization Studio, CGI Moon Kit: LROC WAC colour (ASU), LOLA elevation (GSFC)",
+  "source": "https://svs.gsfc.nasa.gov/4720",
+  "licence": "public domain (NASA)",
+  "check_vs_south_pole_grid_86S": {
+    "points": 180,
+    "mean_m": 5.7,
+    "rms_m": 135.3,
+    "worst_m": 456.4
+  }
+}

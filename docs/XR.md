@@ -1,6 +1,7 @@
 # The VR view (xr/): handover for Ahmed
 
-A game-like simulation where every number is real data: choose an Artemis site from orbit, fly there, see 1:1
+A game-like simulation where every number is real data: start at the whole Moon, come down to the south pole,
+choose an Artemis site or a ranked zone, fly there, see 1:1
 terrain about 30 km around it with heat maps, choose the exact landing point, then stand there 2 m above the
 ground and watch the real Sun and Earth move over the real skyline. Works on a laptop and in a Meta Quest 3.
 Live at `/xr/` on the project site; the website can embed it with `/xr/?site=<id>&t=<ISO time>&embed=1`.
@@ -25,7 +26,8 @@ by the IWSDK scaffolder) explain the rest. If you start Claude Code inside `xr/`
 
 URL parameters: `site` (a site id with terrain, e.g. `mma01`), `zone` (a zone's published rank, e.g. `1`), `lat` and `lon` (any point within 10 degrees of the pole, as the website's map sends),
 `t` (UTC start of the 30-day window, e.g. `2026-11-24T00:00Z`), `demo=1` (opens Orbit with the Goldilocks heat map
-on), `embed=1` (hides the title box). Without `t`, Orbit shows now, and a site or zone opens at the next hour at
+on), `embed=1` (hides the title box), `detail=high|medium|low` (the headset's detail level on the laptop view, for
+measuring: see "Frame rate"). Without `t`, Orbit shows now, and a site or zone opens at the next hour at
 which the whole Sun is above its skyline (`nextSunUp` in `guide.ts`, a search with `computeSeries`).
 
 ## File map (xr/src)
@@ -38,6 +40,8 @@ which the whole Sun is above its skyline (`nextSunUp` in `guide.ts`, a search wi
 | `geo.ts` | Frames: MOON_ME to the scene, fields of true 3D positions (curvature included), picking a ground point, CPU copy of the shadow test. Tested. | never, unless the maths is wrong |
 | `data.ts` | Loaders for everything in `/data/`, including optional files (zones, missions, score, layers, presets, criteria); `tileFromPole` cuts a tile from the south-pole grid for a zone no site tile covers. | a data file changes shape |
 | `guide.ts` | What the view says and ranks: demo start time, "Why here?" lines, the tick boxes (which map to show, re-rank, the sentence), the tour's four captions. Only calls `explain.ts`, `suitability.ts` and `computeSeries`. Tested. | tour text, a new preset or criterion |
+| `moon.ts` | The whole-Moon view as pure maths: the pole frame, the globe's mesh and heights, the cap's edge, the compass, the zoom from the whole Moon to the pole. Tested. | zoom, compass, cap edge |
+| `globe.ts` | Loads the CGI Moon Kit maps (2K in a headset, 4K elsewhere), the globe's material, the fade between scenes. | the globe's look |
 | `perf.ts` | Automatic quality in the headset: the three detail levels and the rule that lowers them. Tested. | frame rate on the Quest |
 | `objects.ts` | Lander, rocket, Sun disc, Earth, stars, labels, sight lines, markers. | models and labels |
 | `hud.ts` | Laptop interface (plain DOM and CSS, Earthrise tokens) and the credits line. | laptop UI text and layout |
@@ -55,6 +59,29 @@ IWSDK scene: everything is generated from data at run time.
 - Shadows: for each terrain pixel the GPU marches the height field towards the Sun and stores the visible fraction
   of the solar disc (docs/SCIENCE.md sections 3 and 4). `geo.test.ts` checks the same march on the CPU against
   `demHorizon + computeSeries` at Malapert: mean 0.025 deg, max 0.664 deg, 0 of 286 times disagree on lit or dark.
+- The whole Moon (Orbit): three pieces of the same ground, each fading into the next.
+  - Within 6.5 deg of the pole: our own 430 m LOLA grid (`terrain/south_pole_height.u16`), cut to a round cap, at
+    its true 3D positions on the sphere, with the GPU shadow march.
+  - Out to 35 deg from the pole: LOLA heights of NASA's CGI Moon Kit on a polar stereographic grid (2.14 km per
+    pixel), also with the shadow march. Mountains outside our grid cast their shadows into it. The march runs in
+    the grid's plane, so at the outer edge of this ring distances are stretched by up to 10 %: display only.
+  - The rest: a sphere raised by the kit's LOLA heights, coloured by the kit's LROC WAC colour map and shaded by
+    slopes derived from LOLA, with the same Sun direction and display curve. No cast shadows there.
+  - The ground colour of all three is the LROC colour map. The heat map is drawn over the cap only, with the
+    opacity the user chooses.
+  - Source: NASA's Scientific Visualization Studio, CGI Moon Kit (https://svs.gsfc.nasa.gov/4720), public domain.
+    `scripts/export_moon_globe.py` writes `xr/public/moon/` (7 MB) and checks the kit's heights against our grid:
+    on the 86 S circle the mean difference is 5.7 m and the rms 135 m (the kit is 1.9 km per pixel, ours 430 m).
+    No number shown in the app is computed from the kit: it is the picture of the Moon, not the analysis.
+- Zoom: 0 is the whole Moon, 1.3 m across, with the south pole tipped 78 deg towards the viewer and the Earth
+  side (0 deg E) up; 1 is the pole lying in front of the viewer, the 440 km cap 1.6 m across. The Sun, the Earth
+  and the stars turn with the Moon, so the lighting is the same at every zoom. Picking a site from further out
+  first comes down to the pole, then flies; during the flight the view closes in on the site four times; every
+  change of scene (Orbit, Land, Stand) fades through black in 0.6 s.
+- Compass on the pole: a ring at the pole labelled "South Pole", an arrow along 0 deg E labelled "towards Earth",
+  and the parallels of 84, 86 and 88 deg S, all drawn on the terrain.
+- Past landings are marked over the whole Moon at their real coordinates; sites, zones and the latitude rings
+  appear from zoom 0.55.
 - Sun and Earth in the sky: azimuth and elevation from `computeSeries` at the chosen point (Earth with parallax),
   drawn at their real angular size (Sun from the ephemeris, about 0.53 deg; Earth from its distance, about 1.9 deg).
   "Enlarge" multiplies both by 5 and says so.
@@ -102,8 +129,8 @@ screen carry the numbers; say the line, press "Next".
 
 | Time | Screen | Say |
 |------|--------|-----|
-| 0:00 | Orbit, Goldilocks map on | "This is the Moon's south pole, built from NASA's laser altimeter. Nothing here is drawn by hand." Press "Tour". |
-| 0:08 | Stop 1: the pole, heat map off | "The Sun never climbs more than 1.6 degrees here, so every hill throws a shadow kilometres long. Power and darkness are decided by the skyline." |
+| 0:00 | The whole Moon, south pole towards you | "This is the Moon as NASA's Lunar Reconnaissance Orbiter mapped it. The south pole is where Artemis lands." Press "Tour". |
+| 0:06 | Stop 1: the view comes down to the pole, no heat map | "The Sun never climbs more than 1.6 degrees here, so every hill throws a shadow kilometres long. Power and darkness are decided by the skyline." |
 | 0:20 | Stop 2: Goldilocks map | "We tested every 120 metre square against NASA's Artemis III limits. 14.3 % passes: 14,928 square kilometres, in 5,297 zones." |
 | 0:32 | Stop 3: flight to the best zone | "This is the best zone with everything ticked, score 76 of 100. Every line is a criterion with its value and verdict. Tick only what matters to you and the ranking changes live." |
 | 0:46 | Stop 4: standing there | "Now we stand on it, eyes 2 metres up, at true scale. Two days pass: the Sun slides about 24 degrees round the horizon, the shadows sweep, and Earth stays in view for the radio link." |
@@ -118,9 +145,38 @@ data has been rebuilt. The tour always runs with "Everything" ticked; stop 4's S
 `media/web-30s.webm` (Malapert Overview, Window Finder, Where to land, then the VR; 32 s) at 1920 x 1080 from the
 production build; the header of the script says how to serve it. No cursor is drawn, no sound.
 
+## Frame rate
+
+Budget: 72 fps, 13.9 ms per frame. What can be measured without the headset is the laptop view of the production
+build in headless Chromium on the build machine (Apple GPU), vertical sync off, at the Quest 3's pixel count
+(3360 x 1760), reading the "Stats" line (mean of 72 frames, and the longest frame of five such windows). The Quest's
+GPU is much slower than this machine's, so these numbers show what the whole Moon added, not what the headset does.
+"Before" is the build without the whole Moon (commit b47b75f); "headset detail" is `?detail=high`, the level the
+headset starts at.
+
+| Mode | Before, ms | After, ms | After, longest frame, ms | Before, headset detail, ms | After, headset detail, ms | After, headset detail, longest, ms |
+|------|-----------:|----------:|-------------------------:|---------------------------:|--------------------------:|-----------------------------------:|
+| Whole Moon | none | 3.2 | 4.7 | none | 3.2 | 4.8 |
+| Orbit at the pole | 4.6 | 4.1 | 6.1 | 3.5 | 3.9 | 6.6 |
+| Orbit at the pole, time running | 8.3 | 9.4 | 13.8 | 4.3 | 4.9 | 9.4 |
+| Land | 4.7 | 4.0 | 6.4 | 4.0 | 4.2 | 5.8 |
+| Stand | 3.8 | 3.3 | 5.3 | 3.5 | 4.0 | 6.1 |
+| Stand, time running | 6.1 | 5.6 | 8.0 | 4.1 | 5.2 | 39.0 |
+
+Run to run the means move by about 0.5 ms. The 39 ms frame in the last row was one frame in five windows; Land and
+Stand scenes themselves did not change. Triangles drawn per frame at headset detail: 59,674 (whole Moon), 186,144
+(pole), 166,874 (Land).
+
+What keeps the whole Moon cheap in the headset: 2K maps and a 128 x 64 globe (4K and 384 x 192 on a laptop); from
+the whole-Moon view the cap uses a quarter of its mesh and half its shadow map; the ring round the cap reads its
+light from its shadow pass (one texture read per screen pixel) and that pass runs once in four while time runs.
+If frames still run long on the headset, the automatic quality lowers the detail (step 4 of the Quest test).
+`window.lunarStats()` in the browser console returns the same numbers plus draw calls and triangles.
+
 ## Known issues
 
-- Not yet tested on a real Quest 3: only in the IWSDK emulator. Frame rate on the headset is unmeasured.
+- Tested once on a real Quest 3 (14 Nov 2026, before the whole Moon was added): smooth. The whole-Moon view has
+  only run in the IWSDK emulator and on a laptop; its frame rate on the headset is unmeasured (see "Frame rate").
 - A zone further than 29 km from every site's centre has no 120 m tile. It opens on a tile interpolated from the
   ~430 m south-pole grid (heights within 0.5 m of that grid), with the NASA maps at their own pixels, no slope
   map, and a note on screen. The list marks these zones "430 m terrain".
@@ -144,12 +200,15 @@ production build; the header of the script says how to serve it. No cursor is dr
 2. Do not test or demo from the dev server (`make xr-dev`, port 8081): it adds the IWSDK "Runtime / Editor"
    toolbar over "Stats" and "Enter VR", and a second "Enter XR" button. To try unmerged work on the headset, serve
    a production build instead: `make build && make xr && cd web && npx vite preview --host`.
-3. Check: (a) the relief table in Orbit and the panel on your left; (b) point at a site marker or a name and pull
+3. Check: (a) the whole Moon in front of you and the panel on your left; "South pole" on the panel, or the
+   thumbstick pushed forward, brings the pole down in front of you like a table, and "Whole Moon" or the
+   thumbstick pulled back goes out again; (b) point at a site marker or a name and pull
    the trigger, or pinch with a bare hand; (c) in Land you stand 2 km above the point: aim at the ground, trigger
    to move the landing point; (d) A or X, or "Stand here": you are on the surface, eyes 2 m up; (e) thumbstick
    left or right scrubs time, or pinch and drag on the time bar; (f) "Enlarge 5x", "What matters?" and the map opacity, Play at 1x, 10x, 100x.
 4. Frame rate: press "Stats" on the panel. It shows frames per second, milliseconds per frame (mean of the last
-   72 frames) and the detail level. Target 72 fps (13.9 ms). In the headset detail is automatic: when the mean
+   72 frames), the longest single frame of those 72, and the detail level. Read it in each mode: whole Moon,
+   south pole, south pole with Play at 10x, Land, Stand, Stand with Play at 10x. Target 72 fps (13.9 ms). In the headset detail is automatic: when the mean
    frame time of a second is over 13.9 ms by more than 5 %, terrain and shadow detail drop one level (high, medium,
    low) and stay there until you leave VR. The levels are the `LEVELS` table in `xr/src/perf.ts`.
 5. "Tour: 4 stops" on the panel: read each caption, press "Next" (during the flight "Next" waits).

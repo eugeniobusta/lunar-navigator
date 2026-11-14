@@ -30,14 +30,17 @@ export class QualityGovernor {
   level = 0;
   /** Mean frame time of the last full window, milliseconds (0 until one is complete). */
   meanMs = 0;
+  /** The longest single frame of that window, milliseconds. */
+  worstMs = 0;
+  private worst = 0;
   private sum = 0;
   private n = 0;
   private skip = 0;
 
   reset(): void {
     this.level = 0;
-    this.meanMs = 0;
-    this.sum = this.n = this.skip = 0;
+    this.meanMs = this.worstMs = 0;
+    this.sum = this.n = this.skip = this.worst = 0;
   }
 
   /** Feed one frame time. With `auto`, returns true when the level was lowered. */
@@ -47,11 +50,13 @@ export class QualityGovernor {
       return false;
     }
     this.sum += ms;
+    this.worst = Math.max(this.worst, ms);
     if (++this.n < WINDOW) {
       return false;
     }
     this.meanMs = this.sum / this.n;
-    this.sum = this.n = 0;
+    this.worstMs = this.worst;
+    this.sum = this.n = this.worst = 0;
     if (auto && this.meanMs > FRAME_BUDGET_MS * (1 + TOLERANCE) && this.level < LEVELS.length - 1) {
       this.level++;
       this.skip = WINDOW;

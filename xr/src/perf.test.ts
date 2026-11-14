@@ -44,4 +44,17 @@ describe('QualityGovernor', () => {
       expect(LEVELS[i].shadowRes).toBeLessThanOrEqual(LEVELS[i - 1].shadowRes);
     }
   });
+
+  it('reports the longest single frame of the last window', () => {
+    const g = new QualityGovernor();
+    for (let i = 0; i < WINDOW; i++) {
+      g.sample(i === 10 ? 31 : 10, false);
+    }
+    expect(g.worstMs).toBe(31);
+    expect(g.meanMs).toBeCloseTo((71 * 10 + 31) / 72, 9);
+    for (let i = 0; i < WINDOW; i++) {
+      g.sample(9, false);
+    }
+    expect(g.worstMs).toBe(9); // each window starts again
+  });
 });

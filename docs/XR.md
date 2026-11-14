@@ -78,6 +78,29 @@ IWSDK scene: everything is generated from data at run time.
   unlit ground is not pure black; the lander and rocket models; in Orbit the relief is 1.6 m across with the Earth
   at its true distance and size on the same scale.
 
+## 60-second stage demo (it follows the tour)
+
+Open `/xr/?demo=1` on the laptop (or put on the Quest and press "Enter VR"), then "Tour: 4 stops". The captions on
+screen carry the numbers; say the line, press "Next".
+
+| Time | Screen | Say |
+|------|--------|-----|
+| 0:00 | Orbit, Goldilocks map on | "This is the Moon's south pole, built from NASA's laser altimeter. Nothing here is drawn by hand." Press "Tour". |
+| 0:08 | Stop 1: the pole, heat map off | "The Sun never climbs more than 1.6 degrees here, so every hill throws a shadow kilometres long. Power and darkness are decided by the skyline." |
+| 0:20 | Stop 2: Goldilocks map | "We tested every 120 metre square against NASA's Artemis III limits. 14.3 % passes: 14,928 square kilometres, in 5,297 zones." |
+| 0:32 | Stop 3: flight to the best zone | "This is the best zone for balanced priorities, score 77 of 100. Every line is a criterion with its value and verdict. Change the priorities and the ranking changes live." |
+| 0:46 | Stop 4: standing there | "Now we stand on it, eyes 2 metres up, at true scale. Two days pass: the Sun slides about 24 degrees round the horizon, the shadows sweep, and Earth stays in view for the radio link." |
+| 0:58 | "Finish" | "Real terrain, real Sun, real Earth: choose where to land before you fly." |
+
+The numbers in the "Say" column are the ones the captions showed on 14 Nov 2026; read them off the screen if the
+data has been rebuilt. Stop 3's zone and score change with the priorities preset; stop 4's Sun heights with the date.
+
+## Footage
+
+`node scripts/record_footage.mjs` records `media/vr-tour.webm` (the tour on the laptop view, 56 s) and
+`media/web-30s.webm` (Malapert Overview, Window Finder, Where to land, then the VR; 32 s) at 1920 x 1080 from the
+production build; the header of the script says how to serve it. No cursor is drawn, no sound.
+
 ## Known issues
 
 - Not yet tested on a real Quest 3: only in the IWSDK emulator. Frame rate on the headset is unmeasured.

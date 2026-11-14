@@ -175,47 +175,7 @@ export function sliceSeries(s: Series, a: number, b: number): Series {
   };
 }
 
-/**
- * For each UTC day in [fromIdx, toIdx), try every landing hour that day and keep the best mission window
- * of spec.durationH. Score = mean of Sun% and Earth% over the window (0..1); 0 if infeasible.
- */
-export function findWindows(eph: Ephemeris, hz: Horizon, spec: MissionSpec,
-  fromIdx: number, toIdx: number): DayResult[] {
-  const stepH = eph.stepS / 3600;
-  const w = Math.max(1, Math.round(spec.durationH / stepH));
-  const lo = Math.max(0, fromIdx), hi = Math.min(eph.n, toIdx);
-  const s = computeSeries(eph, hz, lo, Math.min(eph.n, hi + w));
-  const len = s.sunlit.length;
-  // Prefix sums give Sun% / Earth% of any window in O(1).
-  const ps = new Int32Array(len + 1), pe = new Int32Array(len + 1);
-  for (let i = 0; i < len; i++) { ps[i + 1] = ps[i] + s.sunlit[i]; pe[i + 1] = pe[i] + s.earthVis[i]; }
-  const samplesPerDay = Math.round(86400 / eph.stepS);
-  const dayOf = (i: number) => Math.floor((eph.startMs + i * eph.stepS * 1000) / 86400000);
-  const out: DayResult[] = [];
-  let k = 0;
-  while (k < hi - lo) {
-    const day = dayOf(lo + k);
-    const dayIdx = Math.floor(((lo + k) * eph.stepS) / 86400);
-    let best: DayResult = { dayIdx, bestStartIdx: null, feasible: false, score: 0, metrics: null };
-    let bestLocal = -1;
-    let j = k;
-    for (; j < hi - lo && dayOf(lo + j) === day && j - k < samplesPerDay; j++) {
-      if (j + w > len) break; // window would run past the data
-      const sunPct = (100 * (ps[j + w] - ps[j])) / w;
-      const earthPct = (100 * (pe[j + w] - pe[j])) / w;
-      if (sunPct < spec.minSunPct || earthPct < spec.minEarthPct) continue;
-      if (spec.requireLitAndEarthAtLanding && !(s.sunlit[j] && s.earthVis[j])) continue;
-      if (longestRun(s.sunlit, 0, j, j + w) * stepH > spec.maxDarkH) continue;
-      const score = (sunPct + earthPct) / 200;
-      if (score > best.score || !best.feasible) {
-        best = { dayIdx, bestStartIdx: lo + j, feasible: true, score, metrics: null };
-        bestLocal = j;
-      }
-    }
-    while (j < hi - lo && dayOf(lo + j) === day) j++;
-    if (bestLocal >= 0) best.metrics = computeMetrics(sliceSeries(s, bestLocal, bestLocal + w), stepH);
-    out.push(best);
-    k = j;
-  }
-  return out;
-}
+
+// Window Finder: prefix sums + sparse table, safety-margin score. See windows.ts.
+export { MISSION_PRESETS, buildRunIndex, buildWindowIndex, findWindows, longestRunIn, scanDays, windowScore } from "./windows";
+export type { RunIndex, WindowIndex } from "./windows";

@@ -22,8 +22,7 @@ Start every feature with:
 3. Human job: design review of every tab on a laptop and a phone; file issues with screenshots.
 
 ## Rahan (app)
-1. `feat/rahan-url-state`: "Keep site, compare site, date, mission length and tab in the URL query string so any
-   view can be shared as a link and survives reload."
+1. DONE (merged): `feat/rahan-url-state`, the view in the URL query string.
 2. `feat/rahan-export`: "Add 'Download CSV' to Overview (hourly Sun/Earth elevation, margin, sunlit, earth visible
    for the window) and to Window Finder (one row per day)."
 3. `feat/rahan-mobile`: "Make the sky panorama, timeline and charts readable at 390 px wide: larger tick text,

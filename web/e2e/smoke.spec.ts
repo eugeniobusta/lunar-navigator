@@ -104,3 +104,32 @@ test("Where to land shows the map, a zone and the criteria", async ({ page }) =>
   await expect(page.getByRole("cell", { name: /Artemis III must land near the south pole/ })).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+test("the view lives in the URL: a shared link opens the same view and survives a reload", async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto("/?site=hw02&compare=nr107&date=2027-03-14&days=14&tab=compare&preset=ice");
+  await expect(page.getByRole("tab", { name: "Compare sites", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByLabel("Landing site")).toHaveValue("hw02");
+  await expect(page.getByLabel("Compare with")).toHaveValue("nr107");
+  await expect(page.getByLabel("Landing date (UTC)")).toHaveValue("2027-03-14");
+  await expect(page.getByLabel("Mission length")).toHaveValue("14");
+  // The priorities preset travels too.
+  await page.getByRole("tab", { name: "Where to land", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Ice science first", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page).toHaveURL(/site=hw02&compare=nr107&date=2027-03-14&days=14&tab=land&preset=ice$/);
+  // Changing the view rewrites the address; a reload brings the same view back.
+  await page.getByRole("button", { name: "Power first", exact: true }).click();
+  await page.getByLabel("Landing site").selectOption("mma01");
+  await expect(page).toHaveURL(/site=mma01&compare=nr107&date=2027-03-14&days=14&tab=land&preset=power$/);
+  await page.reload();
+  await expect(page.getByRole("tab", { name: "Where to land", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByLabel("Landing site")).toHaveValue("mma01");
+  await expect(page.getByRole("button", { name: "Power first", exact: true })).toHaveAttribute("aria-pressed", "true");
+  // Custom sliders travel as w=...; nonsense in the query is ignored.
+  await page.getByLabel(/^Sunlight/).fill("55");
+  await expect(page).toHaveURL(/&w=55,15,20,10,5,10,0,0,60,0$/);
+  await page.goto("/?site=nope&tab=evil&days=0&date=1999-01-01&preset=%3Cb%3E");
+  await expect(page.getByRole("tab", { name: "Overview", exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByLabel("Landing site")).toHaveValue("mma01");
+  expect(errors).toEqual([]);
+});

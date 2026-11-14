@@ -20,6 +20,10 @@ interface State {
   tab: Tab;
   /** A point picked in the Layers view of Where to land, passed on to the 3D view: [lat, east lon], or null. */
   spot: [number, number] | null;
+  /** Where to land: key of the chosen priorities preset, or "custom" with the slider values in landWeights. */
+  landPreset: string;
+  landWeights: number[] | null;
+  setLandPriorities: (preset: string, weights: number[] | null) => void;
   init: () => Promise<void>;
   ensureHorizon: (id: string) => Promise<void>;
   setSite: (id: string) => void;
@@ -45,6 +49,9 @@ export const useStore = create<State>((set, get) => ({
   cursor: 0,
   tab: "overview",
   spot: null,
+  landPreset: "balanced",
+  landWeights: null,
+  setLandPriorities: (preset, weights) => set({ landPreset: preset, landWeights: weights }),
 
   init: async () => {
     const [sites, eph] = await Promise.all([loadSites(), loadEphemeris()]);

@@ -50,3 +50,22 @@ describe("buildQuery", () => {
     expect(parseQuery(q, ctx)).toEqual(v);
   });
 });
+
+describe("Where to land priorities", () => {
+  const base = { siteId: "mma01", compareId: "hw02", startIdx: 48, windowDays: 30, tab: "land" };
+  it("a preset travels by its key; balanced is the default and is left out", () => {
+    expect(buildQuery({ ...base, preset: "ice" }, startMs, 3600)).toBe("?site=mma01&compare=hw02&date=2026-11-03&days=30&tab=land&preset=ice");
+    expect(buildQuery({ ...base, preset: "balanced" }, startMs, 3600)).not.toContain("preset");
+    expect(parseQuery("?preset=ice", ctx)).toEqual({ preset: "ice" });
+    expect(parseQuery("?preset=<script>", ctx)).toEqual({});
+  });
+  it("custom slider values travel as w= and round-trip", () => {
+    const weights = [80, 15, 20, 10, 5, 10, 0, 0, 60, 0];
+    const q = buildQuery({ ...base, weights }, startMs, 3600);
+    expect(q).toContain("&w=80,15,20,10,5,10,0,0,60,0");
+    expect(parseQuery(q, { ...ctx, tabs: ["land"] }).weights).toEqual(weights);
+    expect(parseQuery("?w=1,2,3", ctx)).toEqual({});              // wrong length
+    expect(parseQuery("?w=101,0,0,0,0,0,0,0,0,0", ctx)).toEqual({}); // out of range
+    expect(parseQuery("?w=a,b", ctx)).toEqual({});
+  });
+});

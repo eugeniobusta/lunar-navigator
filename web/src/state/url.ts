@@ -1,5 +1,6 @@
 // View state <-> URL query string, so any view can be shared as a link and survives a reload.
-// ?site=mma01&compare=hw02&date=2027-03-14&days=30&tab=compare
+// ?site=mma01&compare=hw02&date=2027-03-14&days=30&tab=compare&preset=ice
+// preset is the "Your priorities" preset of Where to land; custom slider values travel as w=42,28,... instead.
 // date is UTC ISO-8601: "YYYY-MM-DD" at 00:00, else "YYYY-MM-DDTHH:MMZ" (Window Finder can pick any hour).
 
 export interface UrlView {
@@ -8,6 +9,10 @@ export interface UrlView {
   startIdx: number;
   windowDays: number;
   tab: string;
+  /** Where to land: key of the chosen priorities preset ("balanced" is the default and is left out of the URL). */
+  preset?: string;
+  /** Where to land: custom weights in the order of the sliders, when no preset matches. */
+  weights?: number[] | null;
 }
 
 /** What a parsed value is checked against. */
@@ -17,6 +22,8 @@ export interface UrlContext {
   startMs: number; // time of sample 0
   stepS: number; // sample spacing, seconds
   n: number; // number of samples
+  /** Number of priority weights a custom w= list must have (10: eight layers and two zone terms). */
+  weightCount?: number;
 }
 
 const MAX_DAYS = 3650;
@@ -52,6 +59,15 @@ export function parseQuery(search: string, ctx: UrlContext): Partial<UrlView> {
       if (idx >= 0 && idx < ctx.n) out.startIdx = idx;
     }
   }
+
+  // The preset key is checked later against suitability/weights.json, which loads with the tab; here only its shape.
+  const preset = q.get("preset");
+  if (preset && /^[a-z]{1,20}$/.test(preset)) out.preset = preset;
+  const w = q.get("w");
+  if (w && /^\d{1,3}(,\d{1,3})*$/.test(w)) {
+    const list = w.split(",").map(Number);
+    if (list.length === (ctx.weightCount ?? 10) && list.every((v) => v <= 100)) out.weights = list;
+  }
   return out;
 }
 
@@ -69,5 +85,7 @@ export function buildQuery(v: UrlView, startMs: number, stepS: number): string {
   q.set("date", formatDate(v.startIdx, startMs, stepS));
   q.set("days", String(v.windowDays));
   q.set("tab", v.tab);
-  return `?${q.toString().replace(/%3A/g, ":")}`;
+  if (v.weights) q.set("w", v.weights.join(","));
+  else if (v.preset && v.preset !== "balanced") q.set("preset", v.preset);
+  return `?${q.toString().replace(/%3A/g, ":").replace(/%2C/g, ",")}`;
 }

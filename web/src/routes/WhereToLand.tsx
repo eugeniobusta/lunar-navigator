@@ -97,7 +97,11 @@ export function WhereToLand() {
   const [config, setConfig] = useState<WeightsFile | null>(null);
   const [zoneLayers, setZoneLayers] = useState<Row[]>([]);
   const [points, setPoints] = useState<Row[]>([]);
-  const [weights, setWeights] = useState<Weights>(BALANCED);
+  // The priorities live in the store (preset key, or custom slider values) so they survive a reload and travel
+  // in the link (web/src/state/url.ts).
+  const landPreset = useStore((s) => s.landPreset);
+  const landWeights = useStore((s) => s.landWeights);
+  const setLandPriorities = useStore((s) => s.setLandPriorities);
   const [layers, setLayers] = useState<Uint8Array[] | null>(null);
   const [limits, setLimits] = useState<Uint8Array | null>(null);
   const [view, setView] = useState<"zones" | "layers">("zones");
@@ -120,6 +124,15 @@ export function WhereToLand() {
       setZoneLayers(parseCsv(zl)); setPoints(parseCsv(ap));
     }).catch(() => setFailed(true));
   }, []);
+
+  const weights = useMemo<Weights>(() => {
+    if (landWeights && landWeights.length === TERMS.length) return Object.fromEntries(TERMS.map((k, i) => [k, landWeights[i]])) as Weights;
+    return config?.presets.find((p) => p.key === landPreset)?.weights ?? BALANCED;
+  }, [landPreset, landWeights, config]);
+  const setWeights = (w: Weights) => {
+    const preset = config?.presets.find((p) => sameWeights(p.weights, w));
+    setLandPriorities(preset ? preset.key : "custom", preset ? null : TERMS.map((k) => w[k]));
+  };
 
   // The layer grids (1 MB each) are only fetched when they are needed: once the priorities move away from the
   // published default, or when the Layers view is opened.

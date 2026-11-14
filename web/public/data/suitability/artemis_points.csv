@@ -1,0 +1,10 @@
+id,name,lat,lon,passes_hard_limits,failed_limits,sunlight,earth,landing_slope,shadow,walkable,temperature,longest_dark_h,longest_no_earth_h,longest_sun_and_earth_h,score_balanced,rank_balanced,score_power,rank_power,score_radio,rank_radio,score_ice,rank_ice
+pcb03,Peak near Cabeus B,-83.563,-68.2009,no,latitude,138,255,255,100,255,210,384,216,403,59,97,48,139,72,220,58,2352
+hw02,Haworth,-86.8076,-21.7194,yes,,124,194,255,253,255,84,436,296,348,55,190,44,234,57,737,81,30
+mma01,Malapert Massif,-85.9425,-0.94365,yes,,114,255,255,105,201,220,404,0,339,65,32,43,253,91,6,60,2041
+mmp06,Mons Mouton Plateau,-84.5961,30.4525,no,sunlight,0,158,255,240,255,0,4847,355,229,40,1401,22,2439,42,1352,72,495
+mmo01,Mons Mouton,-85.416,31.8506,yes,,253,177,244,194,255,12,439,288,409,61,70,61,30,58,713,75,203
+nr107,Nobile Rim 1,-85.1978,37.1774,yes,,141,199,255,177,255,141,416,296,384,54,230,47,163,57,737,68,908
+nr208,Nobile Rim 2,-83.9064,57.8114,no,latitude,32,170,255,249,255,187,645,330,308,46,752,31,1230,47,1046,75,203
+dgr203,de Gerlache Rim 2,-88.1408,-71.6955,yes,,180,175,255,193,255,196,451,323,379,57,133,53,79,54,824,71,596
+sp07,Slater Plain,-87.1306,127.857,yes,,157,122,255,123,255,0,505,399,273,46,752,43,253,40,1537,57,2484

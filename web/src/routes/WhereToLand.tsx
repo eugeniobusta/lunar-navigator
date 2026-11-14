@@ -1,7 +1,12 @@
 // Where to land: the suitability map of the south pole, the zones that pass every hard limit, past landings,
-// and the criteria as a plain table. Data: web/public/data/suitability/ (docs/INTERFACES.md section 10).
+// and the criteria as a plain table. "Your priorities" re-scores the map and re-ranks the zones live from weights.
+// Data: web/public/data/suitability/ (docs/INTERFACES.md sections 10 and 11).
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useWidth } from "../charts/useWidth";
+import {
+  BALANCED, LAYER_KEYS, ZONE_KEYS, mapScore, mapScoreGrid, rankAmong, rankZones, zoneScore,
+  type Preset, type TermKey, type Weights, type ZoneInput,
+} from "../lib/analysis/suitability";
 import { parseCsv } from "../lib/data/csv";
 import { useStore } from "../state/store";
 
@@ -11,6 +16,12 @@ const R_KM = 1737.4;
 const SHOWN_ZONES = 40;
 
 type Row = Record<string, string>;
+interface WeightsFile {
+  layers: { key: TermKey; label: string }[]; zone_terms: { key: TermKey; label: string }[]; presets: Preset[];
+  confirmed_zones: number;
+}
+const TERMS: TermKey[] = [...LAYER_KEYS, ...ZONE_KEYS];
+const sameWeights = (a: Weights, b: Weights) => TERMS.every((k) => a[k] === b[k]);
 interface Summary {
   region_km2: number; pass_km2: number; pass_pct_of_region: number; zones: number; zones_stay_window_ok: number;
   zones_1km2_or_more: number; top20_near_artemis: number; top20_nearest_regions: string[]; artemis_near_km: number;
@@ -62,7 +73,12 @@ export function WhereToLand() {
   const [missions, setMissions] = useState<Row[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [failed, setFailed] = useState(false);
-  const [rank, setRank] = useState(1);
+  const [selected, setSelected] = useState(1); // a zone's published rank is its id
+  const [config, setConfig] = useState<WeightsFile | null>(null);
+  const [zoneLayers, setZoneLayers] = useState<Row[]>([]);
+  const [points, setPoints] = useState<Row[]>([]);
+  const [weights, setWeights] = useState<Weights>(BALANCED);
+  const [layers, setLayers] = useState<Uint8Array[] | null>(null);
   const [mapRef, mapPx] = useWidth<HTMLDivElement>(640, 200);
 
   useEffect(() => {
@@ -70,15 +86,60 @@ export function WhereToLand() {
     Promise.all([
       fetch(`${BASE}suitability/south_pole_score.u8`).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error("score")))),
       text("suitability/zones.csv"), text("criteria.csv"), text("missions.csv"), text("suitability/summary.json"),
-    ]).then(([buf, z, c, m, s]) => {
+      text("suitability/weights.json"), text("suitability/zones_layers.csv"), text("suitability/artemis_points.csv"),
+    ]).then(([buf, z, c, m, s, w, zl, ap]) => {
       setGrid(new Uint8Array(buf)); setZones(parseCsv(z)); setCriteria(parseCsv(c)); setMissions(parseCsv(m));
-      setSummary(JSON.parse(s) as Summary);
+      setSummary(JSON.parse(s) as Summary); setConfig(JSON.parse(w) as WeightsFile);
+      setZoneLayers(parseCsv(zl)); setPoints(parseCsv(ap));
     }).catch(() => setFailed(true));
   }, []);
-  useEffect(() => { if (grid && canvas.current) drawScore(canvas.current, grid); }, [grid]);
 
-  const shown = useMemo(() => zones.slice(0, mapPx < 500 ? SHOWN_ZONES / 2 : SHOWN_ZONES), [zones, mapPx]);
-  const zone = zones[rank - 1];
+  // The six layer grids (1 MB each) are only fetched once the priorities move away from the published default.
+  const balanced = sameWeights(weights, BALANCED);
+  useEffect(() => {
+    if (balanced || layers) return;
+    let live = true;
+    Promise.all(LAYER_KEYS.map((k) => fetch(`${BASE}suitability/layers/south_pole_${k}.u8`)
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(k))))))
+      .then((bufs) => { if (live) setLayers(bufs.map((b) => new Uint8Array(b))); })
+      .catch(() => setFailed(true));
+    return () => { live = false; };
+  }, [balanced, layers]);
+
+  // The map under the current weights: same pass / fail as published, new score.
+  const liveGrid = useMemo(() => {
+    if (!grid || balanced || !layers) return grid;
+    const score = mapScoreGrid(layers, weights);
+    const out = new Uint8Array(grid.length);
+    for (let i = 0; i < grid.length; i++) out[i] = grid[i] === 255 ? 255 : grid[i] <= 100 ? score[i] : 101 + score[i];
+    return out;
+  }, [grid, layers, weights, balanced]);
+  useEffect(() => { if (liveGrid && canvas.current) drawScore(canvas.current, liveGrid); }, [liveGrid]);
+
+  // Zones re-scored and re-ranked under the current weights.
+  const zoneInputs = useMemo<ZoneInput[]>(() => (zoneLayers.length !== zones.length ? [] : zones.map((r, i) => ({
+    id: +r.rank, q: LAYER_KEYS.map((k) => +zoneLayers[i][k]), darkH: +r.longest_dark_h, noEarthH: +r.longest_no_earth_h,
+    stayOk: r.stay_window_ok === "True", areaKm2: +r.area_km2 }))), [zones, zoneLayers]);
+  const ranked = useMemo(() => rankZones(zoneInputs, weights), [zoneInputs, weights]);
+  const liveOf = useMemo(() => new Map(ranked.map((z) => [z.id, z])), [ranked]);
+  const shown = useMemo(() => ranked.slice(0, mapPx < 500 ? SHOWN_ZONES / 2 : SHOWN_ZONES).map((z) => zones[z.id - 1]),
+    [ranked, zones, mapPx]);
+  const zone = zones[selected - 1];
+  const live = liveOf.get(selected);
+
+  // Where the nine Artemis points would stand among the confirmed zones, under each preset and under "yours".
+  const artemisRanks = useMemo(() => {
+    if (!config || !zoneInputs.length) return [];
+    const confirmed = zoneInputs.filter((z) => z.stayOk);
+    const columns = [...config.presets.map((p) => p.weights), weights].map((w) => {
+      const zoneScores = confirmed.map((z) => zoneScore(mapScore(z.q, w), z.darkH, z.noEarthH, w));
+      return points.map((pt) => {
+        const score = zoneScore(mapScore(LAYER_KEYS.map((k) => +pt[k]), w), +pt.longest_dark_h, +pt.longest_no_earth_h, w);
+        return { score, rank: rankAmong(score, zoneScores) };
+      });
+    });
+    return points.map((pt, i) => ({ pt, cells: columns.map((c) => c[i]) }));
+  }, [config, zoneInputs, points, weights]);
   const artemis = sites.filter((s) => s.group === "artemis");
   const polar = missions.filter((m) => m.lat !== "" && Math.hypot(...toXY(+m.lat, +m.lon)) < VIEW_HALF_KM);
   // SVG user units are km, with y flipped so north-of-chart (lon 0, towards Earth) is up.
@@ -89,10 +150,10 @@ export function WhereToLand() {
   const font = { fontSize: 11 * u, strokeWidth: 3 * u };
 
   if (failed) return <section className="panel"><p className="note">The suitability files could not be loaded. They are in web/public/data/suitability/ in the repository.</p></section>;
-  if (!grid || !summary || !zone) return <section className="panel"><p className="note">Loading the suitability map…</p></section>;
+  if (!grid || !summary || !zone || !config || !live) return <section className="panel"><p className="note">Loading the suitability map…</p></section>;
 
   const facts: [string, string][] = [
-    ["Score", `${zone.score} of 100`],
+    ["Score", `${live.score} of 100`],
     ["Area of the zone", `${(+zone.area_km2).toFixed(+zone.area_km2 < 10 ? 2 : 0)} km²`],
     ["Landing slope (120 m)", `${zone.landing_slope_deg}°`],
     ["Slope over 2 km", `${zone.eva_slope_deg}°`],
@@ -120,6 +181,30 @@ export function WhereToLand() {
         </p>
       </div>
 
+      <div className="priorities">
+        <h3>Your priorities</h3>
+        <p className="note">
+          The hard limits stay fixed. What counts most among the ground that passes is your call: pick a mission
+          or move the sliders, and the map and the ranking follow.
+        </p>
+        <div className="presets" role="group" aria-label="Priority presets">
+          {config.presets.map((p) => (
+            <button key={p.key} className={sameWeights(weights, p.weights) ? "chip on" : "chip"}
+              aria-pressed={sameWeights(weights, p.weights)} onClick={() => setWeights(p.weights)}>{p.label}</button>
+          ))}
+        </div>
+        <div className="sliders">
+          {[...config.layers, ...config.zone_terms].map((t) => (
+            <label key={t.key} className="field">
+              <span>{t.label} <b>{weights[t.key]}</b></span>
+              <input type="range" min={0} max={100} value={weights[t.key]}
+                onChange={(e) => setWeights({ ...weights, [t.key]: +e.target.value })} />
+            </label>
+          ))}
+        </div>
+        {!balanced && !layers && <p className="note">Loading the six map layers…</p>}
+      </div>
+
       <div className="land">
         <div className="land-map" ref={mapRef}>
           <canvas ref={canvas} width={880} height={880} aria-hidden="true" />
@@ -133,11 +218,11 @@ export function WhereToLand() {
             {artemis.map((s) => { const p = pt(s.lat, s.lon); return (
               <g key={s.id}><rect x={p.x - 4 * u} y={p.y - 4 * u} width={8 * u} height={8 * u} strokeWidth={1.5 * u} className="map-artemis" transform={`rotate(45 ${p.x} ${p.y})`} /><title>{`Artemis candidate: ${s.name}`}</title></g>
             ); })}
-            {shown.map((z) => { const p = pt(+z.lat, +z.lon); const on = +z.rank === rank; return (
-              <g key={z.rank} className={on ? "map-zone on" : "map-zone"} role="button" tabIndex={0} aria-label={`Zone ${z.rank}, score ${z.score}`}
-                onClick={() => setRank(+z.rank)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setRank(+z.rank); } }}>
+            {shown.map((z) => { const p = pt(+z.lat, +z.lon); const id = +z.rank; const on = id === selected; const now = liveOf.get(id)!; return (
+              <g key={id} className={on ? "map-zone on" : "map-zone"} role="button" tabIndex={0} aria-label={`Zone ${now.rank}, score ${now.score}`}
+                onClick={() => setSelected(id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelected(id); } }}>
                 <circle cx={p.x} cy={p.y} r={(on ? 9 : 6) * u} strokeWidth={1.5 * u} />
-                {(+z.rank <= 10 || on) && <text x={p.x} y={p.y - 10 * u} textAnchor="middle" className="map-text" style={font}>{z.rank}</text>}
+                {(now.rank <= 10 || on) && <text x={p.x} y={p.y - 10 * u} textAnchor="middle" className="map-text" style={font}>{now.rank}</text>}
               </g>
             ); })}
             {polar.map((m) => { const p = pt(+m.lat, +m.lon); return (
@@ -151,8 +236,9 @@ export function WhereToLand() {
         </div>
 
         <div className="land-side">
-          <h3>Zone {zone.rank}: {(-zone.lat).toFixed(2)}° S, {Math.abs(+zone.lon).toFixed(2)}° {+zone.lon < 0 ? "W" : "E"}</h3>
+          <h3>Zone {live.rank}: {(-zone.lat).toFixed(2)}° S, {Math.abs(+zone.lon).toFixed(2)}° {+zone.lon < 0 ? "W" : "E"}</h3>
           <p className="note">
+            {balanced ? "" : `Rank ${live.rank} with your priorities; rank ${zone.rank} with the balanced ones. `}
             Numbers at the zone's best 120 m square.{" "}
             {zone.stay_window_ok === "True"
               ? `Our own model finds ${days(num(zone, "longest_sun_and_earth_h"))} in a row with Sun and Earth both up, enough for a 6.5-day stay.`
@@ -181,6 +267,29 @@ export function WhereToLand() {
           regions are about 15 km across and were also chosen for science goals and launch windows, which our filter
           does not know about.
         </p>
+        <h3>Where the nine Artemis points rank</h3>
+        <p className="note">
+          Each point scored like a zone and placed among the {config.confirmed_zones.toLocaleString("en-GB")} zones
+          with a confirmed 6.5-day window: rank, then score in brackets. Three points fail a hard limit where they
+          stand; their rank says where they would be if they passed.
+        </p>
+      </div>
+      <div className="table-scroll">
+        <table className="compare wide">
+          <thead>
+            <tr><th>Artemis point</th>{config.presets.map((p) => <th key={p.key}>{p.label}</th>)}<th>Yours</th></tr>
+          </thead>
+          <tbody>
+            {artemisRanks.map(({ pt: a, cells }) => (
+              <tr key={a.id}>
+                <th>{a.name}{a.passes_hard_limits === "no" ? <span className="unit">fails: {a.failed_limits.replace("latitude", "more than 6° from the pole").replace("sunlight", "too little sunlight")}</span> : null}</th>
+                {cells.map((c, i) => <td key={i}>{c.rank.toLocaleString("en-GB")} ({c.score})</td>)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="prose">
         <h3>The criteria</h3>
       </div>
       <div className="table-scroll">

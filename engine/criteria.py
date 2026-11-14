@@ -140,6 +140,91 @@ def zone_score(z):
     return round(MAP_SHARE * z["map_score"] + 15.0 * dark + 15.0 * no_earth)
 
 
+# ---- "Your priorities": each soft term as its own 0-255 layer, and integer weights anyone can change. ----
+# Layer order matches SOFT. A layer value q is the sub-score: 0 at the reject bound, 255 at the ideal bound.
+LAYER_KEYS = ["sunlight", "earth", "landing_slope", "shadow", "walkable", "temperature"]
+ZONE_KEYS = ["darkness", "no_earth"]   # only known at zone best cells (our time model), not per pixel
+LAYER_LABELS = {"sunlight": "Sunlight", "earth": "Earth in view", "landing_slope": "Flat landing ground",
+                "shadow": "Permanent shadow nearby", "walkable": "Walkable ground", "temperature": "Milder ground",
+                "darkness": "Short nights", "no_earth": "Never out of contact"}
+# Weights are relative (only their ratios matter). "balanced" is docs/criteria.md: 0.30 / 0.20 / 0.20 / 0.15 / 0.10 /
+# 0.05 inside the map score, which is 70 % of the zone score, plus 15 % darkness and 15 % time without Earth.
+PRESETS = {
+    "balanced": ("Balanced", {"sunlight": 42, "earth": 28, "landing_slope": 28, "shadow": 21, "walkable": 14,
+                              "temperature": 7, "darkness": 30, "no_earth": 30}),
+    "power": ("Power first", {"sunlight": 80, "earth": 15, "landing_slope": 20, "shadow": 10, "walkable": 5,
+                              "temperature": 10, "darkness": 60, "no_earth": 0}),
+    "radio": ("Radio link first", {"sunlight": 20, "earth": 80, "landing_slope": 20, "shadow": 10, "walkable": 5,
+                                   "temperature": 5, "darkness": 0, "no_earth": 60}),
+    "ice": ("Ice science first", {"sunlight": 20, "earth": 15, "landing_slope": 20, "shadow": 90, "walkable": 30,
+                                  "temperature": 0, "darkness": 10, "no_earth": 15}),
+}
+
+
+def int_map_score(q, weights):
+    """Map score 0-100 from layer values q (6, ...) and weights: round-half-up of 100 * sum(W q) / (255 * sum(W)).
+
+    Pure integer arithmetic, so Python and the browser (web/src/lib/analysis/suitability.ts) agree exactly.
+    """
+    w = np.array([int(weights[k]) for k in LAYER_KEYS], dtype=np.int64)
+    den = 255 * int(w.sum())
+    if den == 0:
+        return np.zeros(np.shape(q)[1:], dtype=np.int64)
+    num = np.tensordot(w, np.asarray(q, dtype=np.int64), axes=1)
+    return (200 * num + den) // (2 * den)
+
+
+def zone_score_weighted(map_score_int, dark_h, no_earth_h, weights):
+    """Zone score 0-100 under any weights; with the balanced weights it is zone_score()."""
+    w6 = sum(weights[k] for k in LAYER_KEYS)
+    total = w6 + weights["darkness"] + weights["no_earth"]
+    if total == 0:
+        return 0
+    dark = float(subscore(dark_h, DARK_REJECT_H, DARK_IDEAL_H))
+    no_earth = float(subscore(no_earth_h, NO_EARTH_REJECT_H, 0.0))
+    # Written in this order on purpose: with the balanced weights it is the same floating-point sum as zone_score(),
+    # 0.7 * map + 15 * dark + 15 * no_earth, and suitability.ts evaluates it the same way.
+    x = (w6 / total) * map_score_int + (100.0 * weights["darkness"] / total) * dark \
+        + (100.0 * weights["no_earth"] / total) * no_earth
+    return round(x)  # ties go to the even number, as in zone_score() and in suitability.ts
+
+
+def quantise_layers(g):
+    """The six soft sub-scores as uint8 layers (6, rows, cols), 0..255.
+
+    Each value is the sub-score rounded to the nearest of 256 steps. Where that rounding alone would move the
+    balanced score off the published integer, one layer is moved by a single step (0.4 % of its range) instead, so
+    int_map_score(layers, balanced) reproduces the published map score at every cell.
+    """
+    s = np.stack([subscore(np.nan_to_num(g[key], nan=reject), reject, ideal) for key, reject, ideal, _ in SOFT])
+    # A term with no data (temperature in a few cells at the corners of the computed square) takes the weighted
+    # mean of the other terms there, which is what "left out and the weights rescaled" means for the score.
+    w = np.array([wt for *_, wt in SOFT])
+    for i, (key, *_rest) in enumerate(SOFT):
+        missing = ~np.isfinite(g[key])
+        if missing.any():
+            others = np.delete(np.arange(len(SOFT)), i)
+            s[i][missing] = (np.tensordot(w[others], s[others], axes=1) / w[others].sum())[missing]
+    target = np.clip(np.rint(g["score"]), 0, 100).astype(np.int64)
+    q = np.rint(255.0 * s).astype(np.int64)
+    frac = 255.0 * s - q                      # > 0: rounded down, < 0: rounded up
+    balanced = PRESETS["balanced"][1]
+    for direction in (1, -1):
+        for _ in range(len(LAYER_KEYS)):
+            cur = int_map_score(q, balanced)
+            need = np.flatnonzero((cur < target) if direction > 0 else (cur > target))
+            if need.size == 0:
+                break
+            qn = q.reshape(6, -1)[:, need]
+            fn = frac.reshape(6, -1)[:, need]
+            room = (qn + direction >= 0) & (qn + direction <= 255)
+            k = np.argmax(np.where(room, direction * fn, -np.inf), axis=0)   # the layer that lost most to rounding
+            q.reshape(6, -1)[k, need] += direction
+            frac.reshape(6, -1)[k, need] -= direction
+    assert np.array_equal(int_map_score(q, balanced), target), "layers do not reproduce the published score"
+    return q.astype(np.uint8), float(np.abs(q - 255.0 * s).max())
+
+
 def _row(parameter, kind, unit, ideal, acceptable, reject, weight, reason, source):
     return {"parameter": parameter, "kind": kind, "unit": unit, "ideal": ideal, "acceptable": acceptable,
             "reject": reject, "weight_pct": weight, "reason": reason, "source": source}

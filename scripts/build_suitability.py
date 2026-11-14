@@ -129,7 +129,10 @@ def to_south_pole_grid(g, size=1024, half_m=220000.0):
     limits = np.full(size * size, 255, dtype=np.uint8)
     score[cell_sorted[last]] = C.encode_score(g["score"][ok][best], g["passes"][ok][best], np.ones(best.size, bool))
     limits[cell_sorted[last]] = g["fails"][ok][best]
-    return score.reshape(size, size), limits.reshape(size, size)
+    # Which 120 m cell each grid pixel shows, so the per-variable layers can show the same cell.
+    source = np.full(size * size, -1, dtype=np.int64)
+    source[cell_sorted[last]] = np.flatnonzero(ok)[best]
+    return score.reshape(size, size), limits.reshape(size, size), source
 
 
 def model_metrics(dem, lat, lon, sun_dir, earth_km):
@@ -179,7 +182,7 @@ def build_zones(dem, g, sites, sun_dir, earth_km):
         lat, lon = dem.latlon(g["x"][c], g["y"][r])
         z = {"lat": round(float(lat), 5), "lon": round(float(lon), 5), "x_m": round(float(g["x"][c])),
              "y_m": round(float(g["y"][r])), "area_km2": round(float(area[zone_label - 1]), 3),
-             "map_score": round(float(g["score"][r, c])), **values_at(g, r, c),
+             "map_score": round(float(g["score"][r, c])), "_flat": int(flat), **values_at(g, r, c),
              **model_metrics(dem, float(lat), float(lon), sun_dir, earth_km)}
         z["stay_window_ok"] = z["longest_sun_and_earth_h"] >= C.STAY_H
         z["score"] = C.zone_score(z)
@@ -228,6 +231,89 @@ def write_site_tiles(dem, sl, g, sites):
         (OUT / "sites" / f"{s['id']}_score.u8").write_bytes(enc[r0:r0 + n, c0:c0 + n].tobytes())
         limits = np.where(g["valid"], g["fails"], 255).astype(np.uint8)
         (OUT / "sites" / f"{s['id']}_limits.u8").write_bytes(limits[r0:r0 + n, c0:c0 + n].tobytes())
+
+
+def write_layers(dem, sl, g, q, source, sites, zones, sun_dir, earth_km):
+    """'Your priorities' (docs/INTERFACES.md section 11): each soft term as a 0-255 layer, plus what the browser
+    needs to re-rank the zones and the Artemis points under any weights. Only adds files; changes none."""
+    out = OUT / "layers"
+    (out / "sites").mkdir(parents=True, exist_ok=True)
+    flat = q.reshape(len(C.LAYER_KEYS), -1)
+    for i, key in enumerate(C.LAYER_KEYS):
+        grid = np.zeros(source.size, dtype=np.uint8)
+        grid[source >= 0] = flat[i][source[source >= 0]]
+        (out / f"south_pole_{key}.u8").write_bytes(grid.tobytes())
+    for s in sites:
+        if s["terrain"] != "dem":
+            continue
+        tile = json.loads((PUBLIC / "terrain" / "sites" / s["id"] / "tile.json").read_text())
+        c0 = round(tile["x_min_m"] / dem.scale_m + dem.sample_offset + 0.5) - sl[1].start
+        r0 = round(dem.line_offset - tile["y_max_m"] / dem.scale_m + 0.5) - sl[0].start
+        n = tile["size"]
+        for i, key in enumerate(C.LAYER_KEYS):
+            (out / "sites" / f"{s['id']}_{key}.u8").write_bytes(np.ascontiguousarray(q[i, r0:r0 + n, c0:c0 + n]).tobytes())
+
+    with open(OUT / "zones_layers.csv", "w", newline="") as f:
+        w = csv.writer(f, lineterminator="\n")
+        w.writerow(["rank", *C.LAYER_KEYS])
+        w.writerows([z["rank"], *(int(v) for v in flat[:, z["_flat"]])] for z in zones)
+
+    # The nine Artemis points: their own layer values and model numbers, and where they would rank among the
+    # zones whose stay window is confirmed, under each preset.
+    confirmed = [z for z in zones if z["stay_window_ok"]]
+    zq = np.stack([flat[:, z["_flat"]] for z in confirmed], axis=1)
+    cols = ["id", "name", "lat", "lon", "passes_hard_limits", "failed_limits", *C.LAYER_KEYS, "longest_dark_h",
+            "longest_no_earth_h", "longest_sun_and_earth_h"]
+    cols += [f"{kind}_{p}" for p in C.PRESETS for kind in ("score", "rank")]
+    rows = []
+    for s in sites:
+        if s["group"] != "artemis":
+            continue
+        sx, sy = dem.xy(s["lat"], s["lon"])
+        c = round(float(sx) / dem.scale_m + dem.sample_offset) - sl[1].start
+        r = round(dem.line_offset - float(sy) / dem.scale_m) - sl[0].start
+        pq = q[:, r, c]
+        mm = model_metrics(dem, s["lat"], s["lon"], sun_dir, earth_km)
+        row = {"id": s["id"], "name": s["name"], "lat": s["lat"], "lon": s["lon"],
+               "passes_hard_limits": "yes" if g["passes"][r, c] else "no",
+               "failed_limits": " ".join(name for name, bit in LIMIT_BITS.items() if g["fails"][r, c] & bit),
+               **{k: int(v) for k, v in zip(C.LAYER_KEYS, pq, strict=True)},
+               **{k: mm[k] for k in ("longest_dark_h", "longest_no_earth_h", "longest_sun_and_earth_h")}}
+        for name, (_, weights) in C.PRESETS.items():
+            score = C.zone_score_weighted(int(C.int_map_score(pq[:, None], weights)[0]), mm["longest_dark_h"],
+                                          mm["longest_no_earth_h"], weights)
+            zone_scores = [C.zone_score_weighted(int(m), z["longest_dark_h"], z["longest_no_earth_h"], weights)
+                           for m, z in zip(C.int_map_score(zq, weights), confirmed, strict=True)]
+            row[f"score_{name}"] = score
+            row[f"rank_{name}"] = 1 + sum(v > score for v in zone_scores)
+        rows.append(row)
+    with open(OUT / "artemis_points.csv", "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=cols, lineterminator="\n")
+        w.writeheader()
+        w.writerows(rows)
+
+    soft = {k: (key, reject, ideal) for k, (key, reject, ideal, _) in zip(C.LAYER_KEYS, C.SOFT, strict=True)}
+    units = {"sunlight": "% of time", "earth": "% of time", "landing_slope": "deg", "shadow": "km", "walkable": "%",
+             "temperature": "K"}
+    (OUT / "weights.json").write_text(json.dumps({
+        "version": 1,
+        "layers": [{"key": k, "label": C.LAYER_LABELS[k], "parameter": soft[k][0], "unit": units[k],
+                    "reject": soft[k][1], "ideal": soft[k][2], "file": f"layers/south_pole_{k}.u8",
+                    "site_file": f"layers/sites/<id>_{k}.u8"} for k in C.LAYER_KEYS],
+        "zone_terms": [{"key": "darkness", "label": C.LAYER_LABELS["darkness"], "column": "longest_dark_h", "unit": "h",
+                        "reject": C.DARK_REJECT_H, "ideal": C.DARK_IDEAL_H},
+                       {"key": "no_earth", "label": C.LAYER_LABELS["no_earth"], "column": "longest_no_earth_h",
+                        "unit": "h", "reject": C.NO_EARTH_REJECT_H, "ideal": 0.0}],
+        "default": "balanced",
+        "presets": [{"key": k, "label": label, "weights": w} for k, (label, w) in C.PRESETS.items()],
+        "confirmed_zones": len(confirmed),
+    }, indent=1))
+    print(f"layers: {len(C.LAYER_KEYS)} x (1 south-pole grid + {sum(s['terrain'] == 'dem' for s in sites)} site tiles); "
+          f"Artemis points among the {len(confirmed)} confirmed zones (score, rank):")
+    print("  " + "site".ljust(8) + "passes  " + "  ".join(label.ljust(18) for label, _ in C.PRESETS.values()))
+    for row in rows:
+        print("  " + row["id"].ljust(8) + row["passes_hard_limits"].ljust(8)
+              + "  ".join(f"{row[f'score_{p}']:3d}, rank {row[f'rank_{p}']:<8d}" for p in C.PRESETS))
 
 
 def polar_missions(dem, sl, main, sun_dir, earth_km):
@@ -294,13 +380,15 @@ def main():
     region = g["lat"] <= C.LAT_MAX
     print(f"grids: {g['score'].shape}, Diviner temperature {'loaded' if g['temp_avg_k'] is not None else 'MISSING'}, "
           f"{time.perf_counter() - t0:.1f} s")
-    score, limits = to_south_pole_grid(g)
+    score, limits, source = to_south_pole_grid(g)
     (OUT / "south_pole_score.u8").write_bytes(score.tobytes())
     (OUT / "south_pole_limits.u8").write_bytes(limits.tobytes())
     write_site_tiles(dem, sl, g, sites)
 
     zones = build_zones(dem, g, sites, sun_dir, earth_km)
     write_zones(zones)
+    q, _ = C.quantise_layers(g)
+    write_layers(dem, sl, g, q, source, sites, zones, sun_dir, earth_km)
     polar_missions(dem, sl, g, sun_dir, earth_km)
 
     px_km2 = (dem.scale_m / 1000.0) ** 2

@@ -1,0 +1,143 @@
+{
+ "version": 1,
+ "layers": [
+  {
+   "key": "sunlight",
+   "label": "Sunlight",
+   "parameter": "sun_pct",
+   "unit": "% of time",
+   "reject": 25.0,
+   "ideal": 70.0,
+   "file": "layers/south_pole_sunlight.u8",
+   "site_file": "layers/sites/<id>_sunlight.u8"
+  },
+  {
+   "key": "earth",
+   "label": "Earth in view",
+   "parameter": "earth_pct",
+   "unit": "% of time",
+   "reject": 25.0,
+   "ideal": 70.0,
+   "file": "layers/south_pole_earth.u8",
+   "site_file": "layers/sites/<id>_earth.u8"
+  },
+  {
+   "key": "landing_slope",
+   "label": "Flat landing ground",
+   "parameter": "landing_slope_deg",
+   "unit": "deg",
+   "reject": 10.0,
+   "ideal": 5.0,
+   "file": "layers/south_pole_landing_slope.u8",
+   "site_file": "layers/sites/<id>_landing_slope.u8"
+  },
+  {
+   "key": "shadow",
+   "label": "Permanent shadow nearby",
+   "parameter": "psr_distance_km",
+   "unit": "km",
+   "reject": 20.0,
+   "ideal": 2.0,
+   "file": "layers/south_pole_shadow.u8",
+   "site_file": "layers/sites/<id>_shadow.u8"
+  },
+  {
+   "key": "walkable",
+   "label": "Walkable ground",
+   "parameter": "eva_walkable_pct",
+   "unit": "%",
+   "reject": 50.0,
+   "ideal": 95.0,
+   "file": "layers/south_pole_walkable.u8",
+   "site_file": "layers/sites/<id>_walkable.u8"
+  },
+  {
+   "key": "temperature",
+   "label": "Milder ground",
+   "parameter": "temp_avg_k",
+   "unit": "K",
+   "reject": 110.0,
+   "ideal": 150.0,
+   "file": "layers/south_pole_temperature.u8",
+   "site_file": "layers/sites/<id>_temperature.u8"
+  }
+ ],
+ "zone_terms": [
+  {
+   "key": "darkness",
+   "label": "Short nights",
+   "column": "longest_dark_h",
+   "unit": "h",
+   "reject": 354.0,
+   "ideal": 85.0
+  },
+  {
+   "key": "no_earth",
+   "label": "Never out of contact",
+   "column": "longest_no_earth_h",
+   "unit": "h",
+   "reject": 336.0,
+   "ideal": 0.0
+  }
+ ],
+ "default": "balanced",
+ "presets": [
+  {
+   "key": "balanced",
+   "label": "Balanced",
+   "weights": {
+    "sunlight": 42,
+    "earth": 28,
+    "landing_slope": 28,
+    "shadow": 21,
+    "walkable": 14,
+    "temperature": 7,
+    "darkness": 30,
+    "no_earth": 30
+   }
+  },
+  {
+   "key": "power",
+   "label": "Power first",
+   "weights": {
+    "sunlight": 80,
+    "earth": 15,
+    "landing_slope": 20,
+    "shadow": 10,
+    "walkable": 5,
+    "temperature": 10,
+    "darkness": 60,
+    "no_earth": 0
+   }
+  },
+  {
+   "key": "radio",
+   "label": "Radio link first",
+   "weights": {
+    "sunlight": 20,
+    "earth": 80,
+    "landing_slope": 20,
+    "shadow": 10,
+    "walkable": 5,
+    "temperature": 5,
+    "darkness": 0,
+    "no_earth": 60
+   }
+  },
+  {
+   "key": "ice",
+   "label": "Ice science first",
+   "weights": {
+    "sunlight": 20,
+    "earth": 15,
+    "landing_slope": 20,
+    "shadow": 90,
+    "walkable": 30,
+    "temperature": 0,
+    "darkness": 10,
+    "no_earth": 15
+   }
+  }
+ ],
+ "confirmed_zones": 4224
+}

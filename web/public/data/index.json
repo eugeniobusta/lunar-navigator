@@ -143,7 +143,7 @@
   },
   {
    "path": "suitability/artemis_points.csv",
-   "bytes": 1303,
+   "bytes": 1402,
    "format": "CSV",
    "description": "The nine Artemis points: layer values, model numbers, score and rank under each preset."
   },
@@ -821,7 +821,7 @@
   },
   {
    "path": "suitability/weights.json",
-   "bytes": 3424,
+   "bytes": 4165,
    "format": "JSON",
    "description": "The scoring layers, their bounds, and the weight presets (balanced, power, radio, ice)."
   },

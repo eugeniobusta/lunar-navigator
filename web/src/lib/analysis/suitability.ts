@@ -16,13 +16,80 @@ export type TermKey = LayerKey | (typeof ZONE_KEYS)[number];
 /** Relative importance of each term. Only the ratios matter; use whole numbers for exact agreement with Python. */
 export type Weights = Record<TermKey, number>;
 
-export interface Preset { key: string; label: string; weights: Weights }
+/** A preset of suitability/weights.json: the parameters it ticks, and the weights that follow from them. */
+export interface Preset { key: string; label: string; weights: Weights; ticked?: TermKey[] }
 export interface ZoneTerm { reject: number; ideal: number }
 /** Bounds in hours for the two zone terms (suitability/weights.json carries the same numbers). */
 export const DARKNESS: ZoneTerm = { reject: 354, ideal: 85 };
 export const NO_EARTH: ZoneTerm = { reject: 336, ideal: 0 };
 
-/** The default weights of docs/criteria.md. suitability/weights.json holds this and the other presets. */
+/** Every parameter, in the order of the checkbox list and of the old w= links: the layers, then the zone terms. */
+export const TERM_KEYS: TermKey[] = [...LAYER_KEYS, ...ZONE_KEYS];
+
+/** How much a ticked parameter counts: low 0.5, normal 1, high 2, kept as whole numbers so scores stay exact. */
+export type Importance = "low" | "normal" | "high";
+export const IMPORTANCE: Record<Importance, number> = { low: 1, normal: 2, high: 4 };
+
+/**
+ * What the user asked for: the ticked parameters, and optionally an importance for some of them (default normal).
+ * The score is the weighted mean of the ticked parameters' scores; NASA's hard limits always apply.
+ * `weights`, when present, are exact weights that replace the importances (the "NASA-style balance" preset, which
+ * reproduces the published scores, and old w= links).
+ */
+export interface Selection {
+  ticked: TermKey[];
+  importance?: Partial<Record<TermKey, Importance>>;
+  weights?: Weights;
+}
+
+/** The weights a selection stands for: each ticked parameter's importance, 0 for the others. */
+export function selectionWeights(sel: Selection): Weights {
+  if (sel.weights) return sel.weights;
+  const w = {} as Weights;
+  for (const k of TERM_KEYS) w[k] = sel.ticked.includes(k) ? IMPORTANCE[sel.importance?.[k] ?? "normal"] : 0;
+  return w;
+}
+
+/** The default: every parameter ticked, all equally important. */
+export const EVERYTHING: Selection = { ticked: [...TERM_KEYS] };
+
+/** The selection a preset stands for. Presets with their own weights (NASA-style balance) keep them. */
+export function presetSelection(p: Preset): Selection {
+  const ticked = TERM_KEYS.filter((k) => (p.ticked ? p.ticked.includes(k) : p.weights[k] > 0));
+  const plain = selectionWeights({ ticked });
+  return TERM_KEYS.every((k) => plain[k] === p.weights[k]) ? { ticked } : { ticked, weights: p.weights };
+}
+
+/** True if two selections give the same weights (so the same scores and ranking). */
+export function sameSelection(a: Selection, b: Selection): boolean {
+  const wa = selectionWeights(a), wb = selectionWeights(b);
+  return TERM_KEYS.every((k) => wa[k] === wb[k]);
+}
+
+/** The parameters of a selection that actually count (ticked, or with weight in an exact-weights selection). */
+export function countedTerms(sel: Selection): TermKey[] {
+  const w = selectionWeights(sel);
+  return TERM_KEYS.filter((k) => w[k] > 0);
+}
+
+/** Ticks or unticks one parameter. Any exact weights are dropped: the result is a plain selection again. */
+export function toggleTerm(sel: Selection, key: TermKey): Selection {
+  const on = countedTerms(sel);
+  const ticked = on.includes(key) ? on.filter((k) => k !== key) : TERM_KEYS.filter((k) => on.includes(k) || k === key);
+  return { ticked, importance: sel.weights ? undefined : sel.importance };
+}
+
+/** Sets one ticked parameter's importance. */
+export function setImportance(sel: Selection, key: TermKey, level: Importance): Selection {
+  return { ticked: countedTerms(sel), importance: { ...(sel.weights ? {} : sel.importance), [key]: level } };
+}
+
+/** Zones scored and ranked for a selection (rankZones with the selection's weights). */
+export function rankZonesFor(zones: ZoneInput[], sel: Selection): RankedZone[] {
+  return rankZones(zones, selectionWeights(sel));
+}
+
+/** The weights of docs/criteria.md ("NASA-style balance"): they reproduce the published scores exactly. */
 export const BALANCED: Weights = {
   sunlight: 42, earth: 28, landing_slope: 28, shadow: 21, walkable: 14, temperature: 7, ice: 0, hollow: 0,
   darkness: 30, no_earth: 30,
@@ -119,3 +186,19 @@ export function rankAmong(score: number, zoneScores: ArrayLike<number>): number 
   for (let i = 0; i < zoneScores.length; i++) if (zoneScores[i] > score) better++;
   return better + 1;
 }
+
+/** What the checkbox list says about each parameter: its name, one plain line, and its colour token. */
+export interface ParameterInfo { key: TermKey; label: string; explain: string; token: string }
+export const PARAMETERS: ParameterInfo[] = [
+  { key: "sunlight", label: "Sunlight", token: "--sunlight", explain: "How much of the time the Sun is up: solar power and warmth." },
+  { key: "darkness", label: "Short nights", token: "--p-nights", explain: "How long the longest night lasts: a lander must sit it out on batteries." },
+  { key: "earth", label: "Earth in view", token: "--earth", explain: "How much of the time Earth is above the skyline: a direct radio link." },
+  { key: "no_earth", label: "Never out of contact", token: "--cloud", explain: "How long the longest stretch without Earth lasts." },
+  { key: "landing_slope", label: "Landing slope", token: "--lichen", explain: "How flat the ground is, with margin under NASA's 10 degree limit." },
+  { key: "walkable", label: "Walkable ground", token: "--p-walkable", explain: "How much of the ground within 2 km a suited astronaut can walk." },
+  { key: "shadow", label: "Ice nearby", token: "--p-ice-near", explain: "How close the nearest permanent shadow is, where water ice may survive." },
+  { key: "ice", label: "Ice depth", token: "--p-ice-depth", explain: "How deep you would dig before ice stays frozen: within a 1 m drill or not." },
+  { key: "temperature", label: "Temperature", token: "--p-temperature", explain: "How mild the ground is on average: very cold ground needs more heating." },
+  { key: "hollow", label: "Hollow depth", token: "--p-hollow", explain: "Whether the spot sits in a dip, with raised ground all round." },
+];
+export const parameter = (key: TermKey): ParameterInfo => PARAMETERS.find((p) => p.key === key)!;

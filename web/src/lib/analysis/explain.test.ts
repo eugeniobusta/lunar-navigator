@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { parseCsv } from "../data/csv";
-import { RULES, explain, summarise, valuesFromRow, verdictOf, type CriterionRow } from "./explain";
+import { RULES, TERM_OF, explain, explainFor, summarise, valuesFromRow, verdictOf, type CriterionRow } from "./explain";
+import { TERM_KEYS } from "./suitability";
 
 const DATA = new URL("../../../public/data/", import.meta.url);
 const text = (p: string) => readFileSync(new URL(p, DATA), "utf8");
@@ -53,12 +54,23 @@ describe("sentences", () => {
     const list = explain({ landingSlopeDeg: 3, iceDepthM: Infinity, hollowDepthM: 64 }, criteria);
     expect(list.map((e) => [e.key, e.verdict, e.optional])).toEqual([["landingSlopeDeg", "good", false], ["iceDepthM", "rejected", true], ["hollowDepthM", "acceptable", true]]);
     expect(list[1].sentence).toContain("Depth of stable ice none within 2.9 m: rejected.");
-    expect(list[1].sentence).toContain("It counts only if you give it weight in Your priorities.");
+    expect(list[1].sentence).toContain("It counts only when you tick it.");
     expect(list[2].sentence).toContain("Depth of the hollow 64 m below its surroundings: acceptable.");
     expect(summarise(list)).toBe("Passes every hard limit: 1 of 1 criteria are good.");
     expect(valuesFromRow({ ice_depth_m: "" }).iceDepthM).toBe(Infinity);
     expect(valuesFromRow({ sun_pct: "50" }).iceDepthM).toBeUndefined();
     expect(valuesFromRow({ ice_depth_m: "0.26", hollow_depth_m: "-118" })).toMatchObject({ iceDepthM: 0.26, hollowDepthM: -118 });
+  });
+  it("for a selection: the ticked parameters and every NASA hard limit, nothing else", () => {
+    const values = { latDeg: -85, landingSlopeDeg: 3, walkablePct: 99, sunPct: 60, earthPct: 60, shadowKm: 1, tempK: 140,
+      longestDarkH: 100, longestNoEarthH: 10, iceDepthM: 0.3, hollowDepthM: -20 };
+    const power = explainFor(values, criteria, ["sunlight", "darkness"]);
+    expect(power.map((e) => e.key)).toEqual(["latDeg", "landingSlopeDeg", "walkablePct", "sunPct", "earthPct", "longestDarkH"]);
+    const ice = explainFor(values, criteria, ["shadow", "ice"]);
+    expect(ice.map((e) => e.key)).toEqual(["latDeg", "landingSlopeDeg", "walkablePct", "sunPct", "earthPct", "shadowKm", "iceDepthM"]);
+    expect(ice[6].sentence).not.toContain("counts only when you tick it"); // it is ticked
+    expect(ice[6].optional).toBe(false);
+    expect(explainFor(values, criteria, []).every((e) => e.hardLimit)).toBe(true);
   });
   it("works without the criteria table (no reason, still a full sentence)", () => {
     expect(explain({ longestNoEarthH: 0 })[0].sentence).toBe("Longest time without Earth 0 hours: good. Earth never drops below the skyline.");
@@ -77,6 +89,11 @@ describe("sentences", () => {
 });
 
 describe("stays in step with the published thresholds", () => {
+  it("every scoring parameter has exactly one explained value", () => {
+    const terms = Object.values(TERM_OF).filter((t) => t !== null);
+    expect([...terms].sort()).toEqual([...TERM_KEYS].sort());
+    expect(Object.keys(TERM_OF).sort()).toEqual(RULES.map((r) => r.key).sort());
+  });
   it("bounds equal suitability/weights.json", () => {
     const w = JSON.parse(text("suitability/weights.json")) as { layers: { parameter: string; reject: number; ideal: number }[];
       zone_terms: { column: string; reject: number; ideal: number }[] };

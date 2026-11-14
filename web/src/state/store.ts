@@ -1,6 +1,7 @@
 // App state (zustand). Data is loaded once; the selected window is [startIdx, startIdx + windowDays * 24).
 import { create } from "zustand";
 import type { Ephemeris, Horizon } from "../lib/analysis";
+import type { Selection } from "../lib/analysis/suitability";
 import { loadEphemeris, loadHorizon, loadSites, type Loaded, type Site } from "../lib/data";
 
 export type Tab = "overview" | "land" | "windows" | "compare" | "grid" | "power" | "moon3d" | "data" | "method";
@@ -20,10 +21,11 @@ interface State {
   tab: Tab;
   /** A point picked in the Layers view of Where to land, passed on to the 3D view: [lat, east lon], or null. */
   spot: [number, number] | null;
-  /** Where to land: key of the chosen priorities preset, or "custom" with the slider values in landWeights. */
-  landPreset: string;
-  landWeights: number[] | null;
-  setLandPriorities: (preset: string, weights: number[] | null) => void;
+  /** Where to land: the chosen preset (suitability/weights.json), or null when the ticks were set by hand. */
+  landPreset: string | null;
+  /** Where to land: the ticked parameters and their importances when no preset is chosen. */
+  landSelection: Selection | null;
+  setLandChoice: (preset: string | null, selection: Selection | null) => void;
   init: () => Promise<void>;
   ensureHorizon: (id: string) => Promise<void>;
   setSite: (id: string) => void;
@@ -49,9 +51,9 @@ export const useStore = create<State>((set, get) => ({
   cursor: 0,
   tab: "overview",
   spot: null,
-  landPreset: "balanced",
-  landWeights: null,
-  setLandPriorities: (preset, weights) => set({ landPreset: preset, landWeights: weights }),
+  landPreset: "everything",
+  landSelection: null,
+  setLandChoice: (preset, selection) => set({ landPreset: preset, landSelection: selection }),
 
   init: async () => {
     const [sites, eph] = await Promise.all([loadSites(), loadEphemeris()]);

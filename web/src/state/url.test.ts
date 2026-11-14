@@ -51,21 +51,33 @@ describe("buildQuery", () => {
   });
 });
 
-describe("Where to land priorities", () => {
+describe("Where to land selection", () => {
   const base = { siteId: "mma01", compareId: "hw02", startIdx: 48, windowDays: 30, tab: "land" };
-  it("a preset travels by its key; balanced is the default and is left out", () => {
+  const terms = ["sunlight", "earth", "landing_slope", "shadow", "walkable", "temperature", "ice", "hollow", "darkness", "no_earth"];
+  const landCtx = { ...ctx, tabs: ["land"], termKeys: terms };
+  it("a preset travels by its key; the default preset is left out", () => {
     expect(buildQuery({ ...base, preset: "ice" }, startMs, 3600)).toBe("?site=mma01&compare=hw02&date=2026-11-03&days=30&tab=land&preset=ice");
-    expect(buildQuery({ ...base, preset: "balanced" }, startMs, 3600)).not.toContain("preset");
+    expect(buildQuery({ ...base, preset: "everything" }, startMs, 3600)).not.toContain("preset");
+    expect(buildQuery({ ...base, preset: "balanced" }, startMs, 3600)).toContain("&preset=balanced");
     expect(parseQuery("?preset=ice", ctx)).toEqual({ preset: "ice" });
     expect(parseQuery("?preset=<script>", ctx)).toEqual({});
   });
-  it("custom slider values travel as w= and round-trip", () => {
+  it("ticks and importances travel as pick= and imp= and round-trip", () => {
+    const q = buildQuery({ ...base, ticked: ["sunlight", "ice"], importance: { sunlight: "high", ice: "normal" } }, startMs, 3600);
+    expect(q).toBe("?site=mma01&compare=hw02&date=2026-11-03&days=30&tab=land&pick=sunlight,ice&imp=sunlight:high");
+    expect(parseQuery(q, landCtx)).toMatchObject({ ticked: ["sunlight", "ice"], importance: { sunlight: "high" } });
+    expect(parseQuery("?pick=", landCtx).ticked).toEqual([]);                        // nothing ticked is a valid choice
+    expect(parseQuery("?pick=sunlight,nonsense", landCtx).ticked).toBeUndefined();   // an unknown parameter voids the list
+    expect(parseQuery("?pick=earth&imp=earth:huge,sunlight:low", landCtx)).toMatchObject({ ticked: ["earth"] });
+    expect(parseQuery("?pick=earth&imp=earth:huge", landCtx).importance).toBeUndefined();
+  });
+  it("old links with exact weights (w=) still open", () => {
     const weights = [80, 15, 20, 10, 5, 10, 0, 0, 60, 0];
     const q = buildQuery({ ...base, weights }, startMs, 3600);
     expect(q).toContain("&w=80,15,20,10,5,10,0,0,60,0");
-    expect(parseQuery(q, { ...ctx, tabs: ["land"] }).weights).toEqual(weights);
-    expect(parseQuery("?w=1,2,3", ctx)).toEqual({});              // wrong length
-    expect(parseQuery("?w=101,0,0,0,0,0,0,0,0,0", ctx)).toEqual({}); // out of range
-    expect(parseQuery("?w=a,b", ctx)).toEqual({});
+    expect(parseQuery(q, landCtx).weights).toEqual(weights);
+    expect(parseQuery("?w=1,2,3", landCtx)).toEqual({});               // wrong length
+    expect(parseQuery("?w=101,0,0,0,0,0,0,0,0,0", landCtx)).toEqual({}); // out of range
+    expect(parseQuery("?w=a,b", landCtx)).toEqual({});
   });
 });

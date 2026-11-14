@@ -150,22 +150,39 @@ def zone_score(z):
 # Layer order matches SOFT. A layer value q is the sub-score: 0 at the reject bound, 255 at the ideal bound.
 LAYER_KEYS = ["sunlight", "earth", "landing_slope", "shadow", "walkable", "temperature", "ice", "hollow"]
 ZONE_KEYS = ["darkness", "no_earth"]   # only known at zone best cells (our time model), not per pixel
-LAYER_LABELS = {"sunlight": "Sunlight", "earth": "Earth in view", "landing_slope": "Flat landing ground",
-                "shadow": "Permanent shadow nearby", "walkable": "Walkable ground", "temperature": "Milder ground",
-                "ice": "Buried ice within reach", "hollow": "Not in a hollow",
-                "darkness": "Short nights", "no_earth": "Never out of contact"}
-# Weights are relative (only their ratios matter). "balanced" is docs/criteria.md: 0.30 / 0.20 / 0.20 / 0.15 / 0.10 /
-# 0.05 inside the map score, which is 70 % of the zone score, plus 15 % darkness and 15 % time without Earth.
-PRESETS = {
-    "balanced": ("Balanced", {"sunlight": 42, "earth": 28, "landing_slope": 28, "shadow": 21, "walkable": 14,
-                              "temperature": 7, "ice": 0, "hollow": 0, "darkness": 30, "no_earth": 30}),
-    "power": ("Power first", {"sunlight": 80, "earth": 15, "landing_slope": 20, "shadow": 10, "walkable": 5,
-                              "temperature": 10, "ice": 0, "hollow": 0, "darkness": 60, "no_earth": 0}),
-    "radio": ("Radio link first", {"sunlight": 20, "earth": 80, "landing_slope": 20, "shadow": 10, "walkable": 5,
-                                   "temperature": 5, "ice": 0, "hollow": 0, "darkness": 0, "no_earth": 60}),
-    "ice": ("Ice science first", {"sunlight": 20, "earth": 15, "landing_slope": 20, "shadow": 90, "walkable": 30,
-                                  "temperature": 0, "ice": 40, "hollow": 0, "darkness": 10, "no_earth": 15}),
-}
+LAYER_LABELS = {"sunlight": "Sunlight", "earth": "Earth in view", "landing_slope": "Landing slope",
+                "shadow": "Ice nearby", "walkable": "Walkable ground", "temperature": "Temperature",
+                "ice": "Ice depth", "hollow": "Hollow depth", "darkness": "Short nights",
+                "no_earth": "Never out of contact"}
+TERM_KEYS = LAYER_KEYS + ZONE_KEYS
+# A selection is the set of ticked parameters with an importance each: low 0.5, normal 1, high 2. As whole numbers
+# (1, 2, 4) so the integer score arithmetic stays exact. The score is the weighted mean of the ticked parameters.
+IMPORTANCE = {"low": 1, "normal": 2, "high": 4}
+
+
+def selection_weights(ticked, importance=None):
+    """Weights for a selection: the importance of each ticked parameter, 0 for the rest."""
+    importance = importance or {}
+    return {k: (IMPORTANCE[importance.get(k, "normal")] if k in ticked else 0) for k in TERM_KEYS}
+
+
+# Presets: (label, ticked parameters, importances, exact weights or None). "balanced" is docs/criteria.md's own
+# weighting (0.30 / 0.20 / 0.20 / 0.15 / 0.10 / 0.05 inside the map score, which is 70 % of the zone score, plus
+# 15 % darkness and 15 % time without Earth): it reproduces the published scores, and is not a plain selection.
+_BALANCED = {"sunlight": 42, "earth": 28, "landing_slope": 28, "shadow": 21, "walkable": 14, "temperature": 7,
+             "ice": 0, "hollow": 0, "darkness": 30, "no_earth": 30}
+# "balanced" stays first in the file: a reader that takes the first preset as its own default (the VR view) keeps
+# the published ranking. The website opens on DEFAULT_PRESET.
+_PRESET_DEFS = [
+    ("balanced", "NASA-style balance", [k for k, v in _BALANCED.items() if v > 0], _BALANCED),
+    ("everything", "Everything", TERM_KEYS, None),
+    ("power", "Power first", ["sunlight", "darkness"], None),
+    ("radio", "Radio link", ["earth", "no_earth"], None),
+    ("ice", "Ice science", ["shadow", "ice"], None),
+]
+PRESETS = {key: (label, weights or selection_weights(ticked)) for key, label, ticked, weights in _PRESET_DEFS}
+PRESET_TICKS = {key: list(ticked) for key, _, ticked, _ in _PRESET_DEFS}
+DEFAULT_PRESET = "everything"
 
 
 def int_map_score(q, weights):

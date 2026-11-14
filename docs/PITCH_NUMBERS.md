@@ -51,6 +51,8 @@ Mission: 336 h on the surface, at least 70 % sunlit, at least 50 % Earth visible
 - Artemis check: 6 of the 9 candidate points pass every limit; 8 of the 9 have a passing zone within 12.5 km; 1 of our top 20 zones is near one. Ground near the points is 3.3 % of the area and 5.9 % of the passing ground.
 - Radio delay Moon to Earth: 1.19 to 1.36 s one way, the same from every site.
 
+The five best zones under "NASA-style balance", the ranking of the published files (zones.csv):
+
 | Rank | Lat | Lon (E) | Score | Area (km2) | Sunlight % | Earth % | Slope (deg) | Longest darkness (days) | Nearest Artemis region (km) |
 |-----:|----:|--------:|------:|-----------:|-----------:|--------:|------------:|------------------------:|-----------------------------|
 | 1 | -84.44 | 19.21 | 77 | 3.6 | 57 | 100 | 3.4 | 14.0 | Mons Mouton Plateau (32.9) |
@@ -65,19 +67,29 @@ Thresholds and sources: docs/criteria.csv. Method: docs/criteria.md.
 
 Each point is scored like a zone and placed among the 4,224 zones whose 6.5-day window our model confirms: rank (score). The hard limits are the same in every column; only the weights of the soft criteria change (docs/criteria.md).
 
-| Artemis point | Passes hard limits | Balanced | Power first | Radio link first | Ice science first |
-|---------------|--------------------|---:|---:|---:|---:|
-| Peak near Cabeus B | no (latitude) | 97 (59) | 139 (48) | 220 (72) | 2,524 (49) |
-| Haworth | yes | 190 (55) | 234 (44) | 737 (57) | 602 (68) |
-| Malapert Massif | yes | 32 (65) | 253 (43) | 6 (91) | 2,396 (50) |
-| Mons Mouton Plateau | no (sunlight) | 1,401 (40) | 2,439 (22) | 1,352 (42) | 305 (73) |
-| Mons Mouton | yes | 70 (61) | 30 (61) | 713 (58) | 205 (75) |
-| Nobile Rim 1 | yes | 230 (54) | 163 (47) | 737 (57) | 1,491 (57) |
-| Nobile Rim 2 | no (latitude) | 752 (46) | 1,230 (31) | 1,046 (47) | 919 (63) |
-| de Gerlache Rim 2 | yes | 133 (57) | 79 (53) | 824 (54) | 1,270 (59) |
-| Slater Plain | yes | 752 (46) | 253 (43) | 1,537 (40) | 995 (62) |
+| Artemis point | Passes hard limits | NASA-style balance | Everything | Power first | Radio link | Ice science |
+|---------------|--------------------|---:|---:|---:|---:|---:|
+| Peak near Cabeus B | no (latitude) | 97 (59) | 133 (61) | 335 (27) | 514 (68) | 3,770 (20) |
+| Haworth | yes | 190 (55) | 391 (57) | 451 (24) | 915 (44) | 1,296 (50) |
+| Malapert Massif | yes | 32 (65) | 43 (65) | 578 (22) | 1 (100) | 3,730 (21) |
+| Mons Mouton Plateau | no (sunlight) | 1,401 (40) | 2,226 (45) | 3,763 (0) | 1,705 (31) | 507 (87) |
+| Mons Mouton | yes | 70 (61) | 82 (63) | 29 (50) | 961 (42) | 875 (75) |
+| Nobile Rim 1 | yes | 230 (54) | 391 (57) | 262 (28) | 893 (45) | 2,794 (35) |
+| Nobile Rim 2 | no (latitude) | 752 (46) | 1,325 (50) | 2,623 (6) | 1,340 (34) | 1,474 (49) |
+| de Gerlache Rim 2 | yes | 133 (57) | 171 (60) | 96 (36) | 1,223 (36) | 2,495 (38) |
+| Slater Plain | yes | 752 (46) | 730 (54) | 187 (31) | 2,387 (24) | 1,030 (68) |
 
-Best-placed Artemis point per preset: Balanced: Malapert Massif; Power first: Mons Mouton; Radio link first: Malapert Massif; Ice science first: Mons Mouton.
+Best-placed Artemis point per preset: NASA-style balance: Malapert Massif; Everything: Malapert Massif; Power first: Mons Mouton; Radio link: Malapert Massif; Ice science: Mons Mouton Plateau.
+
+The best zone for each preset ("Everything" is what the website opens on; a zone keeps its number from zones.csv):
+
+| Preset | Zone | Lat | Lon (E) | Score | Sunlight % | Earth % | Longest darkness (days) | Permanent shadow (km) | Nearest Artemis region (km) |
+|--------|------|----:|--------:|------:|-----------:|--------:|------------------------:|----------------------:|-----------------------------|
+| NASA-style balance | #1 | -84.44 | 19.21 | 77 | 57 | 100 | 14.0 | 2.4 | Mons Mouton Plateau (32.9) |
+| Everything | #2 | -84.02 | 23.42 | 76 | 54 | 100 | 14.8 | 2.05 | Mons Mouton Plateau (27.5) |
+| Power first | #30 | -89.69 | -162.71 | 100 | 90 | 54 | 3.1 | 2.7 | de Gerlache Rim 2 (57.3) |
+| Radio link | #12 | -84.16 | 15.62 | 100 | 53 | 100 | 15.6 | 15.1 | Mons Mouton Plateau (45.8) |
+| Ice science | #926 | -86.55 | 69.03 | 100 | 38 | 46 | 23.2 | 1.21 | Nobile Rim 1 (79.1) |
 
 ## 7. Past landings
 

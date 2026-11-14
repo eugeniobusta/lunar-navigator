@@ -68,28 +68,31 @@ The weights are a team choice: power first (sunlight and darkness together carry
 radio link (29 %), then safe ground (21 %), then science access (10.5 %). Change them in `engine/criteria.py` and
 rerun; docs/criteria.csv is written from the same table.
 
-### Your priorities: other weights
+### What matters for your mission: tick boxes
 
-The weights above are the "Balanced" preset. The "Where to land" tab lets anyone change them, and the map and the
-zone ranking follow at once. The hard limits never move. Each soft term is published as a 0-255 layer
-(docs/INTERFACES.md section 11), and `web/src/lib/analysis/suitability.ts` recomputes the score from the layers;
-under Balanced it reproduces every published score and the whole ranking exactly.
+On the "Where to land" tab the reader ticks the parameters that matter. The hard limits never move. The score of a
+spot is then the plain mean of the ticked parameters' sub-scores (each 0 at its reject bound, 1 at its ideal
+bound). "Fine-tune importance" lets a ticked parameter count half (low), once (normal) or twice (high).
+One parameter ticked shows that parameter's own map; two or more show the combined score and re-rank the zones.
+Each parameter is published as a 0-255 layer (docs/INTERFACES.md section 11) and
+`web/src/lib/analysis/suitability.ts` computes every score from them, for the website and the VR alike.
 
-| Term | Balanced | Power first | Radio link first | Ice science first |
-|------|---------:|------------:|-----------------:|------------------:|
-| Sunlight | 42 | 80 | 20 | 20 |
-| Earth in view | 28 | 15 | 80 | 15 |
-| Flat landing ground | 28 | 20 | 20 | 20 |
-| Permanent shadow nearby | 21 | 10 | 10 | 90 |
-| Walkable ground | 14 | 5 | 5 | 30 |
-| Milder ground | 7 | 10 | 5 | 0 |
-| Buried ice within reach | 0 | 0 | 0 | 40 |
-| Not in a hollow | 0 | 0 | 0 | 0 |
-| Short nights | 30 | 60 | 0 | 10 |
-| Never out of contact | 30 | 0 | 60 | 15 |
+| Preset | Ticks |
+|--------|-------|
+| Everything (default) | all ten parameters, equally |
+| Power first | Sunlight, Short nights |
+| Radio link | Earth in view, Never out of contact |
+| Ice science | Ice nearby (distance to permanent shadow), Ice depth |
+| NASA-style balance | the weights of section 2 above: sunlight 42, Earth in view 28, landing slope 28, ice nearby 21, walkable ground 14, temperature 7, short nights 30, never out of contact 30 |
+
+"NASA-style balance" is the ranking of the published files (zones.csv, the score grids): the browser reproduces
+every one of those scores exactly under it. It is our reading of what a crewed Artemis landing weighs, not a NASA
+formula. The default view is "Everything", so the first ranking a visitor sees is not the one in zones.csv.
+Where the nine Artemis points rank under each preset is in docs/PITCH_NUMBERS.md section 6 and in
+`suitability/artemis_points.csv`.
 
 **Two optional criteria** (from Chinh's Site Map). They carry no weight in Balanced, so the published scores do
-not depend on them, but they are layers like the others and anyone can weigh them:
+not depend on them, but they are parameters like the others and anyone can tick them:
 - *Depth of stable ice*: LRO Diviner Polar Resource Product (the depth at which water ice stays frozen, from a
   thermal model). Scores 1 where ice is stable at the surface and 0 below 1 m (the reach of VIPER's "1-meter drill")
   or where there is none within 2.87 m. Half of the passing ground has stable ice within 1 m.
@@ -101,8 +104,7 @@ not depend on them, but they are layers like the others and anyone can weigh the
 **No veto among soft criteria.** The Site Map demo set the combined score to 0 if any factor scored 0. We did not
 keep that: the hard limits are the veto (they are NASA's), and a soft criterion at 0 only costs its weight.
 
-Weights are relative: only their ratios matter. The three mission presets are a team choice. Where the nine
-Artemis points rank under each one is in docs/PITCH_NUMBERS.md section 6 and in `suitability/artemis_points.csv`.
+Which parameters each mission preset ticks is a team choice.
 
 ## 3. Goldilocks zones
 

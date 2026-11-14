@@ -3,6 +3,8 @@
 // Pure TypeScript, no React and no DOM, so the web app and the VR view can both import it.
 // Bounds: docs/criteria.csv and suitability/weights.json (a test keeps this file in step with both).
 
+import type { TermKey } from "./suitability";
+
 export type Verdict = "good" | "acceptable" | "rejected";
 
 /** The values of one point. Leave out what you do not have: only the criteria you give are explained. */
@@ -70,6 +72,7 @@ interface Rule {
   optional?: boolean;
 }
 
+const OPTIONAL_NOTE = " It counts only when you tick it.";
 const days = (h: number) => (h < 48 ? `${Math.round(h)} hours` : `${(h / 24).toFixed(1)} days`);
 const one = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(1));
 
@@ -147,12 +150,29 @@ export function explain(values: PointValues, criteria: CriterionRow[] = []): Exp
     const reason = (rows.find((c) => c.kind === "soft") ?? rows[0])?.reason ?? "";
     const value = rule.format(v);
     const softNote = (verdict === "rejected" && !rule.hard ? " This scores zero but does not rule the spot out." : "")
-      + (rule.optional ? " It counts only if you give it weight in Your priorities." : "");
+      + (rule.optional ? OPTIONAL_NOTE : "");
     const detail = `${range}.${softNote}${reason ? ` ${reason}` : ""}`;
     out.push({ key: rule.key, label: rule.label, value, verdict, hardLimit: rule.hard, optional: !!rule.optional, detail,
       sentence: `${rule.label} ${value}: ${verdict}. ${detail}` });
   }
   return out;
+}
+
+/** Which scoring parameter (suitability.ts) each explained value belongs to; latitude is a NASA limit only. */
+export const TERM_OF: Record<keyof PointValues, TermKey | null> = {
+  latDeg: null, landingSlopeDeg: "landing_slope", walkablePct: "walkable", sunPct: "sunlight", earthPct: "earth",
+  shadowKm: "shadow", tempK: "temperature", longestDarkH: "darkness", longestNoEarthH: "no_earth", iceDepthM: "ice",
+  hollowDepthM: "hollow",
+};
+
+/**
+ * "Why here?" for a selection: the sentences for the ticked parameters, plus every NASA hard limit (they always
+ * apply, ticked or not). Unticked soft criteria are left out.
+ */
+export function explainFor(values: PointValues, criteria: CriterionRow[], counted: readonly TermKey[]): Explanation[] {
+  return explain(values, criteria)
+    .filter((e) => e.hardLimit || (TERM_OF[e.key] !== null && counted.includes(TERM_OF[e.key]!)))
+    .map((e) => (e.optional ? { ...e, optional: false, detail: e.detail.replace(OPTIONAL_NOTE, ""), sentence: e.sentence.replace(OPTIONAL_NOTE, "") } : e));
 }
 
 /** The values of a row of zones.csv or suitability/site_values.csv (same column names). */

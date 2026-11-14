@@ -23,7 +23,7 @@
   },
   {
    "key": "landing_slope",
-   "label": "Flat landing ground",
+   "label": "Landing slope",
    "parameter": "landing_slope_deg",
    "unit": "deg",
    "reject": 10.0,
@@ -33,7 +33,7 @@
   },
   {
    "key": "shadow",
-   "label": "Permanent shadow nearby",
+   "label": "Ice nearby",
    "parameter": "psr_distance_km",
    "unit": "km",
    "reject": 20.0,
@@ -53,7 +53,7 @@
   },
   {
    "key": "temperature",
-   "label": "Milder ground",
+   "label": "Temperature",
    "parameter": "temp_avg_k",
    "unit": "K",
    "reject": 110.0,
@@ -63,7 +63,7 @@
   },
   {
    "key": "ice",
-   "label": "Buried ice within reach",
+   "label": "Ice depth",
    "parameter": "ice_depth_m",
    "unit": "m",
    "reject": 1.0,
@@ -73,7 +73,7 @@
   },
   {
    "key": "hollow",
-   "label": "Not in a hollow",
+   "label": "Hollow depth",
    "parameter": "hollow_depth_m",
    "unit": "m",
    "reject": 70.0,
@@ -100,11 +100,26 @@
    "ideal": 0.0
   }
  ],
- "default": "balanced",
+ "default": "everything",
+ "importance": {
+  "low": 1,
+  "normal": 2,
+  "high": 4
+ },
  "presets": [
   {
    "key": "balanced",
-   "label": "Balanced",
+   "label": "NASA-style balance",
+   "ticked": [
+    "sunlight",
+    "earth",
+    "landing_slope",
+    "shadow",
+    "walkable",
+    "temperature",
+    "darkness",
+    "no_earth"
+   ],
    "weights": {
     "sunlight": 42,
     "earth": 28,
@@ -119,51 +134,91 @@
    }
   },
   {
+   "key": "everything",
+   "label": "Everything",
+   "ticked": [
+    "sunlight",
+    "earth",
+    "landing_slope",
+    "shadow",
+    "walkable",
+    "temperature",
+    "ice",
+    "hollow",
+    "darkness",
+    "no_earth"
+   ],
+   "weights": {
+    "sunlight": 2,
+    "earth": 2,
+    "landing_slope": 2,
+    "shadow": 2,
+    "walkable": 2,
+    "temperature": 2,
+    "ice": 2,
+    "hollow": 2,
+    "darkness": 2,
+    "no_earth": 2
+   }
+  },
+  {
    "key": "power",
    "label": "Power first",
+   "ticked": [
+    "sunlight",
+    "darkness"
+   ],
    "weights": {
-    "sunlight": 80,
-    "earth": 15,
-    "landing_slope": 20,
-    "shadow": 10,
-    "walkable": 5,
-    "temperature": 10,
+    "sunlight": 2,
+    "earth": 0,
+    "landing_slope": 0,
+    "shadow": 0,
+    "walkable": 0,
+    "temperature": 0,
     "ice": 0,
     "hollow": 0,
-    "darkness": 60,
+    "darkness": 2,
     "no_earth": 0
    }
   },
   {
    "key": "radio",
-   "label": "Radio link first",
+   "label": "Radio link",
+   "ticked": [
+    "earth",
+    "no_earth"
+   ],
    "weights": {
-    "sunlight": 20,
-    "earth": 80,
-    "landing_slope": 20,
-    "shadow": 10,
-    "walkable": 5,
-    "temperature": 5,
+    "sunlight": 0,
+    "earth": 2,
+    "landing_slope": 0,
+    "shadow": 0,
+    "walkable": 0,
+    "temperature": 0,
     "ice": 0,
     "hollow": 0,
     "darkness": 0,
-    "no_earth": 60
+    "no_earth": 2
    }
   },
   {
    "key": "ice",
-   "label": "Ice science first",
+   "label": "Ice science",
+   "ticked": [
+    "shadow",
+    "ice"
+   ],
    "weights": {
-    "sunlight": 20,
-    "earth": 15,
-    "landing_slope": 20,
-    "shadow": 90,
-    "walkable": 30,
+    "sunlight": 0,
+    "earth": 0,
+    "landing_slope": 0,
+    "shadow": 2,
+    "walkable": 0,
     "temperature": 0,
-    "ice": 40,
+    "ice": 2,
     "hollow": 0,
-    "darkness": 10,
-    "no_earth": 15
+    "darkness": 0,
+    "no_earth": 0
    }
   }
  ],

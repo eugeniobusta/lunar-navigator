@@ -142,6 +142,7 @@ def goldilocks(d, out):
             f"{summary['region_pct_near_artemis']} % of the area and {summary['pass_pct_near_artemis']} % of the passing ground."),
             (f"- Radio delay Moon to Earth: {summary['signal_delay_s']['min']:.2f} to {summary['signal_delay_s']['max']:.2f} s one way, "
             "the same from every site."), "",
+            "The five best zones under \"NASA-style balance\", the ranking of the published files (zones.csv):", "",
             ("| Rank | Lat | Lon (E) | Score | Area (km2) | Sunlight % | Earth % | Slope (deg) | Longest darkness (days) | "
             "Nearest Artemis region (km) |"),
             ("|-----:|----:|--------:|------:|-----------:|-----------:|--------:|------------:|------------------------:|"
@@ -171,8 +172,30 @@ def artemis_under_presets(out):
     missions = list(csv.DictReader((DATA / "missions.csv").open()))
     outcomes = {o: sum(m["outcome"] == o for m in missions) for o in ("landed", "tipped over", "crashed", "lost before landing")}
     best = {p["label"]: min(points, key=lambda pt, k=p["key"]: int(pt["rank_" + k])) for p in presets}
+    # The best zone for each preset: every zone re-scored from its layer bytes with the preset's weights.
+    import numpy as np
+
+    from engine import criteria as C
+    zones = list(csv.DictReader((DATA / "suitability" / "zones.csv").open()))
+    zl = list(csv.DictReader((DATA / "suitability" / "zones_layers.csv").open()))
+    q = np.array([[int(r[k]) for r in zl] for k in C.LAYER_KEYS])
+    best_zone = []
+    for p in presets:
+        scores = [C.zone_score_weighted(int(m), int(z["longest_dark_h"]), int(z["longest_no_earth_h"]), p["weights"])
+                  for m, z in zip(C.int_map_score(q, p["weights"]), zones, strict=True)]
+        order = sorted(range(len(zones)), key=lambda i: (zones[i]["stay_window_ok"] != "True", -scores[i],
+                                                         -float(zones[i]["area_km2"]), i))
+        z = zones[order[0]]
+        best_zone.append(f"| {p['label']} | #{z['rank']} | {float(z['lat']):.2f} | {float(z['lon']):.2f} | {scores[order[0]]} | "
+                         f"{float(z['sun_pct']):.0f} | {float(z['earth_pct']):.0f} | {float(z['longest_dark_h']) / 24:.1f} | "
+                         f"{z['psr_distance_km']} | {z['nearest_artemis_region']} ({z['nearest_artemis_km']}) |")
     out += ["", "Best-placed Artemis point per preset: "
             + "; ".join(f"{label}: {pt['name']}" for label, pt in best.items()) + ".", "",
+            "The best zone for each preset (\"Everything\" is what the website opens on; a zone keeps its number from zones.csv):", "",
+            ("| Preset | Zone | Lat | Lon (E) | Score | Sunlight % | Earth % | Longest darkness (days) | Permanent shadow (km) | "
+             "Nearest Artemis region (km) |"),
+            ("|--------|------|----:|--------:|------:|-----------:|--------:|------------------------:|----------------------:|"
+             "-----------------------------|"), *best_zone, "",
             "## 7. Past landings", "",
             f"- Lunar soft-landing attempts in missions.csv, {missions[0]['landing_date_utc'][:4]} to "
             f"{max(m['landing_date_utc'] for m in missions)[:4]}: **{len(missions)}** ("

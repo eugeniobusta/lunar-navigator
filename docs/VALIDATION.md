@@ -90,7 +90,7 @@ Mons Mouton Plateau point was chosen by the authors for access to a cold permane
 Notes and quotes: docs/research/artemis_coordinates.md.
 
 ## 7. Automated tests and release check (14 Nov 2026)
-- `make test`: 53 Python tests and 96 browser-maths tests pass. `make e2e`: 5 end-to-end browser tests pass
+- `make test`: 53 Python tests and 108 browser-maths tests pass. `make e2e`: 5 end-to-end browser tests pass
   (every tab opens with content and no console error, the Window Finder returns a calendar, Where to land answers
   clicks and presets, a shared link reopens the same view). CI runs all of them on every pull request.
 - Release check with a scripted browser at 1440 x 900 and 390 x 844: every tab, all 14 sites, every preset and

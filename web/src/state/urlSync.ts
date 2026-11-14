@@ -1,9 +1,9 @@
 // Keeps the address bar and the store in step (web/src/state/url.ts), so a view survives a reload and can be shared.
 import { TERM_KEYS, type Importance, type Selection, type TermKey, type Weights } from "../lib/analysis/suitability";
-import { useStore, type Tab } from "./store";
+import { canonicalTab, useStore, type Tab } from "./store";
 import { buildQuery, parseQuery } from "./url";
 
-export const TAB_IDS: Tab[] = ["home", "overview", "land", "windows", "compare", "grid", "power", "moon3d", "data", "method"];
+export const TAB_IDS: Tab[] = ["home", "explore", "plan", "overview", "land", "windows", "compare", "grid", "power", "moon3d", "data", "method"];
 
 /** Reads the query string once the data is loaded, then rewrites it whenever the view changes. */
 export function startUrlSync(): void {
@@ -26,7 +26,7 @@ export function startUrlSync(): void {
     ...(found.compareId ? { compareId: found.compareId } : {}),
     ...(found.startIdx !== undefined ? { startIdx: found.startIdx } : {}),
     ...(found.windowDays ? { windowDays: found.windowDays } : {}),
-    ...(found.tab ? { tab: found.tab as Tab } : {}),
+    ...(found.tab ? { tab: canonicalTab(found.tab as Tab) } : {}),
     ...(land ?? {}),
   });
   const now = useStore.getState();

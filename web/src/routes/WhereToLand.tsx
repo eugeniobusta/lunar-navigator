@@ -90,7 +90,9 @@ function drawMap(canvas: HTMLCanvasElement, grid: Uint8Array, layer: Uint8Array 
 const num = (r: Row | undefined, k: string) => (r ? Number(r[k]) : NaN);
 const days = (h: number) => (h < 48 ? `${Math.round(h)} h` : `${(h / 24).toFixed(1)} days`);
 
-export function WhereToLand() {
+/** `compact`: the Plan page's version, with the presets always in view, the detailed ticks behind "Customise", and
+ *  only the map, the chosen zone and its checklist (no charts or reference tables). `onZone` hears the chosen zone. */
+export function WhereToLand({ compact = false, onZone }: { compact?: boolean; onZone?: (zone: Record<string, string>) => void } = {}) {
   const sites = useStore((s) => s.sites);
   const goTo3D = useStore((s) => s.goTo3D);
   const canvas = useRef<HTMLCanvasElement>(null);
@@ -106,7 +108,7 @@ export function WhereToLand() {
   const [explainOpen, setExplainOpen] = useState(false);
   // The sidebar with the choices: open on a wide screen, closed on a phone; it folds away once a zone or a spot is
   // chosen, so the map and the answer get the room.
-  const [side, setSide] = useState(() => typeof window === "undefined" || window.innerWidth >= 900);
+  const [side, setSide] = useState(() => !compact && (typeof window === "undefined" || window.innerWidth >= 900));
   const [config, setConfig] = useState<WeightsFile | null>(null);
   const [zoneLayers, setZoneLayers] = useState<Row[]>([]);
   const [points, setPoints] = useState<Row[]>([]);
@@ -217,6 +219,7 @@ export function WhereToLand() {
   const setSelected = (id: number) => { setChosen({ id, under }); setSide(false); };
   const zone = zones[selected - 1];
   const live = liveOf.get(selected);
+  useEffect(() => { if (zone && onZone) onZone(zone); }, [zone, onZone]);
 
   // Where the nine Artemis points would stand among the confirmed zones, under each preset and under "yours".
   const artemisRanks = useMemo(() => {
@@ -319,7 +322,7 @@ export function WhereToLand() {
         <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" fill="none" stroke="currentColor" strokeWidth="1.6" />
         <path d="M9.5 4.5v15" stroke="currentColor" strokeWidth="1.6" />
       </svg>
-      <span>What matters?</span>
+      <span>{compact ? "Customise" : "What matters?"}</span>
     </button>
   );
 
@@ -390,6 +393,14 @@ export function WhereToLand() {
         </aside>
 
         <div className="finder-main">
+          {compact && (
+            <div className="presets big" role="group" aria-label="What matters most?">
+              {config.presets.map((p) => {
+                const on = sameSelection(presetSelection(p), selection);
+                return <button key={p.key} className={on ? "chip on" : "chip"} aria-pressed={on} onClick={() => setLandChoice(p.key, null)}>{p.label}</button>;
+              })}
+            </div>
+          )}
           <div className="finder-bar">
             {!side && sideToggle}
             <p className="answer" role="status">
@@ -567,6 +578,14 @@ export function WhereToLand() {
         </div>
       </div>
 
+      {compact ? (
+        <details className="fold small">
+          <summary>Why this zone? The full checklist</summary>
+          <WhyHere title={`Zone #${zone.rank} against what you ticked`}
+            list={explainFor(valuesFromRow({ ...zone, ice_depth_m: zoneLayers[selected - 1].ice_depth_m, hollow_depth_m: zoneLayers[selected - 1].hollow_depth_m }),
+              criteria as unknown as CriterionRow[], counted)} />
+        </details>
+      ) : (<>
       <section className="glance" aria-label="The south pole at a glance">
         <div className="card">
           <h3>How much ground passes</h3>
@@ -700,6 +719,7 @@ export function WhereToLand() {
           </table>
         </div>
       </details>
+      </>)}
     </section>
   );
 }

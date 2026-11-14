@@ -4,7 +4,15 @@ import type { Ephemeris, Horizon } from "../lib/analysis";
 import type { Selection } from "../lib/analysis/suitability";
 import { loadEphemeris, loadHorizon, loadSites, type Loaded, type Site } from "../lib/data";
 
-export type Tab = "home" | "overview" | "land" | "windows" | "compare" | "grid" | "power" | "moon3d" | "data" | "method";
+export type Tab = "home" | "explore" | "plan" | "overview" | "land" | "windows" | "compare" | "grid" | "power" | "moon3d" | "data" | "method";
+
+/** The two-page site: what a site is like (Explore) and planning a landing (Plan). The older page names still open
+ *  the page that now holds them, so old links keep working. */
+export function canonicalTab(t: Tab): Tab {
+  if (t === "overview" || t === "compare") return "explore";
+  if (t === "land" || t === "windows" || t === "power" || t === "grid") return "plan";
+  return t;
+}
 
 interface State {
   ready: boolean;
@@ -85,6 +93,6 @@ export const useStore = create<State>((set, get) => ({
   },
   setWindowDays: (d) => set({ windowDays: d, cursor: 0 }),
   setCursor: (c) => set({ cursor: Math.max(0, Math.round(c)) }),
-  setTab: (t) => set({ tab: t }),
+  setTab: (t) => set({ tab: canonicalTab(t) }),
   goTo3D: (siteId, spot) => { set({ siteId, spot, cursor: 0, tab: "moon3d" }); void get().ensureHorizon(siteId); },
 }));

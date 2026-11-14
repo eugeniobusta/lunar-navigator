@@ -125,3 +125,17 @@ Evidence for each line is in docs/VALIDATION.md section 8.
   listed sites only, so a clicked spot that is not a zone is scored without them, and says so.
 - **Audio** (brief section 6) was not attempted.
 - One Data-page link (the Wueller et al. DOI) answers 403 to scripts and opens in a browser.
+
+## After the integration of Chinh's redesign (14 Nov 2026, late)
+
+Evidence: docs/VALIDATION.md section 9.
+
+- **Changed on purpose**: the first screen is his homepage again, not the map (the lead's decision); the map is
+  one click away in both views ("Plan a landing", or "Site Finder"). His look uses uppercase headlines, pill
+  switches and cards, which the earlier visual pass had removed.
+- **Fixed**: the menu bar ran into the countdown at 1440 px; it now folds by measurement. The countdown is tested
+  against the Python model.
+- **Remains**: in Site Finder the spot panel is long, so on a wide screen there is empty space under the map
+  beside it. The menu folds behind the Menu button on the homepage at 1440 px in the Detailed view, because the
+  countdown takes the room. The demo videos show the older site. `web/public/media/` adds 1.8 MB of photos to the
+  homepage. Google Fonts is still loaded from Google.

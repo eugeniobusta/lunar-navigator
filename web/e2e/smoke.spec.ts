@@ -33,8 +33,11 @@ const viewButton = (page: Page, name: "Simple" | "Detailed") => page.getByRole("
 /** Opens a page from the menu, through the Menu button when the pages are folded behind it. */
 async function goTab(page: Page, name: string) {
   const tab = page.locator("#pages .tab", { hasText: new RegExp(`^${name.replace(/[&]/g, "\\$&")}$`) });
-  if (!(await tab.isVisible())) await page.getByRole("button", { name: "Menu" }).click();
-  await tab.click();
+  // The bar may fold or unfold while the page settles (the countdown arrives, the fonts load), so try again.
+  await expect(async () => {
+    if (!(await tab.isVisible())) await page.getByRole("button", { name: "Menu" }).click({ timeout: 2000 });
+    await tab.click({ timeout: 2000 });
+  }).toPass({ timeout: 20_000 });
   await expect(tab).toHaveClass(/\bon\b/);
 }
 const openGroup = (page: Page, name: string) => page.getByRole("button", { name: `Show the parameters of ${name}` }).click();

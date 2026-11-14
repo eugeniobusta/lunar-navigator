@@ -30,10 +30,21 @@ Start every feature with:
    horizontal scroll for the panorama, stacked controls."
 4. Human job: Vercel project (root `web`, build `npm run build`, output `dist`), test the live URL on phones.
 
-## Ahmed (3D Moon)
-TODO(Eugenio): the 3D items for Ahmed go here.
-Starting point: `web/src/routes/Moon3D.tsx` (placeholder, Ahmed replaces this file) and the terrain files in
-`web/public/data/terrain/` (format: docs/INTERFACES.md section 8).
+## Ahmed (VR view, xr/)
+Start with docs/XR.md (how to run, file map, known issues, Quest test). Branches `feat/ahmed-*`, Opus 5.5.
+1. `feat/ahmed-quest-fps`: "Measure the frame rate of /xr/ on the Quest 3 in Orbit, Land and Stand (Performance HUD).
+   If any mode is under 72 fps, tune the mesh steps and shadow resolution in xr/src/experience.ts (onXRChange) and
+   report before and after."
+2. `feat/ahmed-lander`: "Replace the procedural lander in xr/src/objects.ts (makeLander) with the lander from
+   xr/reference/ahmed_concept.html (copy the file there first). Keep the returned panel and dish groups so they
+   still turn to the real Sun and Earth."
+3. `feat/ahmed-score-layer`: "Make loadScoreLayer and loadZones in xr/src/data.ts match the files the website
+   session ships in web/public/data/suitability/, and check the Goldilocks heat map and zone outlines in Orbit and Land."
+4. `feat/ahmed-vr-comfort`: "In VR, fade to black for 200 ms when switching between Orbit, the raised view and
+   Stand, and let the left thumbstick turn the view in 30 degree steps."
+5. `feat/ahmed-earth-phase-labels`: "Name the brightest stars and show the Earth's phase and the Sun's azimuth as
+   small labels in Stand, using stars.json names and computeSeries values only."
+The old placeholder `web/src/routes/Moon3D.tsx` belongs to the website session: it embeds `/xr/?embed=1`.
 
 ## Luke (story)
 1. `feat/luke-explain` (Haiku 5.5): "Add short plain-language explainers in web/src/content/ for each tab (2-3 sentences:

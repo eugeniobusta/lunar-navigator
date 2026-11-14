@@ -115,6 +115,9 @@ export function makeLabel(text: string, color: number = PALETTE.text, heightFrac
     ctx.font = `600 ${px}px ${FONT}`;
     const w = Math.ceil(ctx.measureText(t).width) + 28;
     const h = px + 22;
+    if (canvas.width !== w || canvas.height !== h) {
+      tex.dispose(); // GPU textures have a fixed size: a resized canvas needs a new one
+    }
     canvas.width = w;
     canvas.height = h;
     ctx.font = `600 ${px}px ${FONT}`;

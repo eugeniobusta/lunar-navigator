@@ -1410,9 +1410,9 @@ export class ExperienceSystem extends createSystem({}) {
         text: `Elevation ${Math.round(sp.hit.heightM)} m.  Slope ${sp.slopeDeg ?? '?'} deg${steep ? ': too steep to land' : ''}${sp.score == null ? '' : `.  Goldilocks ${sp.score}${sp.failed.length ? ' (fails a limit)' : ''}`}`,
         color: steep ? 'alert' : 'text',
       });
-      lines.push({ text: `NASA map:  sunlit ${sp.nasaSun ?? '?'} %,  Earth ${sp.nasaEarth ?? '?'} %  (18.6-year average)`, color: 'text2' });
+      lines.push({ text: `NASA map (18.6-year average): sunlit ${sp.nasaSun ?? '?'} %, Earth ${sp.nasaEarth ?? '?'} %`, color: 'text2' });
       lines.push({
-        text: `Our model: sunlit ${Math.round(sp.metrics.sunPct)} %,  Earth ${Math.round(sp.metrics.earthPct)} %,  longest dark ${Math.round(sp.metrics.longestDarkH)} h`,
+        text: `Our model (these 30 days): sunlit ${Math.round(sp.metrics.sunPct)} %, Earth ${Math.round(sp.metrics.earthPct)} %, dark up to ${Math.round(sp.metrics.longestDarkH)} h`,
       });
     }
     const ovs: OverlayId[] = this.scene3?.tile.suitability ? ['sun', 'earth', 'slope', 'score', 'off'] : ['sun', 'earth', 'slope', 'off'];

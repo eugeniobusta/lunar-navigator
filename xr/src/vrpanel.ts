@@ -125,7 +125,7 @@ export class VrPanel {
       y += size + 10;
       g.font = `${line.big ? 600 : 400} ${size}px ${FONT}`;
       g.fillStyle = C[line.color ?? 'text'];
-      g.fillText(line.text, pad, y);
+      g.fillText(line.text, pad, y, W - 2 * pad);
     }
     y += 22;
     const bh = 58;

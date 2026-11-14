@@ -108,7 +108,8 @@ html, body { margin:0; height:100%; background:#000; overflow:hidden; }
 #time .date { font:600 16px var(--head); font-variant-numeric:tabular-nums; min-width:200px; }
 #time .win { color:var(--ash); font-size:13px; margin-left:auto; }
 #time input[type=range] { width:100%; accent-color:var(--sunlight); margin:8px 0 2px; }
-#credits { position:absolute; left:12px; right:12px; bottom:10px; text-align:center; color:var(--ash); font-size:12px; }
+#credits { position:absolute; left:12px; right:12px; bottom:8px; text-align:center; color:var(--ash); font-size:12px; }
+#credits span { background:var(--dust); border-radius:4px; padding:3px 8px; }
 #info { position:absolute; right:12px; top:64px; width:290px; padding:12px 14px; }
 #info:empty, #status:empty { display:none; }
 #msg { position:absolute; left:50%; top:45%; transform:translate(-50%,-50%); padding:14px 18px; font:600 16px var(--head); }
@@ -171,7 +172,7 @@ export class Hud {
           <span class="win"></span></div>
         <input type="range" min="0" max="720" step="0.25" value="0" aria-label="Time within the 30-day window">
       </div>
-      <div id="credits">${esc(CREDITS)}</div>`;
+      <div id="credits"><span>${esc(CREDITS)}</span></div>`;
     document.body.append(this.root);
     const q = <T extends HTMLElement>(s: string) => this.root.querySelector(s) as T;
     this.side = q('#side');
@@ -263,7 +264,7 @@ export class Hud {
           <p class="note">NASA map: average over 18.6 years (PGDA). Our model: this 30-day window, seen from 2 m above this exact point.</p>`;
       }
       html += '<h2>View</h2><div class="row">';
-      html += m.mode === 'land' ? '<button class="primary" data-a="stand">Stand here</button>' : '<button data-a="land">Back to the map</button>';
+      html += m.mode === 'land' ? '<button class="primary" data-a="stand">Stand here</button>' : '';
       html += `<button data-a="enlarge" class="${m.enlarge ? 'on' : ''}">Enlarge Sun and Earth ${m.enlargeFactor}x for visibility</button></div>`;
       html += `<p class="note">${m.mode === 'land' ? 'Click the ground to choose the exact landing point. Drag to turn, scroll to zoom.' : 'You are 2 m above the surface at true scale. Drag to look around, scroll to zoom. Sun and Earth are at their real size (0.53 and about 1.9 deg) unless enlarged.'}</p>`;
     }

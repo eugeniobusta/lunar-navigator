@@ -4,6 +4,7 @@ import { lazy, Suspense, useEffect, useState, type ComponentType } from "react";
 import { SkyPanorama } from "./charts/SkyPanorama";
 import { SiteSelect } from "./components/ui";
 import { BackToTop } from "./components/ui/BackToTop";
+import { SunClock } from "./components/ui/SunClock";
 import { Compare } from "./routes/Compare";
 import { Home } from "./routes/Home";
 import { Method } from "./routes/Method";
@@ -62,7 +63,6 @@ export default function App() {
   const site = st.sites.find((s) => s.id === st.siteId);
   const n = view?.series.sunlit.length ?? 1;
   const k = Math.min(st.cursor, n - 1);
-  const sunMargin = view?.series.sunMargin[k];
   // Data and Method are one page with two sections; tab=method opens the second.
   const research = tab === "data" || tab === "method";
   const page = TABS.find(([t]) => t === (tab === "method" ? "data" : tab));
@@ -84,12 +84,8 @@ export default function App() {
             onClick={() => st.setTab(t)}>{label}</button>
         ))}
       </nav>
-      {tab === "home" && st.ready && site && sunMargin !== undefined && (
-        <button type="button" className="live" onClick={() => st.setTab("overview")}
-          title={`The Sun at ${site.name}, ${fmtDate(idxToMs(st.startIdx + k))}: ${Math.abs(sunMargin).toFixed(2)}° ${sunMargin >= 0 ? "above" : "below"} the skyline`}>
-          <span>Sun at {site.name}</span>
-          <b className={sunMargin >= 0 ? "up" : "down"}>{sunMargin >= 0 ? "▲" : "▼"} {Math.abs(sunMargin).toFixed(1)}°</b>
-        </button>
+      {tab === "home" && st.ready && eph && site && hz && (
+        <SunClock eph={eph} horizon={hz.value} siteName={site.name} onOpen={() => st.setTab("overview")} />
       )}
     </header>
   );

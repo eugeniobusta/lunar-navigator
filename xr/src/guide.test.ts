@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { computeSeries, type Ephemeris } from '../../web/src/lib/analysis';
 import { demHorizon, heightAt, parseHeightGrid, stereoXY } from '../../web/src/lib/analysis/demHorizon';
 import type { CriterionRow } from '../../web/src/lib/analysis/explain';
-import { mapScore, type Preset } from '../../web/src/lib/analysis/suitability';
+import { LAYER_KEYS, mapScore, type Preset } from '../../web/src/lib/analysis/suitability';
 import { parseCsv } from '../../web/src/lib/data/csv';
 import { resampleBytes, tileFromPole, type SouthPole } from './data';
 import {
@@ -97,7 +97,7 @@ describe('priorities', () => {
 
   it('rescore keeps the hard limits and agrees with mapScore cell by cell', () => {
     const raw = u8('suitability/sites/mma01_score.u8');
-    const layers = ['sunlight', 'earth', 'landing_slope', 'shadow', 'walkable', 'temperature'].map((k) => u8(`suitability/layers/sites/mma01_${k}.u8`));
+    const layers = LAYER_KEYS.map((k) => u8(`suitability/layers/sites/mma01_${k}.u8`));
     const shown = new Uint8Array(raw.length);
     const all = new Uint8Array(raw.length);
     const power = presets.find((p) => p.key === 'power')!.weights;

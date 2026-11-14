@@ -79,7 +79,7 @@ export interface ZoneRow {
   areaKm2: number;
   /** Nearest Artemis region, by name. */
   near: string;
-  /** The six layer bytes at the zone's best cell, in LAYER_KEYS order. */
+  /** The layer bytes at the zone's best cell, in LAYER_KEYS order. */
   q: number[];
   darkH: number;
   noEarthH: number;

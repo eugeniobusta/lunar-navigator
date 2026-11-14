@@ -141,6 +141,7 @@ const EARTH_R_KM = 6378.137;
 const D2R = Math.PI / 180;
 const ORBIT_ZONES = 40; // zones ringed on the relief
 const LISTED_ZONES = 10; // zones with a marker and a button
+const POINT_ID = 'point'; // the place id of a point given by ?lat=&lon= that no site tile covers
 const TILE_REACH_M = 29000; // a zone this close to a site's centre (in x and in y) is shown on that site's 120 m tile
 
 /** A circle of [lat, lon] with the zone's area around its best cell. */
@@ -483,6 +484,8 @@ export class ExperienceSystem extends createSystem({}) {
     this.message = null;
     const site = params.get('site');
     const zone = this.zones.find((z) => z.id === Number(params.get('zone')));
+    const lat = Number(params.get('lat'));
+    const lon = Number(params.get('lon'));
     if (params.get('demo') === '1') {
       // The demo opens in Orbit with the Goldilocks heat map on.
       if (this.poleScore) {
@@ -491,6 +494,9 @@ export class ExperienceSystem extends createSystem({}) {
       this.enterOrbit();
     } else if (zone) {
       await this.enterLand(this.zoneDest(zone));
+    } else if (params.has('lat') && Number.isFinite(lat) && Number.isFinite(lon) && lat < -80 && lat >= -90) {
+      // A point chosen on the website's map (web/src/routes/xr.ts).
+      await this.enterLand(this.pointDest(lat, lon, 'Chosen point', POINT_ID));
     } else if (site && this.sites.some((s) => s.id === site && s.terrain === 'dem')) {
       await this.enterLand(this.siteDest(site)!);
     } else {
@@ -643,7 +649,7 @@ export class ExperienceSystem extends createSystem({}) {
     return { raw: suit.raw, shown, all: suit.raw.map((v) => (v <= 100 || v === 255 ? v : v - 101)), tex: byteTexture(shown, size), layers };
   }
 
-  /** Recolours one heat map for the priorities in use (suitability.ts's mapScoreGrid on the six layers). */
+  /** Recolours one heat map for the priorities in use (suitability.ts's mapScoreGrid on the published layers). */
   private async rescoreMap(m: ScoreMap): Promise<void> {
     const p = this.preset;
     if (p.key === 'balanced') {
@@ -715,26 +721,30 @@ export class ExperienceSystem extends createSystem({}) {
     return site ? { site } : null;
   }
 
-  /** A zone is shown on the 120 m tile of the nearest site that contains it, else on a tile cut from the pole grid. */
-  private zoneDest(z: ZoneRow): Dest {
-    const [zx, zy] = stereoXY(z.lat, z.lon);
+  /** A point is shown on the 120 m tile of the nearest site that contains it, else on a tile cut from the pole grid. */
+  private pointDest(lat: number, lon: number, name: string, id: string, zone?: ZoneRow): Dest {
+    const [px, py] = stereoXY(lat, lon);
     let best: { site: Site; d: number } | null = null;
     for (const s of this.sites) {
       if (s.terrain !== 'dem') {
         continue;
       }
       const [sx, sy] = stereoXY(s.lat, s.lon);
-      const d = Math.max(Math.abs(sx - zx), Math.abs(sy - zy));
+      const d = Math.max(Math.abs(sx - px), Math.abs(sy - py));
       if (d < TILE_REACH_M && (!best || d < best.d)) {
         best = { site: s, d };
       }
     }
-    const spot: [number, number] = [z.lat, z.lon];
+    const spot: [number, number] = [lat, lon];
     if (best) {
-      return { site: best.site, spot, zone: z };
+      return { site: best.site, spot, zone };
     }
-    const site: Site = { id: `zone-${z.id}`, name: `Zone ${z.id}${z.near ? `, near ${z.near}` : ''}`, group: 'artemis', lat: z.lat, lon: z.lon, terrain: 'dem', note: '' };
-    return { site, centre: [zx, zy], spot, zone: z };
+    const site: Site = { id, name, group: 'artemis', lat, lon, terrain: 'dem', note: '' };
+    return { site, centre: [px, py], spot, zone };
+  }
+
+  private zoneDest(z: ZoneRow): Dest {
+    return this.pointDest(z.lat, z.lon, `Zone ${z.id}${z.near ? `, near ${z.near}` : ''}`, `zone-${z.id}`, z);
   }
 
   private zoneHasTile(z: ZoneRow): boolean {
@@ -1075,11 +1085,16 @@ export class ExperienceSystem extends createSystem({}) {
     const p = new URLSearchParams(location.search);
     p.delete('site');
     p.delete('zone');
+    p.delete('lat');
+    p.delete('lon');
     if (this.siteId) {
       p.delete('demo');
     }
     if (this.siteId?.startsWith('zone-')) {
       p.set('zone', this.siteId.slice(5));
+    } else if (this.siteId === POINT_ID && this.spot) {
+      p.set('lat', this.spot.hit.lat.toFixed(5));
+      p.set('lon', this.spot.hit.lon.toFixed(5));
     } else if (this.siteId) {
       p.set('site', this.siteId);
     }

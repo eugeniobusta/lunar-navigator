@@ -177,7 +177,7 @@ export async function loadPresets(): Promise<Preset[]> {
 
 export const loadSummary = () => json<Summary>('suitability/summary.json');
 
-/** The six per-criterion layers of a grid, in LAYER_KEYS order. Null unless all six are there. */
+/** The per-criterion layers of a grid, in LAYER_KEYS order. Null unless all of them are there. */
 async function loadLayers(path: (key: string) => string, size: number): Promise<Uint8Array[] | null> {
   const bufs = await Promise.all(LAYER_KEYS.map((k) => bytes(path(k))));
   if (bufs.some((b) => !b || b.byteLength !== size * size)) {

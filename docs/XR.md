@@ -23,7 +23,7 @@ Driving the emulator from Claude Code or a shell, with the dev server running (f
 `npx @iwsdk/cli xr look-at ...`, `npx @iwsdk/cli xr select ...`. `xr/AGENTS.md` and `xr/.claude/skills/` (written
 by the IWSDK scaffolder) explain the rest. If you start Claude Code inside `xr/`, the same tools load as MCP servers.
 
-URL parameters: `site` (a site id with terrain, e.g. `mma01`), `zone` (a zone's published rank, e.g. `1`),
+URL parameters: `site` (a site id with terrain, e.g. `mma01`), `zone` (a zone's published rank, e.g. `1`), `lat` and `lon` (any point within 10 degrees of the pole, as the website's map sends),
 `t` (UTC start of the 30-day window, e.g. `2026-11-24T00:00Z`), `demo=1` (opens Orbit with the Goldilocks heat map
 on), `embed=1` (hides the title box). Without `t`, Orbit shows now, and a site or zone opens at the next hour at
 which the whole Sun is above its skyline (`nextSunUp` in `guide.ts`, a search with `computeSeries`).
@@ -66,7 +66,7 @@ IWSDK scene: everything is generated from data at run time.
   the tile's heights; within 0.105 deg of zones.csv at 235 zones) and the longest darkness and time without Earth
   from `computeSeries` over the whole ephemeris (at Malapert: 404 h and 0 h, the same as site_values.csv).
 - "Your priorities": the presets of `suitability/weights.json`. Choosing one re-ranks all 5,297 zones with
-  `rankZones` and recolours the Goldilocks map with `mapScoreGrid` on the six published layers; cells that fail a
+  `rankZones` and recolours the Goldilocks map with `mapScoreGrid` on the published layers; cells that fail a
   hard limit stay uncoloured. "Goldilocks map score" in the landing-point panel is the map score of that cell; a
   zone's score also counts its longest darkness and time without Earth, so the two differ.
 - Tour: four stops, each waiting for "Next". Every number in a caption is computed when the stop opens: the Sun's

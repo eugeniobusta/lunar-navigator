@@ -212,3 +212,39 @@ cut on the DEM's own pixel grid, with no resampling, so the site lies within hal
 `demHorizon(tile, [southPole, siteFar], lat, lon)` returns a `Horizon` for `computeSeries`. Heights come from the
 tile where it covers the sample, then from the section-8 grid, then from `far.u16`. At the 10 site centres it differs
 from horizons/<id>.json by 0.003 deg on average and 0.027 deg at most (web/src/lib/analysis/demHorizon.test.ts).
+
+---------------------------------------------------------------------------------------------------
+## 10. Landing suitability  (owner: Eugenio; consumers: the "Where to land" tab and the VR view) — web/public/data/suitability/
+
+Written by `scripts/build_suitability.py` (part of `make data`). Method and formula: docs/criteria.md; thresholds:
+docs/criteria.csv (copied to `web/public/data/criteria.csv`). File names are fixed: the VR view reads them.
+
+**Score grids** (uint8, row-major, row 0 = northern edge, column 0 = smallest x):
+- `south_pole_score.u8`: 1024 x 1024 on the section-8 grid. Each ~430 m pixel shows its best 120 m cell.
+- `sites/<id>_score.u8`: 512 x 512 at 120 m on the section-9 tile of each terrain="dem" site, pixel for pixel.
+
+Value `v`: `0..100` = every hard limit passes and the suitability score is `v`; `101..201` = at least one hard
+limit fails and the score is `v - 101`; `255` = no data. So `passes = v <= 100` and `score = v <= 100 ? v : v - 101`.
+
+**Limit grids** `south_pole_limits.u8` and `sites/<id>_limits.u8`, same grids: bit flags of the hard limits that
+FAIL at that cell: `1` landing slope, `2` EVA slope, `4` sunlight, `8` Earth in view, `16` more than 6 deg from the
+pole; `0` = all pass; `255` = no data.
+
+**Zones.** A zone is a connected area (8-neighbour) of 120 m cells where every hard limit passes. One 120 m cell
+already holds the 100 m x 100 m landing box, and the EVA slope limit is part of the hard limits.
+- `zones.csv`: one row per zone, ordered by `rank` (1 = best). Columns, all measured at the zone's best cell:
+
+```
+rank, lat, lon, x_m, y_m, area_km2, score, map_score, elevation_m, landing_slope_deg, eva_slope_deg,
+eva_walkable_pct, sun_pct, earth_pct, psr_distance_km, temp_avg_k, longest_dark_h, longest_no_earth_h,
+longest_sun_and_earth_h, stay_window_ok, model_sun_pct, model_earth_pct, nearest_artemis_region,
+nearest_artemis_km, near_artemis
+```
+- `zones.geojson`: the 500 best zones as a FeatureCollection of Points, `coordinates = [lon, lat]` (lunar east
+  longitude and latitude, MOON_ME), `properties` = the other zones.csv columns.
+- `summary.json`: headline numbers (region and passing area, share failing each limit, zone counts, the Artemis
+  comparison, Earth-Moon signal delay).
+
+Related tables at `web/public/data/`: `criteria.csv` (parameter, kind, unit, ideal, acceptable, reject, weight_pct,
+reason, source) and `missions.csv` (every lunar landing attempt; the `c_*` columns hold our criteria at the polar ones).
+Every column is described in docs/DATA_DICTIONARY.md.

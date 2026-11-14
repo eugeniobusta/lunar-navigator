@@ -4,6 +4,12 @@
  "dictionary": "https://github.com/eugeniobusta/lunar-navigator/blob/main/docs/DATA_DICTIONARY.md",
  "files": [
   {
+   "path": "criteria.csv",
+   "bytes": 6661,
+   "format": "CSV",
+   "description": "Landing criteria: good, acceptable and rejected ranges, the reason and the source for each."
+  },
+  {
    "path": "ephemeris.json",
    "bytes": 1687832,
    "format": "JSON",
@@ -113,15 +119,171 @@
   },
   {
    "path": "index.json",
-   "bytes": 17167,
+   "bytes": 22713,
    "format": "JSON",
    "description": "This list: every published file with its size, format and description."
+  },
+  {
+   "path": "missions.csv",
+   "bytes": 17710,
+   "format": "CSV",
+   "description": "Every lunar soft-landing attempt: where, when, outcome, lesson, and our criteria at the polar ones."
   },
   {
    "path": "sites.json",
    "bytes": 5433,
    "format": "JSON",
    "description": "Landing sites: coordinates, source and coordinate quality."
+  },
+  {
+   "path": "suitability/sites/dgr203_limits.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Which hard limits fail around de Gerlache Rim 2 (bit flags), 512 x 512 at 120 m per pixel."
+  },
+  {
+   "path": "suitability/sites/dgr203_score.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Landing suitability score around de Gerlache Rim 2, 512 x 512 at 120 m per pixel."
+  },
+  {
+   "path": "suitability/sites/hw02_limits.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Which hard limits fail around Haworth (bit flags), 512 x 512 at 120 m per pixel."
+  },
+  {
+   "path": "suitability/sites/hw02_score.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Landing suitability score around Haworth, 512 x 512 at 120 m per pixel."
+  },
+  {
+   "path": "suitability/sites/im2_limits.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Which hard limits fail around IM-2 Athena (Mons Mouton), Mar 2025 (bit flags), 512 x 512 at 120 m per pixel."
+  },
+  {
+   "path": "suitability/sites/im2_score.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Landing suitability score around IM-2 Athena (Mons Mouton), Mar 2025, 512 x 512 at 120 m per pixel."
+  },
+  {
+   "path": "suitability/sites/mma01_limits.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Which hard limits fail around Malapert Massif (bit flags), 512 x 512 at 120 m per pixel."
+  },
+  {
+   "path": "suitability/sites/mma01_score.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Landing suitability score around Malapert Massif, 512 x 512 at 120 m per pixel."
+  },
+  {
+   "path": "suitability/sites/mmo01_limits.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Which hard limits fail around Mons Mouton (bit flags), 512 x 512 at 120 m per pixel."
+  },
+  {
+   "path": "suitability/sites/mmo01_score.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Landing suitability score around Mons Mouton, 512 x 512 at 120 m per pixel."
+  },
+  {
+   "path": "suitability/sites/mmp06_limits.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Which hard limits fail around Mons Mouton Plateau (bit flags), 512 x 512 at 120 m per pixel."
+  },
+  {
+   "path": "suitability/sites/mmp06_score.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Landing suitability score around Mons Mouton Plateau, 512 x 512 at 120 m per pixel."
+  },
+  {
+   "path": "suitability/sites/nr107_limits.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Which hard limits fail around Nobile Rim 1 (bit flags), 512 x 512 at 120 m per pixel."
+  },
+  {
+   "path": "suitability/sites/nr107_score.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Landing suitability score around Nobile Rim 1, 512 x 512 at 120 m per pixel."
+  },
+  {
+   "path": "suitability/sites/nr208_limits.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Which hard limits fail around Nobile Rim 2 (bit flags), 512 x 512 at 120 m per pixel."
+  },
+  {
+   "path": "suitability/sites/nr208_score.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Landing suitability score around Nobile Rim 2, 512 x 512 at 120 m per pixel."
+  },
+  {
+   "path": "suitability/sites/pcb03_limits.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Which hard limits fail around Peak near Cabeus B (bit flags), 512 x 512 at 120 m per pixel."
+  },
+  {
+   "path": "suitability/sites/pcb03_score.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Landing suitability score around Peak near Cabeus B, 512 x 512 at 120 m per pixel."
+  },
+  {
+   "path": "suitability/sites/sp07_limits.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Which hard limits fail around Slater Plain (bit flags), 512 x 512 at 120 m per pixel."
+  },
+  {
+   "path": "suitability/sites/sp07_score.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Landing suitability score around Slater Plain, 512 x 512 at 120 m per pixel."
+  },
+  {
+   "path": "suitability/south_pole_limits.u8",
+   "bytes": 1048576,
+   "format": "binary, uint8",
+   "description": "Which hard limits fail (bit flags), on the same 1024 x 1024 grid."
+  },
+  {
+   "path": "suitability/south_pole_score.u8",
+   "bytes": 1048576,
+   "format": "binary, uint8",
+   "description": "Landing suitability score of the south pole, 1024 x 1024, about 430 m per pixel."
+  },
+  {
+   "path": "suitability/summary.json",
+   "bytes": 2786,
+   "format": "JSON",
+   "description": "Headline numbers of the suitability analysis."
+  },
+  {
+   "path": "suitability/zones.csv",
+   "bytes": 736394,
+   "format": "CSV",
+   "description": "Goldilocks zones: every area that passes all hard limits, ranked, with its numbers."
+  },
+  {
+   "path": "suitability/zones.geojson",
+   "bytes": 282925,
+   "format": "GeoJSON",
+   "description": "The 500 best Goldilocks zones as GeoJSON points (lunar longitude and latitude)."
   },
   {
    "path": "terrain/sites/dgr203/earth.u8",

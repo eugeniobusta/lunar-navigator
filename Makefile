@@ -17,6 +17,7 @@ data:       ## full precompute pipeline -> web/public/data/ (needs make download
 	uv run python scripts/build_horizons.py
 	uv run python scripts/export_terrain.py
 	uv run python scripts/export_site_tiles.py
+	uv run python scripts/build_suitability.py
 	uv run python scripts/export_open_data.py
 
 mocks:      ## regenerate web/src/mocks/

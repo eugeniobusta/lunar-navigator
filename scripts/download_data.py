@@ -17,6 +17,8 @@ FILES = [
     LOLA + "ldem_75s_120m_float.img",  # 232 MB
     PGDA + "AVGVISIB_75S_120M_201608.TIF",
     PGDA + "AVGVISIB_75S_120M_201608_EARTH.TIF",
+    # LRO Diviner Polar Resource Product: yearly mean temperature for the landing criteria (605 MB).
+    "https://pds-geosciences.wustl.edu/lro/urn-nasa-pds-lro_diviner_derived1/data_derived_prp/dlre_prp_south.tab",
 ]
 KERNELS = ["de421.bsp", "moon_pa_de421_1900-2050.bpc", "moon_080317.tf", "pck00008.tpc"]
 

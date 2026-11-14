@@ -157,6 +157,107 @@ pixels (61.44 km across), for the VR view (docs/INTERFACES.md section 9).
 
 The two visibility grids are NASA data (cite Mazarico et al. 2011), not our own results.
 
+## suitability/ (landing criteria and Goldilocks zones)
+
+Where a crewed lander could set down, by NASA's Artemis III requirements and our 0 to 100 score
+(docs/criteria.md, docs/INTERFACES.md section 10).
+
+| File | Encoding | Value |
+|------|----------|-------|
+| `suitability/south_pole_score.u8` | 1024 x 1024 uint8 on the `terrain/south_pole.json` grid | `0..100`: every hard limit passes, value = score. `101..201`: a hard limit fails, score = value - 101. `255`: no data. Each ~430 m pixel shows its best 120 m cell. |
+| `suitability/south_pole_limits.u8` | same grid | Bit flags of the hard limits that fail: 1 landing slope, 2 walkable ground (EVA), 4 sunlight, 8 Earth in view, 16 more than 6 deg from the pole. 0 = all pass, 255 = no data. |
+| `suitability/sites/<site_id>_score.u8` | 512 x 512 uint8 on the `terrain/sites/<site_id>/tile.json` grid, 120 m | Same values as `south_pole_score.u8`, one per 120 m cell. |
+| `suitability/sites/<site_id>_limits.u8` | same tile grid | Same bit flags as `south_pole_limits.u8`. |
+| `suitability/zones.geojson` | GeoJSON FeatureCollection of Points | The 500 best zones; `coordinates` = [east longitude, latitude]; `properties` = the zones.csv columns. |
+
+### suitability/zones.csv
+
+One row per Goldilocks zone: a connected area where every hard limit passes. All values are at the zone's best
+120 m cell.
+
+| Column | Unit | Meaning |
+|--------|------|---------|
+| `rank` | | 1 = best. Zones whose stay window our model confirms come first, then by `score`, then by area. |
+| `lat`, `lon` | deg | Position of the best cell (east longitude). |
+| `x_m`, `y_m` | m | The same position in the map projection. |
+| `area_km2` | km2 | Area of the whole zone. |
+| `score` | 0-100 | Zone score: 70 % `map_score`, 15 % longest darkness, 15 % longest time without Earth. |
+| `map_score` | 0-100 | Score from the per-cell parameters (docs/criteria.md section 2). |
+| `elevation_m` | m | Height above the 1737.4 km sphere. |
+| `landing_slope_deg` | deg | Slope across 120 m, steepest side. Hard limit: under 10. |
+| `eva_slope_deg` | deg | Grade between points 960 m either side of the cell. Reported only. |
+| `eva_walkable_pct` | % | Share of the ground within 2 km with a slope under 20 deg. Hard limit: at least 50. |
+| `sun_pct` | % | NASA PGDA long-run average sunlight. Hard screen: at least 25. |
+| `earth_pct` | % | NASA PGDA long-run average Earth visibility. Hard limit: at least 25. |
+| `psr_distance_km` | km | Distance to the nearest permanent shadow of 1 km2 or more; 20.4 means "more than 20 km". |
+| `temp_avg_k` | K | Diviner yearly average temperature 2 cm below the surface; empty where there is no data. |
+| `longest_dark_h` | h | Our model, Nov 2026 to Dec 2029: longest run of hours with the Sun's centre below the terrain horizon. |
+| `longest_no_earth_h` | h | Our model: longest run of hours with Earth's centre below the horizon. |
+| `longest_sun_and_earth_h` | h | Our model: longest run of hours with both above the horizon. |
+| `stay_window_ok` | True / False | True if `longest_sun_and_earth_h` is at least 156 (a 6.5-day stay). |
+| `model_sun_pct`, `model_earth_pct` | % | Our model's share of hours sunlit and with Earth in view, Nov 2026 to Dec 2029 (2 m observer). |
+| `nearest_artemis_region` | | Name of the closest Artemis candidate point. |
+| `nearest_artemis_km` | km | Distance to it. |
+| `near_artemis` | True / False | True if that distance is 12.5 km or less (inside or within 5 km of a 15 km region). |
+
+### suitability/summary.json
+
+| Field | Unit | Meaning |
+|-------|------|---------|
+| `version` | | Format version (1). |
+| `region_km2` | km2 | Area within 6 deg of the pole. |
+| `pass_km2`, `pass_pct_of_region` | km2, % | Ground that passes every hard limit. |
+| `fail_pct_of_region` | % | Share of the region failing each hard limit (`landing_slope`, `eva_slope`, `sunlight`, `earth`); they overlap. |
+| `zones`, `zones_stay_window_ok`, `zones_1km2_or_more`, `largest_zone_km2` | | Zone counts and the largest zone. |
+| `top20_near_artemis`, `top20_nearest_regions` | | How many of the 20 best zones are near an Artemis point, and which. |
+| `artemis_near_km` | km | The distance used for "near": 12.5. |
+| `zones_near_artemis`, `pass_km2_near_artemis`, `pass_pct_near_artemis`, `region_pct_near_artemis` | | Zones and passing ground near the nine Artemis points, and the share of the region that is near them. |
+| `signal_delay_s` | s | One-way Earth-Moon light time from our ephemeris: `min`, `max`, `mean`. |
+| `psr_km2_in_region` | km2 | Permanent shadow (patches of 1 km2 or more) within 6 deg of the pole. |
+| `temperature_available` | | True if the Diviner file was present when the files were built. |
+| `artemis` | | Per Artemis point: `id`, `name`, `passes_at_point`, `failed_limits`, `score_at_point`, `zones_nearby`, `best_zone_rank_nearby`, `best_zone_score_nearby`. |
+| `artemis_points_passing`, `artemis_regions_with_a_zone` | | How many of the nine points pass, and how many have a zone within 12.5 km. |
+
+## criteria.csv
+
+The landing criteria as a table (also in docs/criteria.csv). One row per criterion.
+
+| Column | Meaning |
+|--------|---------|
+| `parameter` | What is measured, in plain words. |
+| `kind` | `hard` (must pass), `soft` (scored) or `reported` (shown, not scored). |
+| `unit` | Unit and how it is measured. |
+| `ideal` | Range that gets the full sub-score (for hard limits: the passing range). |
+| `acceptable` | Range that passes but scores less. |
+| `reject` | Range that fails (hard) or scores zero (soft). |
+| `weight_pct` | Share of the zone score, in percent (soft criteria only; they add up to 100). |
+| `reason` | Why it matters, in one sentence. |
+| `source` | Where the threshold comes from, with a quote where one exists; "team choice" where we set it ourselves. |
+
+## missions.csv
+
+Every lunar soft-landing attempt that reached the Moon, 1965 to 2025, plus Peregrine (also in docs/missions.csv).
+Research notes: docs/research/missions_notes.md.
+
+| Column | Unit | Meaning |
+|--------|------|---------|
+| `id` | | Short identifier. |
+| `name` | | Mission name. |
+| `operator` | | Operator and country. |
+| `landing_date_utc` | UTC date | Day of touchdown or impact; empty if the craft never reached the Moon. |
+| `lat`, `lon` | deg | Position, east longitude; empty if none. |
+| `coords_quality` | | `measured` (found in orbital images or published after landing), `approximate`, `target` (intended point only) or `none`. |
+| `outcome` | | `landed`, `tipped over`, `crashed` or `lost before landing`. |
+| `outcome_detail` | | What happened, in one sentence. |
+| `lesson` | | What it teaches about terrain, light, night or Earth visibility, or that the site was not the cause. |
+| `source_url` | | A source for the position and outcome. |
+| `in_criteria_area` | yes / no | Whether the spot is inside the area where we can compute our criteria (south of 77 S). |
+| `c_landing_slope_deg`, `c_eva_slope_deg`, `c_sun_pct`, `c_earth_pct`, `c_psr_distance_km`, `c_temp_avg_k` | | Our criteria values at that spot (same meaning as the zones.csv columns without `c_`). |
+| `c_score` | 0-100 | Map score at that spot. |
+| `c_passes_hard_limits` | yes / no | Whether the spot passes every hard limit. |
+| `c_failed_limits` | | The limits it fails: `landing_slope`, `eva_slope`, `sunlight`, `earth`, `latitude`. |
+| `c_longest_dark_h`, `c_longest_no_earth_h` | h | Our model at that spot, Nov 2026 to Dec 2029. |
+
 ## validation/jpl.csv
 
 Our Sun and Earth positions against JPL Horizons (docs/VALIDATION.md table 1). One row per site and body.

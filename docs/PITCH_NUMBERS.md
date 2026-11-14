@@ -42,3 +42,21 @@ Mission: 336 h on the surface, at least 70 % sunlit, at least 50 % Earth visible
 | 1 | 2026-11-17 | 2026-11-19 | 3 |
 | 2 | 2026-12-17 | 2026-12-19 | 3 |
 | 3 | 2027-01-15 | 2027-01-17 | 3 |
+
+## 5. Where to land: NASA's Artemis III limits on every 120 m square within 6 deg of the pole
+
+- Ground tested: 104,184 km2. **Passing every hard limit: 14,928 km2, 14.3 %.**
+- Share of the ground failing each limit (they overlap): sunlight 55.6 %, Earth in view 49.3 %, landing slope 45.7 %, walkable ground 5.5 %.
+- **5,297 Goldilocks zones**; 643 are 1 km2 or larger; our model confirms a 6.5-day window with Sun and Earth for 4,224.
+- Artemis check: 6 of the 9 candidate points pass every limit; 8 of the 9 have a passing zone within 12.5 km; 1 of our top 20 zones is near one. Ground near the points is 3.3 % of the area and 5.9 % of the passing ground.
+- Radio delay Moon to Earth: 1.19 to 1.36 s one way, the same from every site.
+
+| Rank | Lat | Lon (E) | Score | Area (km2) | Sunlight % | Earth % | Slope (deg) | Longest darkness (days) | Nearest Artemis region (km) |
+|-----:|----:|--------:|------:|-----------:|-----------:|--------:|------------:|------------------------:|-----------------------------|
+| 1 | -84.44 | 19.21 | 77 | 3.6 | 57 | 100 | 3.4 | 14.0 | Mons Mouton Plateau (32.9) |
+| 2 | -84.02 | 23.42 | 77 | 0.6 | 54 | 100 | 3.2 | 14.8 | Mons Mouton Plateau (27.5) |
+| 3 | -89.01 | -94.70 | 76 | 4.0 | 76 | 58 | 2.9 | 6.0 | de Gerlache Rim 2 (31.0) |
+| 4 | -84.67 | 39.49 | 74 | 1171.5 | 66 | 68 | 5.5 | 12.5 | Nobile Rim 1 (17.1) |
+| 5 | -84.58 | 39.35 | 74 | 10.1 | 59 | 86 | 2.3 | 13.8 | Nobile Rim 1 (19.7) |
+
+Thresholds and sources: docs/criteria.csv. Method: docs/criteria.md.

@@ -13,12 +13,13 @@ import { useStore, type Tab } from "./state/store";
 
 // Loaded on demand so their code stays out of the main bundle.
 const Moon3D = lazy(() => import("./routes/Moon3D").then((m) => ({ default: m.Moon3D })));
+const WhereToLand = lazy(() => import("./routes/WhereToLand").then((m) => ({ default: m.WhereToLand })));
 const Data = lazy(() => import("./routes/Data").then((m) => ({ default: m.Data })));
 // "Move the lander" appears as soon as web/src/routes/Grid.tsx exists (it must export `Grid`).
 const gridModule = Object.values(import.meta.glob<{ Grid: ComponentType }>("./routes/Grid.tsx"))[0];
 const Grid = gridModule ? lazy(() => gridModule().then((m) => ({ default: m.Grid }))) : null;
 
-const TABS: [Tab, string][] = [["overview", "Overview"], ["windows", "Window Finder"], ["compare", "Compare sites"],
+const TABS: [Tab, string][] = [["overview", "Overview"], ["land", "Where to land"], ["windows", "Window Finder"], ["compare", "Compare sites"],
   ...(Grid ? [["grid", "Move the lander"] as [Tab, string]] : []),
   ["power", "Battery"], ["moon3d", "3D Moon"], ["data", "Data"], ["method", "Method"]];
 
@@ -104,6 +105,7 @@ export default function App() {
         {st.tab === "method" && <Method />}
         <Suspense fallback={<p className="note">Loading…</p>}>
           {st.tab === "grid" && Grid && <Grid />}
+          {st.tab === "land" && <WhereToLand />}
           {st.tab === "moon3d" && <Moon3D />}
           {st.tab === "data" && <Data />}
         </Suspense>

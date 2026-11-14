@@ -34,9 +34,14 @@ def test_dictionary_covers_every_file_and_column():
     for name in ("index.json", "sites.json", "ephemeris.json", "_grid.json", "south_pole.json", "south_pole_height.u16",
                  "south_pole_sun.u8", "south_pole_earth.u8", "tile.json", "height.u16", "far.u16", "sun.u8", "earth.u8", "slope.u8", "validation/jpl.csv", "validation/pgda.csv"):
         assert name in text, name
-    for csv_name in ("jpl.csv", "pgda.csv"):
-        for col in next(csv.reader((DATA / "validation" / csv_name).open())):
-            assert f"`{col}`" in text, col
+    for csv_name in ("validation/jpl.csv", "validation/pgda.csv", "suitability/zones.csv", "criteria.csv", "missions.csv"):
+        assert csv_name in text, csv_name
+        for col in next(csv.reader((DATA / csv_name).open())):
+            assert f"`{col}`" in text, (csv_name, col)
+    for name in ("south_pole_score.u8", "south_pole_limits.u8", "_score.u8", "_limits.u8", "zones.geojson", "summary.json"):
+        assert name in text, name
+    for key in json.loads((DATA / "suitability" / "summary.json").read_text()):
+        assert f"`{key}`" in text, key
     for doc in ("sites.json", "ephemeris.json", "horizons/mma01.json", "horizons/mma01_grid.json", "terrain/south_pole.json",
                 "terrain/sites/mma01/tile.json"):
         d = json.loads((DATA / doc).read_text())

@@ -33,9 +33,9 @@ export function Timeline({ series, startMs, stepS, cursor, onCursor, label }: Pr
   const ticks: number[] = [];
   for (let d = 0; d <= days; d += tickEvery) ticks.push(Math.round((d * 86400) / stepS));
 
-  const pick = (clientX: number) => {
-    const r = ref.current?.getBoundingClientRect();
-    if (!r || !onCursor) return;
+  const pick = (clientX: number, svg: SVGSVGElement) => {
+    if (!onCursor) return;
+    const r = svg.getBoundingClientRect();
     const vx = clientX - r.left;
     onCursor(Math.max(0, Math.min(n - 1, Math.floor(x.invert(vx)))));
   };
@@ -43,8 +43,8 @@ export function Timeline({ series, startMs, stepS, cursor, onCursor, label }: Pr
   return (
     <div ref={ref}>
     <svg className="timeline" width={W} height={H} viewBox={`0 0 ${W} ${H}`}
-      onPointerDown={(e) => { (e.target as Element).setPointerCapture?.(e.pointerId); pick(e.clientX); }}
-      onPointerMove={(e) => { if (e.buttons) pick(e.clientX); }}
+      onPointerDown={(e) => { (e.target as Element).setPointerCapture?.(e.pointerId); pick(e.clientX, e.currentTarget); }}
+      onPointerMove={(e) => { if (e.buttons) pick(e.clientX, e.currentTarget); }}
       aria-label={label ?? "Sunlight and Earth visibility over the window"}>
       <text x={0} y={ROW / 2} dy="0.32em" className="row-label">Sunlight</text>
       <text x={0} y={ROW + GAP + ROW / 2} dy="0.32em" className="row-label">Earth</text>

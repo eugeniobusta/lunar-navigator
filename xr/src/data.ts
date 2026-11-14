@@ -251,13 +251,6 @@ export interface Suitability {
   limits: Uint8Array | null;
 }
 
-export const LIMIT_NAMES: [number, string][] = [
-  [1, 'landing slope'],
-  [2, 'EVA slope'],
-  [4, 'sunlight'],
-  [8, 'Earth in view'],
-  [16, 'more than 6 deg from the pole'],
-];
 
 async function loadSuitability(scorePath: string, limitsPath: string, size: number): Promise<Suitability | null> {
   const [score, limits] = await Promise.all([bytes(scorePath), bytes(limitsPath)]);

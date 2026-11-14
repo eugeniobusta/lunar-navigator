@@ -1,10 +1,46 @@
 // The laptop interface: plain DOM over the canvas, Earthrise palette. In VR the same actions are on the
 // floating panel (vrpanel.ts).
-import { LIMITS_COLOR, type Why } from './guide.js';
-import { SCORE_RAMP } from './terrain.js';
+import { RAG_WORD, type Rag } from '../../web/src/lib/analysis/rag';
+import type { Importance } from '../../web/src/lib/analysis/suitability';
+import type { LegendLine, Why } from './guide.js';
 
-/** The heat map button when nothing ticked is known at every point. */
-export const FLAT_LABEL = 'NASA limits pass';
+/** The layer panel (the website's, web/src/routes/map/LayerPanel.tsx): the same model draws the laptop panel and
+ *  the headset's. */
+export interface LayersModel {
+  presets: { key: string; label: string; on: boolean }[];
+  /** The four groups; a group's tick ticks all its parameters. One group is open at a time. */
+  groups: {
+    key: string;
+    label: string;
+    state: 'all' | 'some' | 'none';
+    /** "2 of 3" */
+    count: string;
+    open: boolean;
+    params: {
+      key: string;
+      label: string;
+      /** One plain line: what the parameter is. */
+      meaning: string;
+      on: boolean;
+      /** Where the direction can be turned round: the two words (less, more) and which one is preferred now. */
+      flip: { words: [string, string]; now: number } | null;
+      /** Null when not ticked, or when a preset's exact weights are in use. */
+      importance: Importance | null;
+      /** Shown by itself on the map; null for a parameter known only at the zones, or not ticked. */
+      alone: boolean | null;
+      zoneOnly: boolean;
+    }[];
+  }[];
+  /** The line under the layers: what the ranking is for and how good the best zone is. */
+  answer: string;
+  /** What the map shows and what its colours mean, in the website's words. */
+  legend: { what: string; lines: LegendLine[] };
+  /** The class colours in use ("#rrggbb"): the traffic lights, or the colour-blind palette. */
+  colors: Record<Rag, string>;
+  colourBlind: boolean;
+  /** Opacity 0..1 of what the map shows and of the ground that fails a NASA limit; null where there is no map. */
+  opacity: { map: number; limits: number } | null;
+}
 
 export const CREDITS =
   "Terrain: NASA LOLA. Globe: NASA SVS CGI Moon Kit (LROC colour, LOLA relief). Illumination: NASA Goddard PGDA. Ephemeris: JPL DE421. Built by Claude's Plan with AI coding assistants; not an official NASA product.";
@@ -16,6 +52,7 @@ export interface SpotView {
   nasaSunPct: number | null;
   nasaEarthPct: number | null;
   scorePct: number | null;
+  rag: Rag | null;
   failed: string[];
   ourSunPct: number;
   ourEarthPct: number;
@@ -38,20 +75,12 @@ export interface HudModel {
   siteName: string | null;
   sites: { id: string; name: string; group: string }[];
   /** The best zones under the priorities in use; `id` is the published rank, `detail` false = ~430 m terrain only. */
-  zones: { id: number; rank: number; name: string; score: number; areaKm2: number; detail: boolean }[];
-  presets: { key: string; label: string; on: boolean }[];
-  /** The tick boxes, in the website's order, each with its colour ("#rrggbb"). */
-  params: { key: string; label: string; color: string; on: boolean }[];
-  /** The sentence under the tick boxes, and a note when a parameter is only known at the zones. */
-  answer: { text: string; note: string | null };
-  /** What the "score" heat map shows for what is ticked. */
-  scoreRamp: { label: string; a: number; b: number; max: number; unit: string };
+  zones: { id: number; rank: number; name: string; score: number; rag: Rag; areaKm2: number; detail: boolean }[];
+  layers: LayersModel;
   why: Why | null;
   tour: { stop: number; of: number; caption: string; why: Why | null } | null;
   /** Frame rate line, or null when "Stats" is off. */
   stats: string | null;
-  /** How opaque the heat map is drawn, 0..1; null where there is no map (no score files, or standing). */
-  mapOpacity: number | null;
   spot: SpotView | null;
   status: StatusView | null;
   enlarge: boolean;
@@ -74,7 +103,16 @@ export interface Actions {
   tourNext(): void;
   tourEnd(): void;
   toggleStats(): void;
-  setMapOpacity(a: number): void;
+  toggleGroup(key: string): void;
+  /** Opens a group of the layer panel, or closes it if it is open. */
+  openGroup(key: string): void;
+  toggleFlip(key: string): void;
+  setImportance(key: string, level: Importance): void;
+  /** Shows a ticked parameter by itself on the map, or goes back to what the ticks give. */
+  toggleSolo(key: string): void;
+  toggleColourBlind(): void;
+  /** Opacity of the map ("map") or of the ground that fails a NASA limit ("limits"). Display only. */
+  setOpacity(which: 'map' | 'limits', a: number): void;
   goOrbit(): void;
   /** ORBIT zoom: 0 = the whole Moon, 1 = the south pole. */
   zoomTo(z: number): void;
@@ -125,14 +163,31 @@ html, body { margin:0; height:100%; background:#000; overflow:hidden; }
 #side .row.opacity { align-items:center; margin-top:8px; gap:4px; color:var(--ash); font-size:13px; }
 #side .row.opacity span { margin-right:4px; }
 #side .row.opacity button { padding:4px 7px; font-size:13px; }
-#side .ticks { display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-top:8px; }
-#side .ticks .tick { display:flex; align-items:center; gap:7px; text-align:left; padding:5px 2px; color:var(--ash); border-color:transparent; }
-#side .ticks .tick.ticked { color:var(--bone); }
-#side .ticks .tick:disabled { grid-column:1 / -1; cursor:default; color:var(--ash); }
-#side .ticks .cb { flex:none; width:15px; height:15px; border:1px solid var(--ash); border-radius:3px; font:700 12px/13px var(--font); text-align:center; }
-#side .ticks .ticked .cb { background:var(--bone); border-color:var(--bone); color:var(--dust); }
-#side .ticks .chipc { flex:none; width:12px; height:12px; border-radius:3px; opacity:.45; }
-#side .ticks .ticked .chipc { opacity:1; }
+#side .tick { display:flex; align-items:flex-start; gap:8px; text-align:left; padding:5px 2px; color:var(--ash); border-color:transparent; background:transparent; width:100%; }
+#side .tick.ticked { color:var(--bone); }
+#side .tick.locked { color:var(--ash); }
+#side .tick small, #side .ctl small { color:var(--ash); font-size:13px; }
+#side .cb { flex:none; width:15px; height:15px; margin-top:2px; border:1px solid var(--ash); border-radius:3px; font:700 12px/13px var(--font); font-style:normal; text-align:center; }
+#side .ticked .cb { background:var(--bone); border-color:var(--bone); color:var(--dust); }
+#side .layers { margin-top:10px; border-top:1px solid var(--rim); }
+#side .ghead { display:flex; align-items:center; gap:6px; border-bottom:1px solid var(--rim); }
+#side .ghead .tick { flex:1; align-items:center; padding:8px 2px; }
+#side .ghead .count { color:var(--ash); font-size:13px; }
+#side .chev { border-color:transparent; padding:6px 8px; display:flex; }
+#side .param { padding:2px 0 6px 22px; border-bottom:1px solid var(--rim); }
+#side .ctl { display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; padding:2px 0 4px 23px; color:var(--ash); font-size:13px; }
+#side .ctl .seg { margin-left:0; }
+#side .ctl button { padding:3px 8px; font-size:13px; }
+#side .ctl .seg button:not(:first-child):not(:last-child) { border-right:0; }
+#side .ctl button:disabled { cursor:default; }
+#side .plain { border-color:transparent; color:var(--cloud); text-decoration:underline; padding-left:0 !important; }
+#side .ltitle { margin:12px 0 4px; color:var(--ash); font-size:14px; }
+#side .ltitle b { color:var(--bone); }
+#side .legend { list-style:none; margin:0; padding:0; font-size:14px; }
+#side .legend li { display:flex; gap:8px; align-items:baseline; padding:2px 0; }
+#side .sw { flex:none; display:inline-block; width:11px; height:11px; border-radius:2px; margin-right:7px; }
+#side .legend .sw { margin-right:0; }
+#side .sw.hatch { background-image:repeating-linear-gradient(135deg, transparent 0 2px, rgba(20,12,10,.75) 2px 4px); }
 #side .answer { margin:10px 0 0; font-weight:600; }
 #side table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; }
 #side td, #side th { padding:4px 0; text-align:right; border-top:1px solid var(--rim); }
@@ -154,7 +209,6 @@ html, body { margin:0; height:100%; background:#000; overflow:hidden; }
 #tour:empty { display:none; }
 #stats { padding:8px 12px; font-variant-numeric:tabular-nums; color:var(--ash); }
 #stats:empty { display:none; }
-#side .legend { display:flex; align-items:center; gap:8px; margin-top:8px; color:var(--ash); font-size:13px; }
 #side .ramp { flex:1; height:8px; border-radius:2px; }
 #status { position:absolute; top:64px; left:50%; transform:translateX(-50%); display:flex; gap:8px; }
 #status .chip { padding:7px 12px; font:600 15px var(--head); font-variant-numeric:tabular-nums; }
@@ -266,7 +320,13 @@ export class Hud {
       else if (d.a === 'next') actions.tourNext();
       else if (d.a === 'endtour') actions.tourEnd();
       else if (d.a === 'stats') actions.toggleStats();
-      else if (d.opacity) actions.setMapOpacity(Number(d.opacity));
+      else if (d.opacity) actions.setOpacity(d.opacity.split(':')[0] as 'map' | 'limits', Number(d.opacity.split(':')[1]));
+      else if (d.group) actions.toggleGroup(d.group);
+      else if (d.open) actions.openGroup(d.open);
+      else if (d.flip) actions.toggleFlip(d.flip);
+      else if (d.imp) actions.setImportance(d.imp.split(':')[0], d.imp.split(':')[1] as Importance);
+      else if (d.solo) actions.toggleSolo(d.solo);
+      else if (d.a === 'cb') actions.toggleColourBlind();
       else if (d.s) actions.setSpeed(Number(d.s));
       else if (d.a === 'play') actions.togglePlay();
       else if (d.a === 'orbit') actions.goOrbit();
@@ -313,28 +373,57 @@ export class Hud {
       this.tour.innerHTML = this.lastTour = tour;
     }
     this.stats.textContent = m.stats ?? '';
-    // The website's "What matters for your mission?": presets, the locked NASA row, one tick box per parameter.
-    const tick = (on: boolean, color: string, label: string, attr: string) =>
-      `<button class="tick${on ? ' ticked' : ''}" ${attr}><i class="cb">${on ? '&#10003;' : ''}</i><i class="chipc" style="background:${color}"></i><span>${esc(label)}</span></button>`;
+    // The website's layer panel: presets, the locked NASA row, the four groups (each opens to its parameters).
+    const L = m.layers;
+    const box = (state: boolean | 'some') => `<i class="cb">${state === true ? '&#10003;' : state === 'some' ? '&ndash;' : ''}</i>`;
+    const seg = (items: { attr: string; label: string; on: boolean }[]) =>
+      `<span class="seg">${items.map((i) => `<button ${i.attr} class="${i.on ? 'on' : ''}" aria-pressed="${i.on}">${esc(i.label)}</button>`).join('')}</span>`;
+    const chevron = (open: boolean) =>
+      `<svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><path d="${open ? 'M2 4l4 4 4-4' : 'M4 2l4 4-4 4'}" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>`;
     const presetButtons = () =>
-      `<h2>What matters for your mission?</h2><div class="row">${m.presets
+      `<h2>What matters for your mission?</h2><div class="row">${L.presets
         .map((p) => `<button data-preset="${p.key}" class="${p.on ? 'on' : ''}">${esc(p.label)}</button>`)
-        .join('')}</div><div class="ticks">${tick(true, LIMITS_COLOR, 'NASA safety limits: always on', 'disabled')}${m.params
-        .map((p) => tick(p.on, p.color, p.label, `data-term="${p.key}" role="checkbox" aria-checked="${p.on}"`))
-        .join('')}</div><p class="answer">${esc(m.answer.text)}</p>${m.answer.note ? `<p class="note">${esc(m.answer.note)}</p>` : ''}`;
+        .join('')}</div><div class="layers"><div class="tick ticked locked">${box(true)}<span><b>NASA safety limits</b> <small>Always on: ground that fails one is hatched red.</small></span></div>${L.groups
+        .map(
+          (g) =>
+            `<div class="ghead"><button class="tick${g.state === 'none' ? '' : ' ticked'}" data-group="${g.key}" role="checkbox" aria-checked="${g.state === 'all' ? 'true' : g.state === 'some' ? 'mixed' : 'false'}">${box(g.state === 'all' ? true : g.state === 'some' ? 'some' : false)}<b>${esc(g.label)}</b></button><span class="count">${g.count}</span><button class="chev" data-open="${g.key}" aria-expanded="${g.open}" aria-label="${g.open ? 'Hide' : 'Show'} the parameters of ${esc(g.label)}">${chevron(g.open)}</button></div>${
+              g.open
+                ? g.params
+                    .map(
+                      (q) =>
+                        `<div class="param"><button class="tick${q.on ? ' ticked' : ''}" data-term="${q.key}" role="checkbox" aria-checked="${q.on}">${box(q.on)}<span><b>${esc(q.label)}</b> <small>${esc(q.meaning)}</small></span></button>${
+                          q.on
+                            ? `<div class="ctl">${q.flip ? `<span>Prefer</span>${seg(q.flip.words.map((w, i) => ({ attr: i === q.flip!.now ? 'disabled' : `data-flip="${q.key}"`, label: w, on: i === q.flip!.now })))}` : ''}${
+                                q.importance ? `<span>Importance</span>${seg((['low', 'normal', 'high'] as Importance[]).map((l) => ({ attr: `data-imp="${q.key}:${l}"`, label: l[0].toUpperCase() + l.slice(1), on: l === q.importance })))}` : ''
+                              }${q.alone != null ? `<button class="plain" data-solo="${q.key}" aria-pressed="${q.alone}">${q.alone ? 'Back to the combined map' : 'Show alone on the map'}</button>` : ''}${
+                                q.zoneOnly ? '<small>Known at the zones, not at every point: it re-ranks the zones.</small>' : ''
+                              }</div>`
+                            : ''
+                        }</div>`,
+                    )
+                    .join('')
+                : ''
+            }`,
+        )
+        .join('')}</div><p class="answer">${esc(L.answer)}</p>`;
     let html = '';
-    // The map is what is ticked; the only other control is how opaque it is.
+    // What the map shows and what its colours mean (never colour alone: the unsafe ground is hatched), then the
+    // display settings, which never change a score.
+    const opacity = (which: 'map' | 'limits', label: string, value: number) =>
+      `<div class="row opacity"><span>${label}</span>${[0, 0.25, 0.5, 0.75, 1]
+        .map((a) => `<button data-opacity="${which}:${a}" class="${a === value ? 'on' : ''}">${a === 0 ? 'Off' : `${100 * a} %`}</button>`)
+        .join('')}</div>`;
     const mapControls = () =>
-      m.mapOpacity == null
+      L.opacity == null
         ? ''
-        : `${this.legend(m)}<div class="row opacity"><span>Map opacity</span>${[0, 0.25, 0.5, 0.75, 1]
-            .map((a) => `<button data-opacity="${a}" class="${a === m.mapOpacity ? 'on' : ''}">${a === 0 ? 'Off' : `${100 * a} %`}</button>`)
-            .join('')}</div>`;
+        : `<p class="ltitle">On the map: <b>${esc(L.legend.what)}</b></p><ul class="legend">${L.legend.lines
+            .map((l) => `<li>${l.mark == null ? '' : `<i class="sw${l.mark === 'unsafe' ? ' hatch' : ''}" style="background-color:${L.colors[l.mark === 'unsafe' ? 'red' : l.mark]}"></i>`}${esc(l.text)}</li>`)
+            .join('')}</ul>${opacity('map', 'Map opacity', L.opacity.map)}${opacity('limits', 'Unsafe ground', L.opacity.limits)}<div class="row"><button class="tick${L.colourBlind ? ' ticked' : ''}" data-a="cb" role="checkbox" aria-checked="${L.colourBlind}">${box(L.colourBlind)}<span>Colour-blind palette</span></button></div><p class="note">Opacity only changes how the map looks. It never changes a score.</p>`;
     if (m.mode === 'orbit' || m.mode === 'flight') {
       html += `<div class="row"><button class="primary" data-a="tour">Tour: 4 stops</button><span class="seg"><button data-a="whole" class="${m.view === 'moon' ? 'on' : ''}">Whole Moon</button><button data-a="pole" class="${m.view === 'pole' ? 'on' : ''}">South pole</button></span></div>` + presetButtons() + mapControls();
       if (m.zones.length) {
         html += `<h2>Top ${m.zones.length} zones for what is ticked</h2><div class="list">${m.zones
-          .map((z) => `<button data-zone="${z.id}"><span>#${z.rank} ${esc(z.name)}</span><small>score ${z.score}, ${z.areaKm2.toFixed(1)} km2${z.detail ? '' : ', 430 m terrain'}</small></button>`)
+          .map((z) => `<button data-zone="${z.id}"><span><i class="sw" style="background-color:${L.colors[z.rag]}"></i>#${z.rank} ${esc(z.name)}</span><small>score ${z.score}, ${RAG_WORD[z.rag].toLowerCase()}, ${z.areaKm2.toFixed(1)} km2${z.detail ? '' : ', 430 m terrain'}</small></button>`)
           .join('')}</div>`;
       }
       html += `<h2>Or choose a landing site</h2><div class="list">${m.sites
@@ -351,7 +440,8 @@ export class Hud {
             <tr><td>Position</td><td>${esc(s.latLon)}</td></tr>
             <tr><td>Elevation</td><td>${Math.round(s.elevationM).toLocaleString('en-US')} m</td></tr>
             <tr><td>Slope</td><td class="${steep ? 'steep' : 'okc'}">${s.slopeDeg == null ? 'no data' : `${s.slopeDeg}&deg;`}${steep ? ' too steep to land' : ''}</td></tr>
-            ${s.scorePct == null ? '' : `<tr><td>Score for what is ticked</td><td class="${s.failed.length ? 'steep' : 'okc'}">${Math.round(s.scorePct)}${s.failed.length ? `, fails: ${esc(s.failed.join(', '))}` : ', passes every limit'}</td></tr>`}
+            ${s.scorePct == null ? '' : `<tr><td>Score for what is ticked</td><td><i class="sw${s.failed.length ? ' hatch' : ''}" style="background-color:${L.colors[s.rag ?? 'grey']}"></i>${Math.round(s.scorePct)}, ${s.failed.length ? 'unsafe' : RAG_WORD[s.rag ?? 'grey'].toLowerCase()}</td></tr>`}
+            ${s.failed.length ? `<tr><td>Fails</td><td class="steep">${esc(s.failed.join('; '))}</td></tr>` : ''}
           </table>
           <table style="margin-top:10px">
             <tr><th></th><th>NASA map</th><th>Our model</th></tr>
@@ -376,17 +466,6 @@ export class Hud {
   }
 
   /** What the map's colours mean for what is ticked. */
-  private legend(m: HudModel): string {
-    const r = m.scoreRamp;
-    if (r.label === FLAT_LABEL) {
-      return ''; // one flat colour where the limits pass: nothing to scale
-    }
-    const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
-    // One parameter by itself: dark at its reject bound, full colour at its ideal (the sentence gives the bounds).
-    const [lo, hi] = r.max === SCORE_RAMP.max ? ['score 0', '100'] : ['reject', 'ideal'];
-    return `<div class="legend"><span>${lo}</span><span class="ramp" style="background:linear-gradient(90deg, ${hex(r.a)}, ${hex(r.b)})"></span><span>${hi}</span></div>`;
-  }
-
   /** Values that change every frame while time runs. */
   tick(dateLabel: string, tH: number, playing: boolean, speed: number, status: StatusView | null): void {
     if (this.date.textContent !== dateLabel) {

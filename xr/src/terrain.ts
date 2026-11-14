@@ -13,6 +13,8 @@ import {
   OrthographicCamera,
   PlaneGeometry,
   RedFormat,
+  RGBAFormat,
+  SRGBColorSpace,
   Scene,
   ShaderMaterial,
   UnsignedByteType,
@@ -37,9 +39,6 @@ export const PALETTE = {
   alert: 0xe0457b,
   ok: 0x8fc28a,
 };
-
-/** The Goldilocks score ramp (combined map); a single parameter uses its own colour (experience.ts scoreRamp). */
-export const SCORE_RAMP = { label: 'Goldilocks score', a: 0x1c2a1b, b: PALETTE.ok, max: 100, unit: '' };
 
 export function upTexture(field: Field, floatLinear: boolean): DataTexture {
   const n = field.grid.size;
@@ -216,11 +215,9 @@ uniform float texel;
 uniform float pixelM;
 uniform vec3 sunDir;
 uniform vec3 baseColor;
-uniform vec3 rampA;
-uniform vec3 rampB;
+uniform sampler2D tCodes;
 uniform float overlayOn;
-uniform float overlayMax;
-uniform float overlayAlpha;
+uniform float hatchN;    // hatch lines across the grid
 uniform float ambient;
 uniform float gain;
 uniform vec4 hole;      // discard inside this uv rectangle (the far mesh under the site tile)
@@ -233,6 +230,7 @@ uniform float hasAlbedo;
 uniform float sizeM;
 uniform vec2 capFade;   // angle from the pole where the fade starts and ends, radians
 uniform float capInner; // nothing is drawn nearer the pole than this (a finer cap sits there), radians
+uniform float mapReach; // the map is drawn out to this angle from the pole (NASA's 6 deg limit), radians
 #endif
 varying vec2 vUv;
 ${LOGZ_PARS_FRAG}
@@ -242,12 +240,15 @@ void main() {
   vec3 ground = baseColor;
   float alpha = 1.0;
   vec3 upv = vec3(0.0, 1.0, 0.0);   // straight up at this pixel, in the mesh's frame
+  float mapOn = overlayOn;
 #ifdef CAP
   vec2 pm = vec2(vUv.x - 0.5, 0.5 - vUv.y) * sizeM;
   float colat = 2.0 * atan(length(pm) / (2.0 * 1737400.0));
   alpha = 1.0 - smoothstep(capFade.x, capFade.y, colat);
   if (alpha <= 0.0 || colat < capInner) discard;
   float lon = atan(pm.x, pm.y);
+  // As on the website, the map stops at the 84 deg S circle: beyond it everything is outside NASA's limit.
+  if (colat > mapReach) mapOn = 0.0;
   upv = vec3(sin(colat) * sin(lon), cos(colat), -sin(colat) * cos(lon));
   if (hasAlbedo > 0.5) {
     // Longitude jumps by 360 deg across 180 deg E, so the texture level is fixed (no seam line from the mip choice).
@@ -270,12 +271,17 @@ void main() {
   // Unlit ground keeps a faint fill that darkens with slope, so the relief stays readable in the dark (display only).
   float fill = ambient * (0.25 + 0.75 * pow(max(dot(n, upv), 0.0), 8.0));
   vec3 col = ground * (fill + (1.0 - fill) * bright);
-  if (overlayOn > 0.5) {
-    float v = texture2D(tOverlay, vUv).r * 255.0;
-    if (v < 254.5) {
-      vec3 ramp = mix(rampA, rampB, clamp(v / overlayMax, 0.0, 1.0));
-      col = mix(col, ramp * (0.62 + 0.38 * bright) + ground * 0.04, overlayAlpha);
+  if (mapOn > 0.5) {
+    // The traffic-light classes, already painted as colour and opacity (paint.ts paintClasses), over the ground.
+    vec4 o = texture2D(tOverlay, vUv);
+    vec3 c = o.rgb;
+    // Ground that fails a NASA limit (rag.ts UNSAFE = 8; grey, no data, is 3) is hatched as well as red: never
+    // colour alone. The hatch is fixed to the ground.
+    float code = floor(texture2D(tCodes, vUv).r * 255.0 + 0.5);
+    if (code >= 8.0 && o.a > 0.0 && fract((vUv.x + vUv.y) * hatchN) < 0.28) {
+      c *= 0.35;
     }
+    col = mix(col, c * (0.62 + 0.38 * bright) + ground * 0.04, o.a);
   }
   gl_FragColor = vec4(col, alpha);
   gl_FragDepth = 0.5 + 0.5 * log2(1.0 + max(vW, 0.0) * depthBias) / 18.61; // LOGZ_FRAG with the bias
@@ -308,6 +314,7 @@ export function terrainMaterial(o: TerrainMaterialOptions): ShaderMaterial {
       sizeM: { value: o.field.grid.size * o.field.grid.pixelM },
       capFade: { value: new Vector2((o.cap?.inDeg ?? 0) * D2R, (o.cap?.outDeg ?? 0) * D2R) },
       capInner: { value: (o.cap?.innerDeg ?? 0) * D2R },
+      mapReach: { value: 6 * D2R },
       depthBias: { value: o.depthBias ?? 1 },
       tUp: { value: o.upTex },
       tShadow: { value: o.shadowTex },
@@ -316,11 +323,9 @@ export function terrainMaterial(o: TerrainMaterialOptions): ShaderMaterial {
       pixelM: { value: o.field.grid.pixelM },
       sunDir: { value: new Vector3(0, 1, 0) },
       baseColor: { value: new Color(PALETTE.terrain) },
-      rampA: { value: new Color(0x000000) },
-      rampB: { value: new Color(PALETTE.sunlight) },
+      tCodes: { value: o.shadowTex },
       overlayOn: { value: 0 },
-      overlayMax: { value: 100 },
-      overlayAlpha: { value: 1 },
+      hatchN: { value: 90 },
       ambient: { value: 0.06 },
       gain: { value: 11 },
       hole: { value: new Vector4(...(o.hole ?? [2, 2, 2, 2])) },
@@ -328,17 +333,23 @@ export function terrainMaterial(o: TerrainMaterialOptions): ShaderMaterial {
   });
 }
 
-/** Draws a byte map over the terrain with a colour ramp, `alpha` 0..1 opaque. No texture or alpha 0: no map. */
-export function setOverlay(m: ShaderMaterial, tex: Texture | null, ramp?: { a: number; b: number; max: number }, alpha = 1): void {
+/** Draws the painted classes (RGBA) over the terrain, hatched where `codes` says a NASA limit fails. Null: no map. */
+export function setOverlay(m: ShaderMaterial, rgba: Texture | null, codes: Texture | null): void {
   const u = m.uniforms;
-  u.overlayOn.value = tex && ramp && alpha > 0 ? 1 : 0;
-  u.overlayAlpha.value = alpha;
-  if (tex && ramp) {
-    u.tOverlay.value = tex;
-    (u.rampA.value as Color).set(ramp.a);
-    (u.rampB.value as Color).set(ramp.b);
-    u.overlayMax.value = ramp.max;
+  u.overlayOn.value = rgba && codes ? 1 : 0;
+  if (rgba && codes) {
+    u.tOverlay.value = rgba;
+    u.tCodes.value = codes;
   }
+}
+
+/** An RGBA texture of painted map pixels (sRGB bytes), one texel per grid cell. */
+export function rgbaTexture(data: Uint8ClampedArray, size: number): DataTexture {
+  const t = new DataTexture(data, size, size, RGBAFormat, UnsignedByteType);
+  t.minFilter = t.magFilter = NearestFilter;
+  t.colorSpace = SRGBColorSpace;
+  t.needsUpdate = true;
+  return t;
 }
 
 /** A triangle mesh over a field, one vertex every `step` pixels. */

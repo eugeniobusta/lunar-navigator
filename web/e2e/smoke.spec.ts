@@ -49,8 +49,14 @@ test("the app loads real data and the skyline explains itself", async ({ page })
   await expect(page.getByText("Showing mock data")).toHaveCount(0);
   // "Why here?" on Overview: one sentence per criterion for the selected site.
   await expect(page.getByRole("heading", { name: /^Why here\? Malapert Massif/ })).toBeVisible();
-  await expect(page.locator(".why li")).toHaveCount(11); // everything is ticked by default
-  await expect(page.locator(".why")).toContainText("Earth in view 100% of the time: good.");
+  await expect(page.locator(".why-list > li")).toHaveCount(11); // everything is ticked by default
+  // A checklist: name, value and verdict at a glance; the reason folds out on a click.
+  const earthRow = page.locator(".why-list > li", { hasText: "Earth in view" });
+  await expect(earthRow).toContainText("100% of the time");
+  await expect(earthRow.locator(".why-verdict")).toHaveText("good");
+  await expect(earthRow.locator(".why-detail")).toBeHidden();
+  await earthRow.locator("summary").click();
+  await expect(earthRow.locator(".why-detail")).toBeVisible();
   await expect(page.getByText("You are standing at")).toBeVisible();
   await expect(page.locator("svg.sky")).toContainText("Earth now");
   await expect(page.locator("svg.sky")).toContainText("Sun now");

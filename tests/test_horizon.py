@@ -96,3 +96,9 @@ def test_series_and_metrics_known_answer():
     assert m["longestDarkH"] == 12.0 and m["longestNoEarthH"] == 0.0
     hz["elev_deg"] = [6.0] * 720
     assert metrics(series(hz, sun, earth))["sunPct"] == 0.0
+
+
+def test_disc_fraction():
+    from engine.visibility import disc_fraction
+    assert disc_fraction([0.0, 0.27, -0.27, 5.0, -5.0], 0.27) == pytest.approx([0.5, 1, 0, 1, 0])
+    assert disc_fraction(0.1, 0.27) + disc_fraction(-0.1, 0.27) == pytest.approx(1.0)

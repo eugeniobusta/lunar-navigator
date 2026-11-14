@@ -1,4 +1,22 @@
 // How it works, where the data comes from, and what it does not model.
+
+// Measured numbers from docs/VALIDATION.md tables 1 and 4 (scripts/fetch_horizons_fixtures.py, scripts/validate_pgda.py).
+const JPL = [
+  ["Malapert Massif", "0.0007° / 0.0000°", "0.0000° / 0.0000°"],
+  ["Haworth", "0.0007° / 0.0000°", "0.0000° / 0.0000°"],
+  ["Apollo 11", "0.0007° / 0.0001°", "0.0000° / 0.0001°"],
+];
+const PGDA = [
+  ["Peak near Cabeus B", "51.5", "49.3", "+2.2", "71.8", "70.3", "+1.5"],
+  ["Haworth", "46.9", "46.8", "+0.1", "57.6", "59.3", "-1.7"],
+  ["Malapert Massif", "45.5", "45.1", "+0.4", "100.0", "100.0", "0.0"],
+  ["Mons Mouton Plateau", "12.6", "14.1", "-1.5", "49.2", "52.9", "-3.8"],
+  ["Mons Mouton", "70.9", "69.7", "+1.2", "58.5", "56.2", "+2.3"],
+  ["Nobile Rim 1", "52.9", "49.8", "+3.1", "57.5", "60.1", "-2.6"],
+  ["Nobile Rim 2", "30.8", "30.6", "+0.2", "52.8", "55.0", "-2.2"],
+  ["de Gerlache Rim 2", "56.7", "56.8", "-0.2", "54.3", "55.8", "-1.5"],
+  ["Slater Plain", "49.3", "52.8", "-3.5", "42.3", "46.6", "-4.3"],
+];
 export function Method() {
   return (
     <section className="panel prose">
@@ -25,6 +43,35 @@ export function Method() {
         Positions are compared with JPL Horizons observer tables for the same sites and times. Long-run sunlight and
         Earth-visibility percentages are compared with NASA's published illumination maps. The differences and their
         causes are listed in the project's validation notes.
+      </p>
+      <table className="compare">
+        <caption className="note">Position of the Sun and Earth in the sky: largest error against JPL Horizons, 20 times across 2027-2028.</caption>
+        <thead>
+          <tr><th>Site</th><th>Sun elevation / azimuth</th><th>Earth elevation / azimuth</th></tr>
+        </thead>
+        <tbody>
+          {JPL.map(([site, sun, earth]) => (
+            <tr key={site}><th>{site}</th><td>{sun}</td><td>{earth}</td></tr>
+          ))}
+        </tbody>
+      </table>
+      <table className="compare">
+        <caption className="note">Share of time sunlit and with Earth in view, 2009-2028: ours, NASA's map, and the difference in percentage points.</caption>
+        <thead>
+          <tr><th>Site</th><th>Sunlit: ours</th><th>NASA</th><th>Diff</th><th>Earth: ours</th><th>NASA</th><th>Diff</th></tr>
+        </thead>
+        <tbody>
+          {PGDA.map(([site, sun, nasaSun, dSun, earth, nasaEarth, dEarth]) => (
+            <tr key={site}>
+              <th>{site}</th><td>{sun}%</td><td>{nasaSun}%</td><td>{dSun}</td>
+              <td>{earth}%</td><td>{nasaEarth}%</td><td>{dEarth}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="note">
+        We count the centre of the Sun or Earth above the skyline, seen from 2 m above the ground. NASA's maps are for
+        the ground itself and count Earth when any part of it shows, which explains most of the differences.
       </p>
       <h3>What it does not model</h3>
       <ul>

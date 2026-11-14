@@ -34,3 +34,9 @@ def metrics(s, step_h=1.0):
     return {"sunPct": 100.0 * lit.mean(), "earthPct": 100.0 * earth.mean(), "bothPct": 100.0 * (lit & earth).mean(),
             "longestDarkH": longest_run(~lit) * step_h, "longestNoEarthH": longest_run(~earth) * step_h,
             "maxSunEl": float(s["sunEl"].max())}
+
+
+def disc_fraction(margin, radius):
+    """Visible fraction of a disc of angular radius `radius` whose centre is `margin` above a flat horizon edge."""
+    d = np.clip(np.asarray(margin, dtype=float) / radius, -1.0, 1.0)
+    return 1.0 - (np.arccos(d) - d * np.sqrt(1.0 - d * d)) / np.pi

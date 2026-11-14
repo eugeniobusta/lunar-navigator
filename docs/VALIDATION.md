@@ -161,3 +161,37 @@ on it. The VR scene inside `/xr/` was not looked at by this session. Automated t
 
 Backup screenshots of every essential screen at 1920 x 1080, 1440 x 900 and 390 x 844, taken from the live site:
 `media/screenshots/final/` (`web/e2e/tools/screens.mjs`).
+
+## 9. After the integration of Chinh's redesign: both views (14 Nov 2026, late)
+
+The site is now one site with two views (Simple and Detailed, docs/DECISIONS.md). The science and the scoring did
+not change; this section records that the integrated site still gives the same answers.
+
+- **Automated tests on main**: 57 Python, 166 browser-maths, 39 VR, 11 browser smoke tests (both views, every
+  page, the menu bar at four widths, the countdown, Explore a site, Plan a landing, Overview and Window Finder,
+  Site Finder twice, shared links).
+- **End-to-end check on the live site** (`web/e2e/tools/qa-live.mjs`, commit bbc631d, at 1440 x 900, 1920 x 1080,
+  1280 x 800 and 390 x 844): 53 of 53 checks pass. The map checks of section 8 run again in Site Finder (18 spots,
+  every layer alone, opacity, the ten best under five presets, Compare). New checks:
+  - the seven Detailed pages and the four Simple pages render, and the switch moves between them;
+  - **Plan a landing (Simple) gives zone 2 the score the files give, 76**, the same as Site Finder: one scoring
+    engine in both views; its landing days and battery check follow the chosen place;
+  - **Window Finder still finds 32 landing days** for a 14-day mission at Malapert Massif from 14 Nov 2026
+    (the page counts 366 days in the 12 months it searches);
+  - the menu bar: no part overlaps another or leaves the screen, in both views, at the four widths (the pages fold
+    behind the Menu button when the countdown is shown and the bar is too narrow);
+  - no console errors at any size; 245 distinct links on Data & Method, all open except the Wueller et al. DOI
+    (403 to scripts).
+- **The homepage countdown** ("Sunrise at Malapert Massif in ...") comes from `computeSeries` on the published
+  ephemeris and skyline. For 14 Nov 2026 00:00 UTC the browser code and the Python model (`engine/visibility.py`)
+  both put the next sunrise at 17 Nov 2026 10:12:01 UTC, within 2 seconds of each other (`countdown.test.ts`).
+  The crossing is interpolated between two hourly samples, so the clock is good to a few minutes, not seconds.
+- **Pictures**: all nine NASA photo IDs were found in the NASA Image and Video Library with the titles and dates we
+  list; credits are on the page, on Data & Method, in `index.json` and in docs/CREDITS.md, which also says what
+  could not be confirmed (the CGI Moon Kit credit line, the VR's Earth and Sun textures that are not in the
+  repository yet, Meta's SDK licence).
+- **Not done**: the presentation computer is still untested; the demo videos in `media/` were not re-recorded
+  (the script is fixed, the footage shows the older site); the VR scene was not looked at by this session.
+
+Screenshots of every page in both views at 1920 x 1080, 1440 x 900 and 390 x 844, from the live site:
+`media/screenshots/final/` (s = Simple, d = Detailed; 60 files).

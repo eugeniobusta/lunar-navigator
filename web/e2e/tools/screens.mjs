@@ -17,7 +17,7 @@ const pages = [
   ["d02-overview", "/?view=detailed&site=mma01&date=2027-01-09&days=14&tab=overview", async (p) => { await p.waitForSelector("svg.sky"); }],
   ["d03-site-finder", "/?view=detailed&tab=map", finder],
   ["d04-site-finder-sunlight-alone", "/?view=detailed&tab=map&pick=sunlight", finder],
-  ["d05-site-finder-layers-open", "/?view=detailed&tab=map", async (p) => { await finder(p); await p.getByRole("button", { name: /Show the parameters of Safe ground/ }).click(); await p.getByRole("button", { name: /Show the parameters of Ice and science/ }).click(); }],
+  ["d05-site-finder-layers-open", "/?view=detailed&tab=map", async (p) => { await finder(p); const t = p.getByRole("button", { name: "What matters for your mission?" }); if (await t.count()) await t.click(); await p.getByRole("button", { name: /Show the parameters of Safe ground/ }).click(); await p.getByRole("button", { name: /Show the parameters of Ice and science/ }).click(); }],
   ["d06-site-finder-best-zone", "/?view=detailed&tab=map&spot=-84.01724,23.42232", finder],
   ["d07-site-finder-unsafe-spot", "/?view=detailed&tab=map&spot=-88.0241,0", finder],
   ["d08-site-finder-colour-blind", "/?view=detailed&tab=map&preset=radio", async (p) => { await finder(p); await p.getByLabel("Colour-blind palette").check(); }],
@@ -32,7 +32,7 @@ const pages = [
 const browser = await chromium.launch();
 for (const name of (which ? which.split(",") : Object.keys(sizes))) {
   const [width, height] = sizes[name];
-  const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: name === "390" ? 2 : 1 });
+  const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1 });
   for (const [id, path, act] of pages) {
     if (process.env.ONLY && !process.env.ONLY.split(",").some((o) => id.includes(o))) continue;
     const page = await ctx.newPage();

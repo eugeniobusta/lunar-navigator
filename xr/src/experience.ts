@@ -134,7 +134,7 @@ import {
   type Label,
 } from './objects.js';
 import {
-  OVERLAYS,
+  SCORE_RAMP,
   PALETTE,
   ShadowPass,
   byteTexture,
@@ -143,7 +143,6 @@ import {
   supportsFloatLinear,
   terrainMaterial,
   upTexture,
-  type OverlayId,
 } from './terrain.js';
 import { VrPanel, type PanelModel } from './vrpanel.js';
 
@@ -244,7 +243,6 @@ interface SiteScene {
   farMesh: Mesh;
   geos: Record<number, BufferGeometry>;
   farGeos: Record<number, BufferGeometry>;
-  overlays: Partial<Record<OverlayId, Texture>>;
   scoreMap: ScoreMap | null;
   zoneGroup: Group;
   group: Group;
@@ -301,8 +299,10 @@ export class ExperienceSystem extends createSystem({}) {
   private tH = 0;
   private playing = false;
   private speed = 10;
-  private overlayOrbit: OverlayId = 'sun';
-  private overlaySite: OverlayId = 'off';
+  /** The heat map follows the tick boxes; this is how opaque it is drawn (0 = no map). */
+  private mapOpacity = 1;
+  /** Tour stops that show bare ground. */
+  private mapHidden = false;
   private enlarge = false;
   private spot: Spot | null = null;
   private info: string | null = null;
@@ -325,7 +325,6 @@ export class ExperienceSystem extends createSystem({}) {
   private poleMat!: ShaderMaterial;
   private poleMesh!: Mesh;
   private poleGeos: Record<number, BufferGeometry> = {};
-  private poleOverlays: Partial<Record<OverlayId, Texture>> = {};
   private globeMat!: ShaderMaterial;
   private markers: Marker[] = [];
   private hovered: Marker | null = null;
@@ -437,7 +436,7 @@ export class ExperienceSystem extends createSystem({}) {
         this.showStats = !this.showStats;
         this.dirtyHud = true;
       },
-      setOverlay: (o) => this.setOverlayChoice(o),
+      setMapOpacity: (a) => this.setMapOpacity(a),
       goOrbit: () => this.enterOrbit(),
       goLand: () => this.setMode('land'),
       goStand: () => this.setMode('stand'),
@@ -517,10 +516,6 @@ export class ExperienceSystem extends createSystem({}) {
     const lat = Number(params.get('lat'));
     const lon = Number(params.get('lon'));
     if (params.get('demo') === '1') {
-      // The demo opens in Orbit with the Goldilocks heat map on.
-      if (this.poleScore) {
-        this.overlayOrbit = 'score';
-      }
       this.enterOrbit();
     } else if (zone) {
       await this.enterLand(this.zoneDest(zone));
@@ -569,11 +564,8 @@ export class ExperienceSystem extends createSystem({}) {
     globe.position.set(0, -R_M, 0);
     globe.frustumCulled = false;
     this.orbitRoot.add(globe);
-    this.poleOverlays.sun = byteTexture(this.pole.sun, grid.size);
-    this.poleOverlays.earth = byteTexture(this.pole.earth, grid.size);
     if (this.poleSuit && grid.size === 1024) {
       this.poleScore = this.scoreMap(this.poleSuit, grid.size, () => (this.poleLayers ??= loadPoleLayers(grid.size)));
-      this.poleOverlays.score = this.poleScore.tex;
     }
 
     const add = this.addMarker.bind(this);
@@ -737,7 +729,7 @@ export class ExperienceSystem extends createSystem({}) {
   private scoreRamp(): { label: string; a: number; b: number; max: number; unit: string } {
     const k = mapKind(this.selection);
     if (k.kind !== 'single') {
-      return k.kind === 'flat' ? { ...OVERLAYS.score, label: FLAT_LABEL } : OVERLAYS.score;
+      return k.kind === 'flat' ? { ...SCORE_RAMP, label: FLAT_LABEL } : SCORE_RAMP;
     }
     return { label: paramLabel(k.layer, this.prio), a: 0x000000, b: new Color(PARAM_COLOR[k.layer]).getHex(), max: SINGLE_MAX, unit: '' };
   }
@@ -764,13 +756,6 @@ export class ExperienceSystem extends createSystem({}) {
       if (m) {
         void this.rescoreMap(m);
       }
-    }
-    // Show the map the choice is about.
-    if (this.poleScore) {
-      this.overlayOrbit = 'score';
-    }
-    if (this.scene3?.scoreMap) {
-      this.overlaySite = 'score';
     }
     this.applyOverlay();
     if (this.spot) {
@@ -978,11 +963,6 @@ export class ExperienceSystem extends createSystem({}) {
     mesh.frustumCulled = farMesh.frustumCulled = false;
     const group = new Group();
     group.add(farMesh, mesh);
-    const overlays: Partial<Record<OverlayId, Texture>> = {
-      sun: byteTexture(tile.sun, g.size),
-      earth: byteTexture(tile.earth, g.size),
-      slope: byteTexture(tile.slope, g.size),
-    };
     let scoreMap: ScoreMap | null = null;
     if (tile.suitability) {
       let layers: Promise<Uint8Array[] | null> | null = null;
@@ -994,7 +974,6 @@ export class ExperienceSystem extends createSystem({}) {
             )
           : loadSiteLayers(site.id, g.size)),
       );
-      overlays.score = scoreMap.tex;
     }
     const zoneGroup = new Group();
     group.add(zoneGroup);
@@ -1003,8 +982,8 @@ export class ExperienceSystem extends createSystem({}) {
     this.siteLabel.set(`${site.name} (${site.id})`);
     this.siteLabel.sprite.position.set(centre.pos[0], centre.pos[1], centre.pos[2]);
     const scene: SiteScene = {
-      site, tile, frame, field, farField, shadow, farShadow, mat, farMat, mesh, farMesh, geos, farGeos, overlays, scoreMap, zoneGroup, group,
-      textures: [upTex, farUpTex, ...Object.values(overlays)],
+      site, tile, frame, field, farField, shadow, farShadow, mat, farMat, mesh, farMesh, geos, farGeos, scoreMap, zoneGroup, group,
+      textures: [upTex, farUpTex, ...(scoreMap ? [scoreMap.tex] : [])],
     };
     this.rebuildSiteZones(scene);
     return scene;
@@ -1141,24 +1120,23 @@ export class ExperienceSystem extends createSystem({}) {
       this.standLift = this.camera.position.y - EYE_M;
     }
     this.hoverRing.visible = false;
+    this.applyOverlay();
     this.dirtySun = this.dirtyHud = true;
   }
 
-  private setOverlayChoice(o: OverlayId): void {
-    if (this.mode === 'orbit' || this.mode === 'flight') {
-      this.overlayOrbit = o;
-    } else {
-      this.overlaySite = o;
-    }
+  private setMapOpacity(a: number): void {
+    this.mapOpacity = Math.max(0, Math.min(1, a));
     this.applyOverlay();
     this.dirtyHud = true;
   }
 
+  /** The heat map is whatever is ticked, in Orbit and on the site map; standing on the surface shows bare ground. */
   private applyOverlay(): void {
-    const ramp = (o: OverlayId) => (o === 'off' ? undefined : o === 'score' ? this.scoreRamp() : OVERLAYS[o]);
-    setOverlay(this.poleMat, this.poleOverlays[this.overlayOrbit] ?? null, ramp(this.overlayOrbit));
+    const ramp = this.scoreRamp();
+    const a = this.mapHidden ? 0 : this.mapOpacity;
+    setOverlay(this.poleMat, this.poleScore?.tex ?? null, ramp, a);
     if (this.scene3) {
-      setOverlay(this.scene3.mat, this.scene3.overlays[this.overlaySite] ?? null, ramp(this.overlaySite));
+      setOverlay(this.scene3.mat, this.mode === 'stand' ? null : (this.scene3.scoreMap?.tex ?? null), ramp, a);
     }
   }
 
@@ -1560,7 +1538,7 @@ export class ExperienceSystem extends createSystem({}) {
     const a = this.actions;
     const [kind, arg] = id.split(':');
     if (kind === 'site') a.pickSite(arg);
-    else if (kind === 'ov') a.setOverlay(arg as OverlayId);
+    else if (kind === 'opacity') a.setMapOpacity(Number(arg));
     else if (kind === 'speed') a.setSpeed(Number(arg));
     else if (kind === 'play') a.togglePlay();
     else if (kind === 'orbit') a.goOrbit();
@@ -1687,12 +1665,12 @@ export class ExperienceSystem extends createSystem({}) {
       // The tour is told with everything ticked.
       const all = this.prio.presets.find((p) => p.key === 'everything');
       this.choose(all ? presetSelection(all) : this.prio.initial);
-      this.overlayOrbit = 'off';
+      this.mapHidden = true;
       this.cam.orbit = { az: 0.5, pol: 0.72, dist: 2.7 };
       this.enterOrbit();
       t.caption = captionPole(this.eph);
     } else if (stop === 2) {
-      this.overlayOrbit = this.poleScore ? 'score' : 'sun';
+      this.mapHidden = false;
       this.enterOrbit();
       t.caption = captionGoldilocks(this.summary);
     } else if (stop === 3) {
@@ -1703,11 +1681,9 @@ export class ExperienceSystem extends createSystem({}) {
       }
       t.why = whyFromRow(`zone #${z.rank}`, z.row, this.criteria, countedTerms(this.selection));
       t.caption = captionZone(z, this.selectionLabel(), t.why);
-      this.overlaySite = 'score';
+      this.mapHidden = false;
       this.flyTo(this.zoneDest(z));
     } else if (this.spot) {
-      this.overlaySite = 'off';
-      this.applyOverlay();
       this.setMode('stand');
       t.playFrom = Math.min(Math.floor(this.tH), WINDOW_H - TOUR_PLAY_H);
       this.tH = t.playFrom;
@@ -1730,6 +1706,7 @@ export class ExperienceSystem extends createSystem({}) {
 
   private tourEnd(): void {
     this.tour = null;
+    this.mapHidden = false;
     this.playing = false;
     this.enterOrbit();
   }
@@ -1809,11 +1786,6 @@ export class ExperienceSystem extends createSystem({}) {
     const site = this.place;
     const inSite = this.mode === 'land' || this.mode === 'stand';
     const coarse = inSite && this.scene3?.tile.coarse === true;
-    const overlays: OverlayId[] = !inSite || coarse ? ['sun', 'earth'] : ['sun', 'earth', 'slope'];
-    if (inSite ? this.scene3?.scoreMap : this.poleScore) {
-      overlays.push('score');
-    }
-    overlays.push('off');
     const counted = countedTerms(this.selection);
     let info = this.info;
     if (!info && this.mode === 'orbit' && this.missions.length) {
@@ -1835,8 +1807,7 @@ export class ExperienceSystem extends createSystem({}) {
       siteName: site?.name ?? null,
       sites: this.sites.filter((s) => s.terrain === 'dem').map((s) => ({ id: s.id, name: s.name, group: s.group })),
       zones: this.ranked().slice(0, LISTED_ZONES).map((z) => ({ id: z.id, rank: z.rank, name: z.near ? `near ${z.near}` : '', score: z.score, areaKm2: z.areaKm2, detail: this.zoneHasTile(z) })),
-      overlay: inSite ? this.overlaySite : this.overlayOrbit,
-      overlays,
+      mapOpacity: (inSite ? this.scene3?.scoreMap : this.poleScore) && this.mode !== 'stand' ? this.mapOpacity : null,
       spot: inSite ? this.spotView() : null,
       status: this.status,
       enlarge: this.enlarge,
@@ -1872,7 +1843,7 @@ export class ExperienceSystem extends createSystem({}) {
     }
     const ans = answer(this.selection, this.prio, this.zones.length, this.zones[0]);
     const prioButton = { id: 'prio', label: 'What matters?' };
-    const scoreLabel = this.scoreRamp().label === OVERLAYS.score.label ? 'Goldilocks' : this.scoreRamp().label;
+    const opacityRow = [0, 0.25, 0.5, 0.75, 1].map((a) => ({ id: `opacity:${a}`, label: a === 0 ? 'Map off' : `Map ${100 * a} %`, on: this.mapOpacity === a }));
     if (this.showPriorities && !this.tour) {
       // The website's tick boxes: presets, the locked NASA row, then one large box per parameter.
       const counted = countedTerms(this.selection);
@@ -1924,8 +1895,9 @@ export class ExperienceSystem extends createSystem({}) {
       for (let i = 0; i < top.length; i += 2) {
         rows.push(top.slice(i, i + 2).map((z) => ({ id: `zone:${z.id}`, label: `#${z.rank} ${z.near ? `near ${z.near}` : 'zone'}, score ${z.score}`, on: this.siteId === `zone-${z.id}` })));
       }
-      const ov: OverlayId[] = this.poleScore ? ['sun', 'earth', 'score', 'off'] : ['sun', 'earth', 'off'];
-      rows.push(ov.map((o) => ({ id: `ov:${o}`, label: o === 'off' ? 'Map off' : o === 'score' ? scoreLabel : OVERLAYS[o].label, on: this.overlayOrbit === o })));
+      if (this.poleScore) {
+        rows.push(opacityRow);
+      }
       return {
         title: this.mode === 'flight' ? `Flying to ${site?.name ?? ''}` : 'Choose a landing site',
         subtitle: date,
@@ -1969,8 +1941,6 @@ export class ExperienceSystem extends createSystem({}) {
     if (coarse) {
       lines.push({ text: COARSE_NOTE, color: 'text2', small: true });
     }
-    const ovs: OverlayId[] = ['sun', 'earth', ...(coarse ? [] : ['slope' as const]), ...(this.scene3?.scoreMap ? ['score' as const] : []), 'off'];
-    const short: Record<OverlayId, string> = { sun: 'Sunlight', earth: 'Earth', slope: 'Slope', score: scoreLabel, off: 'Off' };
     return {
       title: site?.name ?? '',
       subtitle: date,
@@ -1983,7 +1953,7 @@ export class ExperienceSystem extends createSystem({}) {
           { id: 'exit', label: 'Exit VR' },
         ],
         [{ id: 'why', label: 'Why here?' }, prioButton, statsButton],
-        ovs.map((o) => ({ id: `ov:${o}`, label: short[o], on: this.overlaySite === o })),
+        ...(this.scene3?.scoreMap && this.mode === 'land' ? [opacityRow] : []),
         speedRow,
       ],
       timeFrac: this.tH / WINDOW_H,

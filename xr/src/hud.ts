@@ -1,7 +1,7 @@
 // The laptop interface: plain DOM over the canvas, Earthrise palette. In VR the same actions are on the
 // floating panel (vrpanel.ts).
 import { LIMITS_COLOR, type Why } from './guide.js';
-import { OVERLAYS, type OverlayId } from './terrain.js';
+import { SCORE_RAMP } from './terrain.js';
 
 /** The heat map button when nothing ticked is known at every point. */
 export const FLAT_LABEL = 'NASA limits pass';
@@ -48,8 +48,8 @@ export interface HudModel {
   tour: { stop: number; of: number; caption: string; why: Why | null } | null;
   /** Frame rate line, or null when "Stats" is off. */
   stats: string | null;
-  overlay: OverlayId;
-  overlays: OverlayId[];
+  /** How opaque the heat map is drawn, 0..1; null where there is no map (no score files, or standing). */
+  mapOpacity: number | null;
   spot: SpotView | null;
   status: StatusView | null;
   enlarge: boolean;
@@ -72,7 +72,7 @@ export interface Actions {
   tourNext(): void;
   tourEnd(): void;
   toggleStats(): void;
-  setOverlay(o: OverlayId): void;
+  setMapOpacity(a: number): void;
   goOrbit(): void;
   goLand(): void;
   goStand(): void;
@@ -112,6 +112,9 @@ html, body { margin:0; height:100%; background:#000; overflow:hidden; }
 #side .list button { text-align:left; display:flex; justify-content:space-between; gap:8px; }
 #side .list small { color:var(--ash); }
 #side .row { display:flex; flex-wrap:wrap; gap:6px; }
+#side .row.opacity { align-items:center; margin-top:8px; gap:4px; color:var(--ash); font-size:13px; }
+#side .row.opacity span { margin-right:4px; }
+#side .row.opacity button { padding:4px 7px; font-size:13px; }
 #side .ticks { display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-top:8px; }
 #side .ticks .tick { display:flex; align-items:center; gap:7px; text-align:left; padding:6px 7px; color:var(--ash); }
 #side .ticks .tick.ticked { color:var(--bone); }
@@ -253,7 +256,7 @@ export class Hud {
       else if (d.a === 'next') actions.tourNext();
       else if (d.a === 'endtour') actions.tourEnd();
       else if (d.a === 'stats') actions.toggleStats();
-      else if (d.ov) actions.setOverlay(d.ov as OverlayId);
+      else if (d.opacity) actions.setMapOpacity(Number(d.opacity));
       else if (d.s) actions.setSpeed(Number(d.s));
       else if (d.a === 'play') actions.togglePlay();
       else if (d.a === 'orbit') actions.goOrbit();
@@ -308,12 +311,15 @@ export class Hud {
         .map((p) => tick(p.on, p.color, p.label, `data-term="${p.key}" role="checkbox" aria-checked="${p.on}"`))
         .join('')}</div><p class="answer">${esc(m.answer.text)}</p>${m.answer.note ? `<p class="note">${esc(m.answer.note)}</p>` : ''}`;
     let html = '';
-    const overlayButtons = () =>
-      `<h2>Heat map</h2><div class="row">${m.overlays
-        .map((o) => `<button data-ov="${o}" class="${o === m.overlay ? 'on' : ''}">${o === 'off' ? 'Off' : o === 'score' ? esc(m.scoreRamp.label) : OVERLAYS[o].label}</button>`)
-        .join('')}</div>${this.legend(m.overlay, m)}`;
+    // The map is what is ticked; the only other control is how opaque it is.
+    const mapControls = () =>
+      m.mapOpacity == null
+        ? ''
+        : `${this.legend(m)}<div class="row opacity"><span>Map opacity</span>${[0, 0.25, 0.5, 0.75, 1]
+            .map((a) => `<button data-opacity="${a}" class="${a === m.mapOpacity ? 'on' : ''}">${a === 0 ? 'Off' : `${100 * a} %`}</button>`)
+            .join('')}</div>`;
     if (m.mode === 'orbit' || m.mode === 'flight') {
-      html += `<div class="row"><button class="primary" data-a="tour">Tour: 4 stops</button></div>` + presetButtons() + overlayButtons();
+      html += `<div class="row"><button class="primary" data-a="tour">Tour: 4 stops</button></div>` + presetButtons() + mapControls();
       if (m.zones.length) {
         html += `<h2>Top ${m.zones.length} zones for what is ticked</h2><div class="list">${m.zones
           .map((z) => `<button data-zone="${z.id}"><span>#${z.rank} ${esc(z.name)}</span><small>score ${z.score}, ${z.areaKm2.toFixed(1)} km2${z.detail ? '' : ', 430 m terrain'}</small></button>`)
@@ -324,7 +330,7 @@ export class Hud {
         .join('')}</div>`;
       html += `<p class="note">Relief: NASA LOLA, 440 km across, lit by the Sun's real direction at the chosen time. Drag to turn, scroll to zoom, click a marker.</p>`;
     } else if (m.mode === 'land' || m.mode === 'stand') {
-      html += presetButtons() + overlayButtons();
+      html += presetButtons() + mapControls();
       if (m.spot) {
         const s = m.spot;
         const steep = s.slopeDeg != null && s.slopeDeg > 10;
@@ -357,21 +363,16 @@ export class Hud {
     this.side.style.display = html ? '' : 'none';
   }
 
-  private legend(o: OverlayId, m: HudModel): string {
-    if (o === 'off') {
-      return '';
-    }
-    if (o === 'score' && m.scoreRamp.label === FLAT_LABEL) {
+  /** What the map's colours mean for what is ticked. */
+  private legend(m: HudModel): string {
+    const r = m.scoreRamp;
+    if (r.label === FLAT_LABEL) {
       return ''; // one flat colour where the limits pass: nothing to scale
     }
-    if (o === 'score' && m.scoreRamp.max !== OVERLAYS.score.max) {
-      // One parameter by itself: dark at its reject bound, full colour at its ideal (the sentence gives the bounds).
-      const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
-      return `<div class="legend"><span>reject</span><span class="ramp" style="background:linear-gradient(90deg, ${hex(m.scoreRamp.a)}, ${hex(m.scoreRamp.b)})"></span><span>ideal</span></div>`;
-    }
-    const d = OVERLAYS[o];
-    const c = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
-    return `<div class="legend"><span>0</span><span class="ramp" style="background:linear-gradient(90deg, ${c(d.a)}, ${c(d.b)})"></span><span>${d.max}${d.unit === '%' ? ' %' : d.unit ? ` ${d.unit}` : ''}${o === 'slope' ? '+' : ''}</span></div>`;
+    const hex = (n: number) => `#${n.toString(16).padStart(6, '0')}`;
+    // One parameter by itself: dark at its reject bound, full colour at its ideal (the sentence gives the bounds).
+    const [lo, hi] = r.max === SCORE_RAMP.max ? ['score 0', '100'] : ['reject', 'ideal'];
+    return `<div class="legend"><span>${lo}</span><span class="ramp" style="background:linear-gradient(90deg, ${hex(r.a)}, ${hex(r.b)})"></span><span>${hi}</span></div>`;
   }
 
   /** Values that change every frame while time runs. */

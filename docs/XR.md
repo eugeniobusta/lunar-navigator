@@ -10,7 +10,7 @@ Live at `/xr/` on the project site; the website can embed it with `/xr/?site=<id
 | What | Command | Notes |
 |------|---------|-------|
 | Install | `make setup` | installs web/ and xr/ |
-| Dev server + Quest 3 emulator | `make xr-dev` | https://localhost:8081 in a managed Chromium window; "Enter XR" at the top is the emulator's button and exists only in dev |
+| Dev server + Quest 3 emulator | `make xr-dev` | https://localhost:8081 in a managed Chromium window; the "Runtime / Editor" toolbar and the "Enter XR" button are the dev server's own tools and are never in a production build |
 | Tests | `make test` | includes `xr/src/*.test.ts` (frames and shadows, guide, automatic quality) |
 | Production build | `make build && make xr` | writes `web/dist/xr/`, which Vercel serves at `/xr/` |
 
@@ -70,6 +70,8 @@ IWSDK scene: everything is generated from data at run time.
   presets of `suitability/weights.json` are buttons; the view opens on its default, "Everything". The colours are
   the website's tokens (`guide.test.ts` checks them against `web/src/styles/tokens.css`). "NASA safety limits" is
   a locked row: the hard limits always apply.
+  - The tick boxes are the only thing that chooses the map. "Map opacity" (off, 25, 50, 75, 100 %) fades it over
+    the ground; standing on the surface shows bare ground.
   - One parameter ticked: its own layer as a heat map in its colour, dark at its reject bound and full colour at
     its ideal (the website's 0.75 power), everywhere there is data.
   - Two or more: the combined Goldilocks map (`mapScoreGrid` on the published layers; cells that fail a hard limit
@@ -138,14 +140,14 @@ production build; the header of the script says how to serve it. No cursor is dr
 
 ## Test on the Quest 3
 
-1. Laptop and Quest on the same Wi-Fi. `make xr-dev`, then `cd xr && npx @iwsdk/cli dev status` and read
-   `runtimeUrls.network` (for example https://192.168.x.x:8081).
-2. In the Quest Browser open that URL, accept the certificate warning, press "Enter VR".
-   Or open the deployed site at `/xr/` (HTTPS, no warning).
+1. In the Quest Browser open the deployed site at `/xr/` and press "Enter VR", the only VR button on the page.
+2. Do not test or demo from the dev server (`make xr-dev`, port 8081): it adds the IWSDK "Runtime / Editor"
+   toolbar over "Stats" and "Enter VR", and a second "Enter XR" button. To try unmerged work on the headset, serve
+   a production build instead: `make build && make xr && cd web && npx vite preview --host`.
 3. Check: (a) the relief table in Orbit and the panel on your left; (b) point at a site marker or a name and pull
    the trigger, or pinch with a bare hand; (c) in Land you stand 2 km above the point: aim at the ground, trigger
    to move the landing point; (d) A or X, or "Stand here": you are on the surface, eyes 2 m up; (e) thumbstick
-   left or right scrubs time, or pinch and drag on the time bar; (f) "Enlarge 5x", heat maps, Play at 1x, 10x, 100x.
+   left or right scrubs time, or pinch and drag on the time bar; (f) "Enlarge 5x", "What matters?" and the map opacity, Play at 1x, 10x, 100x.
 4. Frame rate: press "Stats" on the panel. It shows frames per second, milliseconds per frame (mean of the last
    72 frames) and the detail level. Target 72 fps (13.9 ms). In the headset detail is automatic: when the mean
    frame time of a second is over 13.9 ms by more than 5 %, terrain and shadow detail drop one level (high, medium,

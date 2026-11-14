@@ -10,3 +10,7 @@
 - Sat 09:10, Eugenio: Generated JSON in web/public/data/ IS committed (ephemeris ~2-3 MB, horizons small); raw data/ is not. Why: Vercel deploys straight from the repo.
 - Sat 09:10, Eugenio: React pinned to 18 (Vite template ships 19). Why: CLAUDE.md stack.
 - Sat 09:10, Eugenio: Unverified mission sites (griffin1, bluemoon1, change7) left out of sites.json until coordinates are confirmed. Why: never show a guessed site as exact.
+- Sat 09:30, Eugenio: Cloud Claude builds web/ and firmware/; Eugenio's local Claude Code (Fable 5.2) builds the Python pipeline. Why: the cloud workspace cannot reach NASA/JPL hosts; humans focus on hardware, validation review, story and pitch.
+- Sat 09:30, Claude: computeMetrics takes an optional stepH (default 1 h). Why: Series carries no sample spacing; the contract signature computeMetrics(s) still works.
+- Sat 09:30, Claude: Window Finder score = mean of Sun% and Earth% over the best window that day; every landing hour is tried. Why: simple, explainable to judges.
+- Sat 09:30, Claude: "hoursBelowZero" = hours where the battery could not cover the load. Why: reaching exactly 0 Wh with the load met is not a failure.

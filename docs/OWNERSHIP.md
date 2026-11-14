@@ -1,5 +1,12 @@
 # File ownership (one owner per file; ask the owner before touching their files)
 
+Update Sat 09:30: the build is split between two AI sessions so humans only do what AI can't.
+- web/** and firmware/** are built by the cloud Claude session (branches feat/claude-*), reviewed and merged by Eugenio.
+- engine/**, scripts/**, tests/, web/public/data/ephemeris.json and horizons/** are built by Eugenio's local
+  Claude Code (Fable 5.2), because only a laptop can reach the NASA/JPL servers (branches feat/kien-*).
+- The per-person table below still says who REVIEWS each area and answers questions about it.
+
+
 | Path | Owner | Branch prefix |
 |------|-------|---------------|
 | CLAUDE.md, AGENTS.md, docs/INTERFACES.md, docs/DECISIONS.md, docs/OWNERSHIP.md, Makefile, .github/, web/public/data/sites.json, docs/SITES.md | Eugenio | feat/eugenio-* |

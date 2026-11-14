@@ -1,5 +1,4 @@
-// Analysis API (owner: Chinh). Contract: docs/INTERFACES.md section 5. Do not change these types
-// without the lead. Implementations replace the stubs below.
+// Analysis API. Contract: docs/INTERFACES.md section 5. Formulas: docs/SCIENCE.md sections 2 and 4.
 
 export interface Ephemeris {
   startMs: number; stepS: number; n: number;
@@ -43,15 +42,180 @@ export interface DayResult {
   score: number; metrics: Metrics | null;
 }
 
-export function computeSeries(_eph: Ephemeris, _hz: Horizon, _startIdx: number, _endIdx: number): Series {
-  throw new Error("not implemented");
+export const MOON_R_KM = 1737.4;
+const D2R = Math.PI / 180;
+const R2D = 180 / Math.PI;
+
+/** Local east/north/up basis and observer position (SCIENCE.md section 2). */
+export function siteFrame(latDeg: number, lonDeg: number, heightKm: number) {
+  const p = latDeg * D2R, l = lonDeg * D2R;
+  const cp = Math.cos(p), sp = Math.sin(p), cl = Math.cos(l), sl = Math.sin(l);
+  const up = [cp * cl, cp * sl, sp];
+  const east = [-sl, cl, 0];
+  const north = [-sp * cl, -sp * sl, cp];
+  const pos = [heightKm * up[0], heightKm * up[1], heightKm * up[2]];
+  return { up, east, north, pos };
 }
 
-export function computeMetrics(_s: Series): Metrics {
-  throw new Error("not implemented");
+/** Elevation and azimuth (deg) of vector (x, y, z) in the given frame. Azimuth clockwise from north, [0, 360). */
+export function altAz(f: ReturnType<typeof siteFrame>, x: number, y: number, z: number): [number, number] {
+  const len = Math.hypot(x, y, z);
+  const u = (x * f.up[0] + y * f.up[1] + z * f.up[2]) / len;
+  const e = x * f.east[0] + y * f.east[1] + z * f.east[2];
+  const nn = x * f.north[0] + y * f.north[1] + z * f.north[2];
+  const el = Math.asin(Math.max(-1, Math.min(1, u))) * R2D;
+  let az = Math.atan2(e, nn) * R2D;
+  if (az < 0) az += 360;
+  if (az >= 360) az -= 360;
+  return [el, az];
 }
 
-export function findWindows(_eph: Ephemeris, _hz: Horizon, _spec: MissionSpec,
-  _fromIdx: number, _toIdx: number): DayResult[] {
-  throw new Error("not implemented");
+/** Horizon elevation at azimuth az (deg), linear interpolation with wrap at 360. */
+export function horizonAt(hz: Horizon, az: number): number {
+  if (hz.flat) return 0;
+  const n = hz.elevDeg.length;
+  const x = (((az % 360) + 360) % 360) / hz.azStepDeg;
+  const i0 = Math.floor(x) % n;
+  const i1 = (i0 + 1) % n;
+  const t = x - Math.floor(x);
+  return hz.elevDeg[i0] * (1 - t) + hz.elevDeg[i1] * t;
+}
+
+/** Visible fraction of a disc of angular radius r whose centre is m above a flat horizon (SCIENCE.md section 4). */
+export function discFraction(m: number, r: number): number {
+  const d = m / r;
+  if (d >= 1) return 1;
+  if (d <= -1) return 0;
+  return 1 - (Math.acos(d) - d * Math.sqrt(1 - d * d)) / Math.PI;
+}
+
+export function computeSeries(eph: Ephemeris, hz: Horizon, startIdx: number, endIdx: number): Series {
+  const lo = Math.max(0, startIdx), hi = Math.min(eph.n, endIdx);
+  const len = Math.max(0, hi - lo);
+  const s: Series = {
+    startIdx: lo, endIdx: lo + len,
+    sunEl: new Float64Array(len), sunAz: new Float64Array(len), sunMargin: new Float64Array(len),
+    sunFrac: new Float64Array(len),
+    earthEl: new Float64Array(len), earthAz: new Float64Array(len), earthMargin: new Float64Array(len),
+    sunlit: new Uint8Array(len), earthVis: new Uint8Array(len),
+  };
+  const hKm = MOON_R_KM + (hz.surfaceElevM + hz.observerHM) / 1000;
+  const f = siteFrame(hz.lat, hz.lon, hKm);
+  for (let k = 0; k < len; k++) {
+    const i = lo + k;
+    // Sun: direction only (surface parallax < 0.001 deg).
+    const [se, sa] = altAz(f, eph.sunDir[3 * i], eph.sunDir[3 * i + 1], eph.sunDir[3 * i + 2]);
+    const sm = se - horizonAt(hz, sa);
+    s.sunEl[k] = se; s.sunAz[k] = sa; s.sunMargin[k] = sm;
+    s.sunFrac[k] = discFraction(sm, eph.sunSemiDiam[i]);
+    s.sunlit[k] = sm > 0 ? 1 : 0;
+    // Earth: topocentric vector, parallax included.
+    const ex = eph.earthKm[3 * i] - f.pos[0], ey = eph.earthKm[3 * i + 1] - f.pos[1], ez = eph.earthKm[3 * i + 2] - f.pos[2];
+    const [ee, ea] = altAz(f, ex, ey, ez);
+    const em = ee - horizonAt(hz, ea);
+    s.earthEl[k] = ee; s.earthAz[k] = ea; s.earthMargin[k] = em;
+    s.earthVis[k] = em > 0 ? 1 : 0;
+  }
+  return s;
+}
+
+function longestRun(a: Uint8Array, value: number, from = 0, to = a.length): number {
+  let best = 0, cur = 0;
+  for (let i = from; i < to; i++) {
+    if (a[i] === value) { cur++; if (cur > best) best = cur; } else cur = 0;
+  }
+  return best;
+}
+
+function firstIndex(a: Uint8Array, value: number, from = 0, to = a.length): number {
+  for (let i = from; i < to; i++) if (a[i] === value) return i;
+  return -1;
+}
+
+/**
+ * Metrics over a whole Series. stepH is the sample spacing in hours (the contract's ephemeris is hourly);
+ * it is a trailing optional argument so the INTERFACES.md signature computeMetrics(s) still works.
+ */
+export function computeMetrics(s: Series, stepH = 1): Metrics {
+  const n = s.sunlit.length;
+  let lit = 0, earth = 0, both = 0, maxEl = -90, elSum = 0;
+  for (let i = 0; i < n; i++) {
+    lit += s.sunlit[i]; earth += s.earthVis[i]; both += s.sunlit[i] & s.earthVis[i];
+    if (s.sunEl[i] > maxEl) maxEl = s.sunEl[i];
+    if (s.sunlit[i]) elSum += s.sunEl[i];
+  }
+  const pct = (x: number) => (n ? (100 * x) / n : 0);
+  const hoursTo = (a: Uint8Array, target: number) => {
+    const j = firstIndex(a, target, 1);
+    return j < 0 ? null : j * stepH;
+  };
+  const litNow = n > 0 && s.sunlit[0] === 1;
+  const earthNow = n > 0 && s.earthVis[0] === 1;
+  return {
+    sunPct: pct(lit), earthPct: pct(earth), bothPct: pct(both),
+    longestDarkH: longestRun(s.sunlit, 0) * stepH,
+    longestNoEarthH: longestRun(s.earthVis, 0) * stepH,
+    hoursToSunset: litNow ? hoursTo(s.sunlit, 0) : null,
+    hoursToEarthset: earthNow ? hoursTo(s.earthVis, 0) : null,
+    hoursToSunrise: n > 0 && !litNow ? hoursTo(s.sunlit, 1) : null,
+    hoursToEarthrise: n > 0 && !earthNow ? hoursTo(s.earthVis, 1) : null,
+    maxSunEl: n ? maxEl : 0,
+    meanSunElWhenLit: lit ? elSum / lit : 0,
+  };
+}
+
+/** The part of a Series from local index a (inclusive) to b (exclusive). Views, no copies. */
+export function sliceSeries(s: Series, a: number, b: number): Series {
+  return {
+    startIdx: s.startIdx + a, endIdx: s.startIdx + b,
+    sunEl: s.sunEl.subarray(a, b), sunAz: s.sunAz.subarray(a, b), sunMargin: s.sunMargin.subarray(a, b),
+    sunFrac: s.sunFrac.subarray(a, b),
+    earthEl: s.earthEl.subarray(a, b), earthAz: s.earthAz.subarray(a, b), earthMargin: s.earthMargin.subarray(a, b),
+    sunlit: s.sunlit.subarray(a, b), earthVis: s.earthVis.subarray(a, b),
+  };
+}
+
+/**
+ * For each UTC day in [fromIdx, toIdx), try every landing hour that day and keep the best mission window
+ * of spec.durationH. Score = mean of Sun% and Earth% over the window (0..1); 0 if infeasible.
+ */
+export function findWindows(eph: Ephemeris, hz: Horizon, spec: MissionSpec,
+  fromIdx: number, toIdx: number): DayResult[] {
+  const stepH = eph.stepS / 3600;
+  const w = Math.max(1, Math.round(spec.durationH / stepH));
+  const lo = Math.max(0, fromIdx), hi = Math.min(eph.n, toIdx);
+  const s = computeSeries(eph, hz, lo, Math.min(eph.n, hi + w));
+  const len = s.sunlit.length;
+  // Prefix sums give Sun% / Earth% of any window in O(1).
+  const ps = new Int32Array(len + 1), pe = new Int32Array(len + 1);
+  for (let i = 0; i < len; i++) { ps[i + 1] = ps[i] + s.sunlit[i]; pe[i + 1] = pe[i] + s.earthVis[i]; }
+  const samplesPerDay = Math.round(86400 / eph.stepS);
+  const dayOf = (i: number) => Math.floor((eph.startMs + i * eph.stepS * 1000) / 86400000);
+  const out: DayResult[] = [];
+  let k = 0;
+  while (k < hi - lo) {
+    const day = dayOf(lo + k);
+    const dayIdx = Math.floor(((lo + k) * eph.stepS) / 86400);
+    let best: DayResult = { dayIdx, bestStartIdx: null, feasible: false, score: 0, metrics: null };
+    let bestLocal = -1;
+    let j = k;
+    for (; j < hi - lo && dayOf(lo + j) === day && j - k < samplesPerDay; j++) {
+      if (j + w > len) break; // window would run past the data
+      const sunPct = (100 * (ps[j + w] - ps[j])) / w;
+      const earthPct = (100 * (pe[j + w] - pe[j])) / w;
+      if (sunPct < spec.minSunPct || earthPct < spec.minEarthPct) continue;
+      if (spec.requireLitAndEarthAtLanding && !(s.sunlit[j] && s.earthVis[j])) continue;
+      if (longestRun(s.sunlit, 0, j, j + w) * stepH > spec.maxDarkH) continue;
+      const score = (sunPct + earthPct) / 200;
+      if (score > best.score || !best.feasible) {
+        best = { dayIdx, bestStartIdx: lo + j, feasible: true, score, metrics: null };
+        bestLocal = j;
+      }
+    }
+    while (j < hi - lo && dayOf(lo + j) === day) j++;
+    if (bestLocal >= 0) best.metrics = computeMetrics(sliceSeries(s, bestLocal, bestLocal + w), stepH);
+    out.push(best);
+    k = j;
+  }
+  return out;
 }

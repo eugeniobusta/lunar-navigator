@@ -38,13 +38,8 @@ export const PALETTE = {
   ok: 0x8fc28a,
 };
 
-export type OverlayId = 'off' | 'sun' | 'earth' | 'slope' | 'score';
-export const OVERLAYS: Record<Exclude<OverlayId, 'off'>, { label: string; a: number; b: number; max: number; unit: string }> = {
-  sun: { label: 'Sunlight (NASA)', a: 0x000000, b: PALETTE.sunlight, max: 100, unit: '%' },
-  earth: { label: 'Earth in view (NASA)', a: 0x000000, b: PALETTE.earth, max: 100, unit: '%' },
-  slope: { label: 'Slope', a: PALETTE.terrain, b: PALETTE.alert, max: 30, unit: 'deg' },
-  score: { label: 'Goldilocks score', a: 0x1c2a1b, b: PALETTE.ok, max: 100, unit: '' },
-};
+/** The Goldilocks score ramp (combined map); a single parameter uses its own colour (experience.ts scoreRamp). */
+export const SCORE_RAMP = { label: 'Goldilocks score', a: 0x1c2a1b, b: PALETTE.ok, max: 100, unit: '' };
 
 export function upTexture(field: Field, floatLinear: boolean): DataTexture {
   const n = field.grid.size;
@@ -211,6 +206,7 @@ uniform vec3 rampA;
 uniform vec3 rampB;
 uniform float overlayOn;
 uniform float overlayMax;
+uniform float overlayAlpha;
 uniform float ambient;
 uniform float gain;
 uniform vec4 hole;      // discard inside this uv rectangle (the far mesh under the site tile)
@@ -233,7 +229,7 @@ void main() {
     float v = texture2D(tOverlay, vUv).r * 255.0;
     if (v < 254.5) {
       vec3 ramp = mix(rampA, rampB, clamp(v / overlayMax, 0.0, 1.0));
-      col = ramp * (0.62 + 0.38 * bright) + baseColor * 0.04;
+      col = mix(col, ramp * (0.62 + 0.38 * bright) + baseColor * 0.04, overlayAlpha);
     }
   }
   gl_FragColor = vec4(col, 1.0);
@@ -264,6 +260,7 @@ export function terrainMaterial(o: TerrainMaterialOptions): ShaderMaterial {
       rampB: { value: new Color(PALETTE.sunlight) },
       overlayOn: { value: 0 },
       overlayMax: { value: 100 },
+      overlayAlpha: { value: 1 },
       ambient: { value: 0.06 },
       gain: { value: 11 },
       hole: { value: new Vector4(...(o.hole ?? [2, 2, 2, 2])) },
@@ -271,9 +268,11 @@ export function terrainMaterial(o: TerrainMaterialOptions): ShaderMaterial {
   });
 }
 
-export function setOverlay(m: ShaderMaterial, tex: Texture | null, ramp?: { a: number; b: number; max: number }): void {
+/** Draws a byte map over the terrain with a colour ramp, `alpha` 0..1 opaque. No texture or alpha 0: no map. */
+export function setOverlay(m: ShaderMaterial, tex: Texture | null, ramp?: { a: number; b: number; max: number }, alpha = 1): void {
   const u = m.uniforms;
-  u.overlayOn.value = tex && ramp ? 1 : 0;
+  u.overlayOn.value = tex && ramp && alpha > 0 ? 1 : 0;
+  u.overlayAlpha.value = alpha;
   if (tex && ramp) {
     u.tOverlay.value = tex;
     (u.rampA.value as Color).set(ramp.a);

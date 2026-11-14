@@ -11,7 +11,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from engine import ephem, topo  # noqa: E402
+from engine import ephem, topo
 
 OUT = ROOT / "web" / "public" / "data" / "ephemeris.json"
 FIXTURE = ROOT / "tests" / "fixtures" / "topo_reference.json"

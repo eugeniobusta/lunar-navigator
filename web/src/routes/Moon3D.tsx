@@ -19,6 +19,7 @@ async function xrAvailable(): Promise<boolean> {
 export function Moon3D() {
   const siteId = useStore((s) => s.siteId);
   const site = useStore((s) => s.sites.find((x) => x.id === s.siteId));
+  const spot = useStore((s) => s.spot);
   const liveMs = useStore((s) => idxToMs(s.startIdx + s.cursor));
   // The frame reloads when its address changes, so follow the time slider only once it has stopped moving.
   const [ms, setMs] = useState(liveMs);
@@ -41,11 +42,18 @@ export function Moon3D() {
   }
   return (
     <section className="panel">
+      {spot && (
+        <p className="note">
+          You picked {Math.abs(spot[0]).toFixed(3)}° S, {Math.abs(spot[1]).toFixed(3)}° {spot[1] < 0 ? "W" : "E"} on the map.
+          The 3D view opens at the nearest site with detailed terrain, {site?.name}; the picked point is passed along
+          in the link for when the 3D view can stand on it.
+        </p>
+      )}
       <div className="xr-bar">
         <h2>Standing at {site?.name}</h2>
-        <a href={xrUrl(siteId, ms)}>Open full screen / VR</a>
+        <a href={xrUrl(siteId, ms, false, spot)}>Open full screen / VR</a>
       </div>
-      <iframe className="xr-frame" title={`3D view of ${site?.name ?? "the site"}`} src={xrUrl(siteId, ms, true)}
+      <iframe className="xr-frame" title={`3D view of ${site?.name ?? "the site"}`} src={xrUrl(siteId, ms, true, spot)}
         allow="xr-spatial-tracking; fullscreen" />
     </section>
   );

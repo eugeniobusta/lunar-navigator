@@ -1,11 +1,11 @@
-id,name,lat,lon,passes_hard_limits,failed_limits,map_score,elevation_m,landing_slope_deg,eva_slope_deg,eva_walkable_pct,sun_pct,earth_pct,psr_distance_km,temp_avg_k,longest_dark_h,longest_no_earth_h,longest_sun_and_earth_h
-pcb03,Peak near Cabeus B,-83.563,-68.2009,no,latitude,76,4497,2.4,5.7,100,49.3,70.3,12.92,143,384,216,403
-hw02,Haworth,-86.8076,-21.7194,yes,,76,1812,3.3,1.9,100,46.8,59.3,2.14,123,436,296,348
-mma01,Malapert Massif,-85.9425,-0.94365,yes,,72,4729,4.2,7.1,85,45.1,100.0,12.6,145,404,0,339
-mmp06,Mons Mouton Plateau,-84.5961,30.4525,no,sunlight,57,4948,2.3,0.7,100,14.1,52.9,3.05,101,4847,355,229
-mmo01,Mons Mouton,-85.416,31.8506,yes,,84,6444,5.2,1.4,100,69.7,56.2,6.31,112,439,288,409
-nr107,Nobile Rim 1,-85.1978,37.1774,yes,,75,6697,4.6,2.3,99,49.8,60.1,7.53,132,416,296,384
-nr208,Nobile Rim 2,-83.9064,57.8114,no,latitude,65,819,2.1,1.9,98,30.6,55.0,2.45,139,645,330,308
-dgr203,de Gerlache Rim 2,-88.1408,-71.6955,yes,,80,472,2.7,3.8,99,56.8,55.8,6.4,141,451,323,379
-sp07,Slater Plain,-87.1306,127.857,yes,,65,267,3.3,0.2,100,52.8,46.6,11.29,104,505,399,273
-im2,"IM-2 Athena (Mons Mouton), Mar 2025",-84.78,29.13,yes,,75,5311,2.0,2.9,100,46.5,93.1,9.37,126,456,139,367
+id,name,lat,lon,passes_hard_limits,failed_limits,map_score,elevation_m,landing_slope_deg,eva_slope_deg,eva_walkable_pct,sun_pct,earth_pct,psr_distance_km,temp_avg_k,longest_dark_h,longest_no_earth_h,longest_sun_and_earth_h,ice_depth_m,hollow_depth_m
+pcb03,Peak near Cabeus B,-83.563,-68.2009,no,latitude,76,4497,2.4,5.7,100,49.3,70.3,12.92,143,384,216,403,,-100
+hw02,Haworth,-86.8076,-21.7194,yes,,76,1812,3.3,1.9,100,46.8,59.3,2.14,123,436,296,348,,-67
+mma01,Malapert Massif,-85.9425,-0.94365,yes,,72,4729,4.2,7.1,85,45.1,100.0,12.6,145,404,0,339,,-59
+mmp06,Mons Mouton Plateau,-84.5961,30.4525,no,sunlight,57,4948,2.3,0.7,100,14.1,52.9,3.05,101,4847,355,229,0.2,64
+mmo01,Mons Mouton,-85.416,31.8506,yes,,84,6444,5.2,1.4,100,69.7,56.2,6.31,112,439,288,409,0.26,-118
+nr107,Nobile Rim 1,-85.1978,37.1774,yes,,75,6697,4.6,2.3,99,49.8,60.1,7.53,132,416,296,384,,-38
+nr208,Nobile Rim 2,-83.9064,57.8114,no,latitude,65,819,2.1,1.9,98,30.6,55.0,2.45,139,645,330,308,,41
+dgr203,de Gerlache Rim 2,-88.1408,-71.6955,yes,,80,472,2.7,3.8,99,56.8,55.8,6.4,141,451,323,379,,-128
+sp07,Slater Plain,-87.1306,127.857,yes,,65,267,3.3,0.2,100,52.8,46.6,11.29,104,505,399,273,0.12,-123
+im2,"IM-2 Athena (Mons Mouton), Mar 2025",-84.78,29.13,yes,,75,5311,2.0,2.9,100,46.5,93.1,9.37,126,456,139,367,,-41

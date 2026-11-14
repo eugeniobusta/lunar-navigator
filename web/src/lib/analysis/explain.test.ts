@@ -49,12 +49,23 @@ describe("sentences", () => {
     expect(list[1].sentence).toContain("This scores zero but does not rule the spot out.");
     expect(summarise(list)).toBe("Ruled out by landing slope.");
   });
+  it("ice depth and hollow depth are optional criteria: explained, not counted in the summary", () => {
+    const list = explain({ landingSlopeDeg: 3, iceDepthM: Infinity, hollowDepthM: 64 }, criteria);
+    expect(list.map((e) => [e.key, e.verdict, e.optional])).toEqual([["landingSlopeDeg", "good", false], ["iceDepthM", "rejected", true], ["hollowDepthM", "acceptable", true]]);
+    expect(list[1].sentence).toContain("Depth of stable ice none within 2.9 m: rejected.");
+    expect(list[1].sentence).toContain("It counts only if you give it weight in Your priorities.");
+    expect(list[2].sentence).toContain("Depth of the hollow 64 m below its surroundings: acceptable.");
+    expect(summarise(list)).toBe("Passes every hard limit: 1 of 1 criteria are good.");
+    expect(valuesFromRow({ ice_depth_m: "" }).iceDepthM).toBe(Infinity);
+    expect(valuesFromRow({ sun_pct: "50" }).iceDepthM).toBeUndefined();
+    expect(valuesFromRow({ ice_depth_m: "0.26", hollow_depth_m: "-118" })).toMatchObject({ iceDepthM: 0.26, hollowDepthM: -118 });
+  });
   it("works without the criteria table (no reason, still a full sentence)", () => {
     expect(explain({ longestNoEarthH: 0 })[0].sentence).toBe("Longest time without Earth 0 hours: good. Earth never drops below the skyline.");
   });
   it("every rule finds its reason in criteria.csv", () => {
     const all = explain({ latDeg: -85, landingSlopeDeg: 3, walkablePct: 99, sunPct: 60, earthPct: 60, shadowKm: 1, tempK: 140,
-      longestDarkH: 100, longestNoEarthH: 10 }, criteria);
+      longestDarkH: 100, longestNoEarthH: 10, iceDepthM: 0.3, hollowDepthM: -20 }, criteria);
     expect(all.length).toBe(RULES.length);
     for (const e of all) {
       const r = rule(e.key);
@@ -71,7 +82,7 @@ describe("stays in step with the published thresholds", () => {
       zone_terms: { column: string; reject: number; ideal: number }[] };
     const byColumn: Record<string, string> = { sun_pct: "sunPct", earth_pct: "earthPct", landing_slope_deg: "landingSlopeDeg",
       psr_distance_km: "shadowKm", eva_walkable_pct: "walkablePct", temp_avg_k: "tempK", longest_dark_h: "longestDarkH",
-      longest_no_earth_h: "longestNoEarthH" };
+      longest_no_earth_h: "longestNoEarthH", ice_depth_m: "iceDepthM", hollow_depth_m: "hollowDepthM" };
     for (const t of [...w.layers.map((l) => ({ column: l.parameter, ...l })), ...w.zone_terms]) {
       const r = rule(byColumn[t.column]);
       expect([t.column, r.reject, r.ideal]).toEqual([t.column, t.reject, t.ideal]);

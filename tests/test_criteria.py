@@ -166,7 +166,8 @@ def test_criteria_and_missions_tables():
 
 def test_int_map_score_and_weighted_zone_score():
     balanced = C.PRESETS["balanced"][1]
-    q = np.array([[255, 0, 255], [0, 0, 255], [0, 0, 255], [0, 255, 255], [0, 0, 255], [0, 0, 255]])
+    q = np.array([[255, 0, 255], [0, 0, 255], [0, 0, 255], [0, 255, 255], [0, 0, 255], [0, 0, 255],
+                  [0, 0, 0], [0, 0, 0]])  # ice and hollow carry no weight in balanced
     assert C.int_map_score(q, balanced).tolist() == [30, 15, 100]      # sunlight alone, shadow alone, everything
     assert C.int_map_score(q, {**balanced, **dict.fromkeys(C.LAYER_KEYS, 0)}).tolist() == [0, 0, 0]
     for m, d, n in [(100, 85, 0), (65, 560, 0), (55, 85, 336), (73, 201, 177), (40, 500, 12)]:
@@ -183,7 +184,7 @@ def test_layers_reproduce_the_published_scores():
     def check(score_file, layer_pattern, n):
         published = np.fromfile(score_file, dtype=np.uint8).astype(np.int64)
         q = np.stack([np.fromfile(str(layer_pattern).format(k), dtype=np.uint8) for k in C.LAYER_KEYS])
-        assert q.shape == (6, n)
+        assert q.shape == (len(C.LAYER_KEYS), n)
         ok = published != 255
         assert np.array_equal(C.int_map_score(q, balanced)[ok], np.where(published <= 100, published, published - 101)[ok])
 

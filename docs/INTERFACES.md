@@ -285,7 +285,8 @@ The scoring code is `web/src/lib/analysis/suitability.ts` (pure TypeScript, no R
   `south_pole_score.u8`).
 - `suitability/layers/sites/<id>_<key>.u8`: 512 x 512 at 120 m on the section-9 tile of each terrain="dem" site.
 
-`<key>` is one of `sunlight`, `earth`, `landing_slope`, `shadow`, `walkable`, `temperature`. A value `q` is the
+`<key>` is one of `sunlight`, `earth`, `landing_slope`, `shadow`, `walkable`, `temperature`, `ice`, `hollow`
+(the last two were added with the Layers view; they carry weight 0 in `balanced`). A value `q` is the
 criterion's sub-score: `0` at its "reject" bound, `255` at its "ideal" bound, linear in between (bounds in
 `weights.json`). Where `south_pole_score.u8` is 255 (no data) the layers hold 0.
 
@@ -315,18 +316,23 @@ to three layers are moved by a single step (0.4 % of their range).
   "default": "balanced",
   "presets": [ { "key": "balanced", "label": "Balanced",
                  "weights": { "sunlight": 42, "earth": 28, "landing_slope": 28, "shadow": 21, "walkable": 14,
-                              "temperature": 7, "darkness": 30, "no_earth": 30 } } ],
+                              "temperature": 7, "ice": 0, "hollow": 0, "darkness": 30, "no_earth": 30 } } ],
   "confirmed_zones": 4224
 }
 ```
   Presets: `balanced` (docs/criteria.md), `power`, `radio`, `ice`.
-- `suitability/zones_layers.csv`: `rank, sunlight, earth, landing_slope, shadow, walkable, temperature`: the six
-  layer values at each zone's best cell, in the row order of zones.csv.
+- `suitability/zones_layers.csv`: `rank, sunlight, earth, landing_slope, shadow, walkable, temperature, ice, hollow,
+  ice_depth_m, hollow_depth_m`: the layer values at each zone's best cell, in the row order of zones.csv, then the
+  two newer criteria as plain values (`ice_depth_m` empty = no stable ice).
 - `suitability/artemis_points.csv`: the nine Artemis points with their layer values, model numbers, and for each
   preset `score_<preset>` and `rank_<preset>` (1 + the number of confirmed zones that score higher).
 - `suitability/site_values.csv`: the criteria values at every terrain="dem" site, with the zones.csv column names
   (`landing_slope_deg`, `eva_walkable_pct`, `sun_pct`, `earth_pct`, `psr_distance_km`, `temp_avg_k`,
   `longest_dark_h`, `longest_no_earth_h`, ...) plus `passes_hard_limits` and `failed_limits`.
+
+**One scoring engine.** Everything that shows a score goes through `suitability.ts`: the zone ranking, "Your
+priorities", and the Layers view of "Where to land" (`web/src/lib/analysis/factors.ts` is only an adapter: reading a
+layer byte back as a value, pixel geometry, colour tokens). There is one set of rasters, `suitability/layers/`.
 
 **"Why here?"** `web/src/lib/analysis/explain.ts` (pure TypeScript, importable from `xr/`):
 `explain(valuesFromRow(row), criteriaRows)` turns a row of zones.csv or site_values.csv into one sentence per

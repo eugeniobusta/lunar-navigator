@@ -225,7 +225,7 @@ Each soft criterion as its own layer, so the score can be recomputed under any w
 
 | File | Encoding | Value |
 |------|----------|-------|
-| `suitability/layers/south_pole_<key>.u8` | 1024 x 1024 uint8, the `terrain/south_pole.json` grid | Sub-score of one criterion: 0 = at its reject bound, 255 = at its ideal bound. `<key>`: `sunlight`, `earth`, `landing_slope`, `shadow`, `walkable`, `temperature`. |
+| `suitability/layers/south_pole_<key>.u8` | 1024 x 1024 uint8, the `terrain/south_pole.json` grid | Sub-score of one criterion: 0 = at its reject bound, 255 = at its ideal bound. `<key>`: `sunlight`, `earth`, `landing_slope`, `shadow`, `walkable`, `temperature`, `ice` (depth of stable ice), `hollow` (depth below the surroundings). |
 | `suitability/layers/sites/<site_id>_<key>.u8` | 512 x 512 uint8, the site's tile grid, 120 m | The same, one value per 120 m cell. |
 
 `suitability/weights.json`:
@@ -247,7 +247,9 @@ Each soft criterion as its own layer, so the score can be recomputed under any w
 | Column | Meaning |
 |--------|---------|
 | `rank` | The zone's rank in zones.csv. |
-| `sunlight`, `earth`, `landing_slope`, `shadow`, `walkable`, `temperature` | The six layer values (0 to 255) at the zone's best cell. |
+| `sunlight`, `earth`, `landing_slope`, `shadow`, `walkable`, `temperature`, `ice`, `hollow` | The layer values (0 to 255) at the zone's best cell. |
+| `ice_depth_m` | Depth at which water ice is stable at that cell, metres (Diviner Polar Resource Product); empty = none within 2.87 m. |
+| `hollow_depth_m` | How far that cell sits below the mean ground within 2 km, metres; negative = above its surroundings. |
 
 `suitability/site_values.csv`, one row per site with modelled terrain (the numbers behind "Why here?" on Overview):
 
@@ -258,6 +260,7 @@ Each soft criterion as its own layer, so the score can be recomputed under any w
 | `map_score` | Map score at the site, 0 to 100 (balanced weights). |
 | `elevation_m`, `landing_slope_deg`, `eva_slope_deg`, `eva_walkable_pct`, `sun_pct`, `earth_pct`, `psr_distance_km`, `temp_avg_k` | The criteria values at the site; same meaning as in zones.csv. |
 | `longest_dark_h`, `longest_no_earth_h`, `longest_sun_and_earth_h` | Our model at the site, Nov 2026 to Dec 2029, hours. |
+| `ice_depth_m`, `hollow_depth_m` | As in zones_layers.csv. |
 
 `suitability/artemis_points.csv`, one row per Artemis candidate point:
 
@@ -266,7 +269,7 @@ Each soft criterion as its own layer, so the score can be recomputed under any w
 | `id`, `name`, `lat`, `lon` | The point (as in sites.json). |
 | `passes_hard_limits` | yes / no: whether the 120 m cell at the point passes every hard limit. |
 | `failed_limits` | The limits it fails: `landing_slope`, `eva_slope`, `sunlight`, `earth`, `latitude`. |
-| `sunlight`, `earth`, `landing_slope`, `shadow`, `walkable`, `temperature` | Layer values (0 to 255) at the point. |
+| `sunlight`, `earth`, `landing_slope`, `shadow`, `walkable`, `temperature`, `ice`, `hollow` | Layer values (0 to 255) at the point. |
 | `longest_dark_h`, `longest_no_earth_h`, `longest_sun_and_earth_h` | Our model at the point, Nov 2026 to Dec 2029, hours. |
 | `score_balanced`, `score_power`, `score_radio`, `score_ice` | The point scored like a zone under each preset, 0 to 100. |
 | `rank_balanced`, `rank_power`, `rank_radio`, `rank_ice` | 1 + the number of confirmed zones that score higher under that preset. |

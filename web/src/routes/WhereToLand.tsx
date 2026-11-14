@@ -1,14 +1,19 @@
 // Where to land: the suitability map of the south pole, the zones that pass every hard limit, past landings,
 // and the criteria as a plain table. "Your priorities" re-scores the map and re-ranks the zones live from weights.
+// Two views of the same map and the same scores: Zones (the ranked areas) and Layers (each criterion by itself,
+// click any spot for its numbers; Chinh's Site Map, folded in). All scoring is web/src/lib/analysis/suitability.ts.
 // Data: web/public/data/suitability/ (docs/INTERFACES.md sections 10 and 11).
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useWidth } from "../charts/useWidth";
 import {
   BALANCED, LAYER_KEYS, ZONE_KEYS, mapScore, mapScoreGrid, rankAmong, rankZones, zoneScore,
-  type Preset, type TermKey, type Weights, type ZoneInput,
+  type LayerKey, type Preset, type TermKey, type Weights, type ZoneInput,
 } from "../lib/analysis/suitability";
 import { WhyHere } from "../components/ui/WhyHere";
 import { explain, valuesFromRow, type CriterionRow } from "../lib/analysis/explain";
+import {
+  LAYER_TOKEN, cellAt, cellCentre, failedLimits, latLonToXY, layerValueText, ramp3, readPoint, xyToLatLon, type LayerInfo,
+} from "../lib/analysis/factors";
 import { parseCsv } from "../lib/data/csv";
 import { useStore } from "../state/store";
 
@@ -19,7 +24,7 @@ const SHOWN_ZONES = 40;
 
 type Row = Record<string, string>;
 interface WeightsFile {
-  layers: { key: TermKey; label: string }[]; zone_terms: { key: TermKey; label: string }[]; presets: Preset[];
+  layers: LayerInfo[]; zone_terms: { key: TermKey; label: string }[]; presets: Preset[];
   confirmed_zones: number;
 }
 const TERMS: TermKey[] = [...LAYER_KEYS, ...ZONE_KEYS];
@@ -38,20 +43,32 @@ function toXY(lat: number, lon: number): [number, number] {
   return [rho * Math.sin((lon * Math.PI) / 180), rho * Math.cos((lon * Math.PI) / 180)];
 }
 
-function cssColour(name: string): [number, number, number] {
+function cssColour(name: string): RGB {
   const hex = getComputedStyle(document.documentElement).getPropertyValue(name).trim().replace("#", "");
-  return [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16)) as [number, number, number];
+  return [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16)) as RGB;
 }
 const mix = (a: number[], b: number[], t: number) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
 
-function drawScore(canvas: HTMLCanvasElement, grid: Uint8Array) {
+type RGB = [number, number, number];
+
+/**
+ * Paints the map. `grid` is the score grid (0..100 passes, 101..201 fails, 255 no data). With `layer` it shows that
+ * one criterion instead: dark where it scores 0, its own colour where it is ideal. The colour-blind palette
+ * replaces every ramp with dark blue -> grey -> yellow.
+ */
+function drawMap(canvas: HTMLCanvasElement, grid: Uint8Array, layer: Uint8Array | null, token: string, colourBlind: boolean) {
   const shadow = cssColour("--shadow"), dust = cssColour("--dust"), regolith = cssColour("--regolith");
-  const rim = cssColour("--rim"), lichen = cssColour("--lichen");
+  const rim = cssColour("--rim"), lichen = cssColour("--lichen"), hue = cssColour(token);
+  const cb: [RGB, RGB, RGB] = [cssColour("--cb-low"), cssColour("--cb-mid"), cssColour("--cb-high")];
   const img = new ImageData(GRID, GRID);
   for (let i = 0; i < grid.length; i++) {
     const v = grid[i];
-    // Passing ground is green (brighter = higher score); failing ground stays grey; 255 = no data.
-    const c = v === 255 ? shadow : v <= 100 ? mix(rim, lichen, 0.35 + 0.65 * (v / 100)) : mix(dust, regolith, 0.05 + 0.4 * ((v - 101) / 100));
+    let c: number[];
+    if (v === 255) c = shadow;
+    else if (layer) c = colourBlind ? ramp3(cb, layer[i] / 255) : mix(shadow, hue, 0.1 + 0.9 * (layer[i] / 255));
+    // Passing ground is green (brighter = higher score); failing ground stays grey.
+    else if (v <= 100) c = colourBlind ? ramp3(cb, 0.35 + 0.65 * (v / 100)) : mix(rim, lichen, 0.35 + 0.65 * (v / 100));
+    else c = mix(dust, regolith, 0.05 + 0.4 * ((v - 101) / 100));
     img.data.set([c[0], c[1], c[2], 255], 4 * i);
   }
   const off = document.createElement("canvas");
@@ -68,6 +85,7 @@ const days = (h: number) => (h < 48 ? `${Math.round(h)} h` : `${(h / 24).toFixed
 
 export function WhereToLand() {
   const sites = useStore((s) => s.sites);
+  const goTo3D = useStore((s) => s.goTo3D);
   const canvas = useRef<HTMLCanvasElement>(null);
   const [grid, setGrid] = useState<Uint8Array | null>(null);
   const [zones, setZones] = useState<Row[]>([]);
@@ -81,6 +99,13 @@ export function WhereToLand() {
   const [points, setPoints] = useState<Row[]>([]);
   const [weights, setWeights] = useState<Weights>(BALANCED);
   const [layers, setLayers] = useState<Uint8Array[] | null>(null);
+  const [limits, setLimits] = useState<Uint8Array | null>(null);
+  const [view, setView] = useState<"zones" | "layers">("zones");
+  const [shownLayer, setShownLayer] = useState<LayerKey | "score">("score");
+  const [colourBlind, setColourBlind] = useState(false);
+  const [numbers, setNumbers] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [pick, setPick] = useState<number | null>(null); // a cell of the south-pole grid
   const [mapRef, mapPx] = useWidth<HTMLDivElement>(640, 200);
 
   useEffect(() => {
@@ -96,17 +121,23 @@ export function WhereToLand() {
     }).catch(() => setFailed(true));
   }, []);
 
-  // The six layer grids (1 MB each) are only fetched once the priorities move away from the published default.
+  // The layer grids (1 MB each) are only fetched when they are needed: once the priorities move away from the
+  // published default, or when the Layers view is opened.
   const balanced = sameWeights(weights, BALANCED);
+  const needLayers = !balanced || view === "layers";
   useEffect(() => {
-    if (balanced || layers) return;
+    if (!needLayers || layers) return;
     let live = true;
-    Promise.all(LAYER_KEYS.map((k) => fetch(`${BASE}suitability/layers/south_pole_${k}.u8`)
-      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(k))))))
-      .then((bufs) => { if (live) setLayers(bufs.map((b) => new Uint8Array(b))); })
+    const get = (p: string) => fetch(`${BASE}suitability/${p}`).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(p))));
+    Promise.all([...LAYER_KEYS.map((k) => get(`layers/south_pole_${k}.u8`)), get("south_pole_limits.u8")])
+      .then((bufs) => {
+        if (!live) return;
+        setLimits(new Uint8Array(bufs[LAYER_KEYS.length]));
+        setLayers(bufs.slice(0, LAYER_KEYS.length).map((b) => new Uint8Array(b)));
+      })
       .catch(() => setFailed(true));
     return () => { live = false; };
-  }, [balanced, layers]);
+  }, [needLayers, layers]);
 
   // The map under the current weights: same pass / fail as published, new score.
   const liveGrid = useMemo(() => {
@@ -116,7 +147,11 @@ export function WhereToLand() {
     for (let i = 0; i < grid.length; i++) out[i] = grid[i] === 255 ? 255 : grid[i] <= 100 ? score[i] : 101 + score[i];
     return out;
   }, [grid, layers, weights, balanced]);
-  useEffect(() => { if (liveGrid && canvas.current) drawScore(canvas.current, liveGrid); }, [liveGrid]);
+  const factor = view === "layers" && shownLayer !== "score" && layers ? shownLayer : null;
+  useEffect(() => {
+    if (!liveGrid || !canvas.current) return;
+    drawMap(canvas.current, liveGrid, factor ? layers![LAYER_KEYS.indexOf(factor)] : null, factor ? LAYER_TOKEN[factor] : "--lichen", colourBlind);
+  }, [liveGrid, factor, layers, colourBlind]);
 
   // Zones re-scored and re-ranked under the current weights.
   const zoneInputs = useMemo<ZoneInput[]>(() => (zoneLayers.length !== zones.length ? [] : zones.map((r, i) => ({
@@ -153,6 +188,27 @@ export function WhereToLand() {
 
   if (failed) return <section className="panel"><p className="note">The suitability files could not be loaded. They are in web/public/data/suitability/ in the repository.</p></section>;
   if (!grid || !summary || !zone || !config || !live) return <section className="panel"><p className="note">Loading the suitability map…</p></section>;
+
+  // Layers view: what the picked cell holds, scored by the same engine as the zones.
+  const point = pick !== null && layers ? readPoint(layers, grid, pick, weights) : null;
+  const pickXY = pick !== null ? cellCentre(pick) : null;
+  const pickLatLon = pickXY ? xyToLatLon(pickXY[0], pickXY[1]) : null;
+  let nearest: { id: string; name: string; km: number } | null = null;
+  if (pickXY) {
+    for (const s of sites.filter((x) => x.terrain === "dem")) {
+      const [sx, sy] = latLonToXY(s.lat, s.lon);
+      const km = Math.hypot(sx - pickXY[0], sy - pickXY[1]) / 1000;
+      if (!nearest || km < nearest.km) nearest = { id: s.id, name: s.name, km };
+    }
+  }
+  const onMapClick = (e: React.MouseEvent<SVGSVGElement>) => {
+    if (view !== "layers") return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const xKm = (((e.clientX - r.left) / r.width) * 2 - 1) * VIEW_HALF_KM;
+    const yKm = -(((e.clientY - r.top) / r.height) * 2 - 1) * VIEW_HALF_KM;
+    const cell = cellAt(xKm * 1000, yKm * 1000);
+    if (cell >= 0 && grid[cell] !== 255) setPick(cell);
+  };
 
   const facts: [string, string][] = [
     ["Score", `${live.score} of 100`],
@@ -204,13 +260,36 @@ export function WhereToLand() {
             </label>
           ))}
         </div>
-        {!balanced && !layers && <p className="note">Loading the six map layers…</p>}
+        {needLayers && !layers && <p className="note">Loading the map layers…</p>}
       </div>
 
+      <div className="map-bar">
+        <div className="presets" role="group" aria-label="Map view">
+          <button className={view === "zones" ? "chip on" : "chip"} aria-pressed={view === "zones"} onClick={() => setView("zones")}>Zones</button>
+          <button className={view === "layers" ? "chip on" : "chip"} aria-pressed={view === "layers"} onClick={() => setView("layers")}>Layers</button>
+        </div>
+        <label className="field check"><input type="checkbox" checked={colourBlind} onChange={(e) => setColourBlind(e.target.checked)} /><span>Colour-blind palette</span></label>
+        <label className="field check"><input type="checkbox" checked={numbers} onChange={(e) => setNumbers(e.target.checked)} /><span>Show the numbers</span></label>
+        <label className="field"><span>Zoom</span>
+          <select value={zoom} onChange={(e) => setZoom(+e.target.value)}>{[1, 2, 4].map((z) => <option key={z} value={z}>{z}×</option>)}</select>
+        </label>
+      </div>
+      {view === "layers" && (
+        <div className="presets" role="group" aria-label="Layer shown">
+          <button className={shownLayer === "score" ? "chip on" : "chip"} aria-pressed={shownLayer === "score"} onClick={() => setShownLayer("score")}>Score</button>
+          {config.layers.map((l) => (
+            <button key={l.key} className={shownLayer === l.key ? "chip on" : "chip"} aria-pressed={shownLayer === l.key}
+              onClick={() => setShownLayer(l.key)}>{l.label}</button>
+          ))}
+        </div>
+      )}
+
       <div className="land">
-        <div className="land-map" ref={mapRef}>
+        <div className="land-scroll">
+        <div className="land-map" ref={mapRef} style={{ width: `${zoom * 100}%` }}>
           <canvas ref={canvas} width={880} height={880} aria-hidden="true" />
-          <svg viewBox={`${-VIEW_HALF_KM} ${-VIEW_HALF_KM} ${2 * VIEW_HALF_KM} ${2 * VIEW_HALF_KM}`} role="img"
+          <svg viewBox={`${-VIEW_HALF_KM} ${-VIEW_HALF_KM} ${2 * VIEW_HALF_KM} ${2 * VIEW_HALF_KM}`} role="img" onClick={onMapClick}
+            className={view === "layers" ? "pickable" : undefined}
             aria-label="Map of the lunar south pole coloured by landing suitability, with the best zones, the Artemis candidate points and past landings.">
             <circle cx={0} cy={0} r={ring84} className="map-ring" strokeWidth={1.2 * u} strokeDasharray={`${6 * u} ${6 * u}`} />
             <text x={0} y={ring84 - 6 * u} textAnchor="middle" className="map-text" style={font}>6° from the pole</text>
@@ -220,7 +299,8 @@ export function WhereToLand() {
             {artemis.map((s) => { const p = pt(s.lat, s.lon); return (
               <g key={s.id}><rect x={p.x - 4 * u} y={p.y - 4 * u} width={8 * u} height={8 * u} strokeWidth={1.5 * u} className="map-artemis" transform={`rotate(45 ${p.x} ${p.y})`} /><title>{`Artemis candidate: ${s.name}`}</title></g>
             ); })}
-            {shown.map((z) => { const p = pt(+z.lat, +z.lon); const id = +z.rank; const on = id === selected; const now = liveOf.get(id)!; return (
+            {view === "layers" && pickXY && <circle cx={pickXY[0] / 1000} cy={-pickXY[1] / 1000} r={8 * u} strokeWidth={2 * u} className="map-pick" />}
+            {view === "zones" && shown.map((z) => { const p = pt(+z.lat, +z.lon); const id = +z.rank; const on = id === selected; const now = liveOf.get(id)!; return (
               <g key={id} className={on ? "map-zone on" : "map-zone"} role="button" tabIndex={0} aria-label={`Zone ${now.rank}, score ${now.score}`}
                 onClick={() => setSelected(id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelected(id); } }}>
                 <circle cx={p.x} cy={p.y} r={(on ? 9 : 6) * u} strokeWidth={1.5 * u} />
@@ -236,7 +316,78 @@ export function WhereToLand() {
             ); })}
           </svg>
         </div>
+        </div>
 
+        {view === "layers" && (
+          <div className="land-side">
+            {!layers ? <p className="note">Loading the map layers…</p> : !point || !pickLatLon ? (
+              <>
+                <h3>Pick a spot</h3>
+                <p className="note">Click anywhere on the map for that spot's numbers: pass or fail, its score under your priorities, and every criterion by itself.</p>
+              </>
+            ) : (
+              <>
+                <h3>{Math.abs(pickLatLon[0]).toFixed(3)}° S, {Math.abs(pickLatLon[1]).toFixed(3)}° {pickLatLon[1] < 0 ? "W" : "E"}</h3>
+                <p className="note">
+                  {point.passes
+                    ? "Passes every hard limit."
+                    : `Fails a hard limit: ${failedLimits(limits?.[pick!] ?? 255).join(", ") || "see the criteria"}.`}{" "}
+                  Each map pixel shows its best 120 m square.
+                </p>
+                <table className="compare facts">
+                  <tbody>
+                    <tr><th>Score with your priorities</th><td>{point.score} of 100</td></tr>
+                    {config.layers.map((l, k) => (
+                      <tr key={l.key}>
+                        <th>{l.label}{numbers && <span className="unit">{layerValueText(point.q[k], l)}; weight {weights[l.key]}</span>}</th>
+                        <td><span className="bar" aria-hidden="true"><span style={{ width: `${(point.q[k] / 255) * 100}%` }} /></span> {Math.round((point.q[k] / 255) * 100)}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {numbers && pickXY && (
+                  <p className="note">
+                    x {Math.round(pickXY[0]).toLocaleString("en-GB")} m, y {Math.round(pickXY[1]).toLocaleString("en-GB")} m (polar stereographic);
+                    grid row {Math.floor(pick! / GRID)}, column {pick! % GRID}. Percentages are sub-scores: 0% at the
+                    criterion's reject bound, 100% at its ideal.
+                  </p>
+                )}
+                {nearest && (
+                  <button className="primary" onClick={() => goTo3D(nearest!.id, pickLatLon)}>
+                    Open the 3D view at {nearest.name} ({nearest.km < 1 ? "here" : `${nearest.km.toFixed(0)} km away`})
+                  </button>
+                )}
+              </>
+            )}
+            <ul className="key">
+              {shownLayer === "score" ? (
+                <>
+                  <li><span className={colourBlind ? "swatch cb" : "swatch ok"} />Passes every hard limit (brighter = higher score)</li>
+                  <li><span className="swatch ground" />Fails at least one</li>
+                </>
+              ) : (
+                <li><span className={colourBlind ? "swatch cb" : "swatch layer"} style={colourBlind ? undefined : { background: `var(${LAYER_TOKEN[shownLayer]})` }} />
+                  {config.layers.find((l) => l.key === shownLayer)?.label}: dark = rejected, bright = ideal</li>
+              )}
+              <li><span className="mark artemis" />Artemis candidate point</li>
+              <li><span className="mark mission" />Past landing attempt</li>
+            </ul>
+            {numbers && (
+              <div className="table-scroll">
+                <table className="compare">
+                  <thead><tr><th>Layer</th><th>Scores 0 at</th><th>Scores 100 at</th><th>Weight</th></tr></thead>
+                  <tbody>
+                    {config.layers.map((l) => (
+                      <tr key={l.key}><th>{l.label}</th><td>{l.reject} {l.unit}</td><td>{l.ideal} {l.unit}</td><td>{weights[l.key]}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {view === "zones" && (
         <div className="land-side">
           <h3>Zone {live.rank}: {(-zone.lat).toFixed(2)}° S, {Math.abs(+zone.lon).toFixed(2)}° {+zone.lon < 0 ? "W" : "E"}</h3>
           <p className="note">
@@ -250,17 +401,30 @@ export function WhereToLand() {
             <tbody>{facts.map(([k, v]) => <tr key={k}><th>{k}</th><td>{v}</td></tr>)}</tbody>
           </table>
           <ul className="key">
-            <li><span className="swatch ok" />Passes every hard limit (brighter = higher score)</li>
+            <li><span className={colourBlind ? "swatch cb" : "swatch ok"} />Passes every hard limit (brighter = higher score)</li>
             <li><span className="swatch ground" />Fails at least one</li>
             <li><span className="mark zone" />Best zones (choose one)</li>
             <li><span className="mark artemis" />Artemis candidate point</li>
             <li><span className="mark mission" />Past landing attempt</li>
           </ul>
+          {numbers && (
+            <table className="compare facts">
+              <tbody>
+                <tr><th>Map score at the best square</th><td>{live.mapScore} of 100</td></tr>
+                {config.layers.map((l) => (
+                  <tr key={l.key}><th>{l.label}<span className="unit">weight {weights[l.key]}</span></th>
+                    <td>{Math.round((+zoneLayers[selected - 1][l.key] / 255) * 100)}%</td></tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
+        )}
       </div>
 
       <WhyHere title={`Why here? Zone ${live.rank} against the landing criteria`}
-        list={explain(valuesFromRow(zone), criteria as unknown as CriterionRow[])} />
+        list={explain(valuesFromRow({ ...zone, ice_depth_m: zoneLayers[selected - 1].ice_depth_m, hollow_depth_m: zoneLayers[selected - 1].hollow_depth_m }),
+          criteria as unknown as CriterionRow[])} />
 
       <div className="prose">
         <h3>Does this find NASA's own regions?</h3>

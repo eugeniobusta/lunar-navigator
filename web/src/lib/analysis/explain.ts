@@ -25,6 +25,10 @@ export interface PointValues {
   longestDarkH?: number;
   /** Longest run of hours without Earth (our model). */
   longestNoEarthH?: number;
+  /** Depth at which water ice is stable, metres (Diviner); Infinity = none within 2.87 m. */
+  iceDepthM?: number;
+  /** How far the spot sits below the mean ground within 2 km, metres (negative = above its surroundings). */
+  hollowDepthM?: number;
 }
 
 /** One row of criteria.csv (only the columns used here). */
@@ -39,6 +43,8 @@ export interface Explanation {
   verdict: Verdict;
   /** True if "rejected" here rules the point out (a NASA hard limit); false if it only scores zero. */
   hardLimit: boolean;
+  /** True for the criteria that carry no weight in the balanced score (they count only if you weigh them). */
+  optional: boolean;
   /** The range the value falls in and why the criterion matters (the sentence after the verdict). */
   detail: string;
   /** The whole sentence: label, value, verdict, then `detail`. */
@@ -60,6 +66,8 @@ interface Rule {
   format: (v: number) => string;
   /** What the ranges are, in words. */
   good: string; ok: string; bad: string;
+  /** Carries no weight in the balanced score. */
+  optional?: boolean;
 }
 
 const days = (h: number) => (h < 48 ? `${Math.round(h)} hours` : `${(h / 24).toFixed(1)} days`);
@@ -102,6 +110,14 @@ export const RULES: Rule[] = [
     format: (h) => (h <= 0 ? "0 hours" : days(h)),
     good: "Earth never drops below the skyline", ok: "Earth sets at times, for less than two weeks",
     bad: "Two weeks or more out of contact" },
+  { key: "iceDepthM", label: "Depth of stable ice", parameter: "Depth of stable ice", ideal: 0, reject: 1, hard: false, optional: true,
+    format: (v) => (Number.isFinite(v) ? `${v.toFixed(2)} m` : "none within 2.9 m"),
+    good: "Ice can be stable right at the surface", ok: "Within the reach of a 1 m drill",
+    bad: "Deeper than a 1 m drill reaches, or no stable ice at all" },
+  { key: "hollowDepthM", label: "Depth of the hollow", parameter: "Depth of the hollow", ideal: 0, reject: 70, hard: false, optional: true,
+    format: (v) => (v <= 0 ? `${Math.round(-v)} m above its surroundings` : `${Math.round(v)} m below its surroundings`),
+    good: "Level with or above the ground within 2 km", ok: "In a dip of less than 70 m",
+    bad: "In a hollow 70 m deep or more: a 2 degree wall all round" },
 ];
 
 /** Verdict of one value against a rule. Works whether more is better or less is better. */
@@ -130,9 +146,10 @@ export function explain(values: PointValues, criteria: CriterionRow[] = []): Exp
     const rows = criteria.filter((c) => c.parameter === rule.parameter);
     const reason = (rows.find((c) => c.kind === "soft") ?? rows[0])?.reason ?? "";
     const value = rule.format(v);
-    const softNote = verdict === "rejected" && !rule.hard ? " This scores zero but does not rule the spot out." : "";
+    const softNote = (verdict === "rejected" && !rule.hard ? " This scores zero but does not rule the spot out." : "")
+      + (rule.optional ? " It counts only if you give it weight in Your priorities." : "");
     const detail = `${range}.${softNote}${reason ? ` ${reason}` : ""}`;
-    out.push({ key: rule.key, label: rule.label, value, verdict, hardLimit: rule.hard, detail,
+    out.push({ key: rule.key, label: rule.label, value, verdict, hardLimit: rule.hard, optional: !!rule.optional, detail,
       sentence: `${rule.label} ${value}: ${verdict}. ${detail}` });
   }
   return out;
@@ -141,16 +158,19 @@ export function explain(values: PointValues, criteria: CriterionRow[] = []): Exp
 /** The values of a row of zones.csv or suitability/site_values.csv (same column names). */
 export function valuesFromRow(row: Record<string, string>): PointValues {
   const n = (k: string) => (row[k] === undefined || row[k] === "" ? undefined : Number(row[k]));
+  // An empty ice depth means "no stable ice", which is an answer; a missing column means we were not told.
+  const ice = row.ice_depth_m === undefined ? undefined : row.ice_depth_m === "" ? Infinity : Number(row.ice_depth_m);
   return { latDeg: n("lat"), landingSlopeDeg: n("landing_slope_deg"), walkablePct: n("eva_walkable_pct"), sunPct: n("sun_pct"),
     earthPct: n("earth_pct"), shadowKm: n("psr_distance_km"), tempK: n("temp_avg_k"), longestDarkH: n("longest_dark_h"),
-    longestNoEarthH: n("longest_no_earth_h") };
+    longestNoEarthH: n("longest_no_earth_h"), iceDepthM: ice, hollowDepthM: n("hollow_depth_m") };
 }
 
 /** One line that sums the verdicts up: what rules the spot out, or how many criteria are good. */
 export function summarise(list: Explanation[]): string {
   const blockers = list.filter((e) => e.verdict === "rejected" && e.hardLimit);
   if (blockers.length) return `Ruled out by ${blockers.map((e) => e.label.toLowerCase()).join(" and ")}.`;
-  const good = list.filter((e) => e.verdict === "good").length;
-  const zero = list.filter((e) => e.verdict === "rejected").length;
-  return `Passes every hard limit: ${good} of ${list.length} criteria are good${zero ? `, ${zero} ${zero === 1 ? "scores" : "score"} zero` : ""}.`;
+  const scored = list.filter((e) => !e.optional);
+  const good = scored.filter((e) => e.verdict === "good").length;
+  const zero = scored.filter((e) => e.verdict === "rejected").length;
+  return `Passes every hard limit: ${good} of ${scored.length} criteria are good${zero ? `, ${zero} ${zero === 1 ? "scores" : "score"} zero` : ""}.`;
 }

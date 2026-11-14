@@ -67,14 +67,14 @@ Each point is scored like a zone and placed among the 4,224 zones whose 6.5-day 
 
 | Artemis point | Passes hard limits | Balanced | Power first | Radio link first | Ice science first |
 |---------------|--------------------|---:|---:|---:|---:|
-| Peak near Cabeus B | no (latitude) | 97 (59) | 139 (48) | 220 (72) | 2,352 (58) |
-| Haworth | yes | 190 (55) | 234 (44) | 737 (57) | 30 (81) |
-| Malapert Massif | yes | 32 (65) | 253 (43) | 6 (91) | 2,041 (60) |
-| Mons Mouton Plateau | no (sunlight) | 1,401 (40) | 2,439 (22) | 1,352 (42) | 495 (72) |
-| Mons Mouton | yes | 70 (61) | 30 (61) | 713 (58) | 203 (75) |
-| Nobile Rim 1 | yes | 230 (54) | 163 (47) | 737 (57) | 908 (68) |
-| Nobile Rim 2 | no (latitude) | 752 (46) | 1,230 (31) | 1,046 (47) | 203 (75) |
-| de Gerlache Rim 2 | yes | 133 (57) | 79 (53) | 824 (54) | 596 (71) |
-| Slater Plain | yes | 752 (46) | 253 (43) | 1,537 (40) | 2,484 (57) |
+| Peak near Cabeus B | no (latitude) | 97 (59) | 139 (48) | 220 (72) | 2,524 (49) |
+| Haworth | yes | 190 (55) | 234 (44) | 737 (57) | 602 (68) |
+| Malapert Massif | yes | 32 (65) | 253 (43) | 6 (91) | 2,396 (50) |
+| Mons Mouton Plateau | no (sunlight) | 1,401 (40) | 2,439 (22) | 1,352 (42) | 305 (73) |
+| Mons Mouton | yes | 70 (61) | 30 (61) | 713 (58) | 205 (75) |
+| Nobile Rim 1 | yes | 230 (54) | 163 (47) | 737 (57) | 1,491 (57) |
+| Nobile Rim 2 | no (latitude) | 752 (46) | 1,230 (31) | 1,046 (47) | 919 (63) |
+| de Gerlache Rim 2 | yes | 133 (57) | 79 (53) | 824 (54) | 1,270 (59) |
+| Slater Plain | yes | 752 (46) | 253 (43) | 1,537 (40) | 995 (62) |
 
-Best-placed Artemis point per preset: Balanced: Malapert Massif; Power first: Mons Mouton; Radio link first: Malapert Massif; Ice science first: Haworth.
+Best-placed Artemis point per preset: Balanced: Malapert Massif; Power first: Mons Mouton; Radio link first: Malapert Massif; Ice science first: Mons Mouton.

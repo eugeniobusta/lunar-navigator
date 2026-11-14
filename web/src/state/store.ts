@@ -3,7 +3,7 @@ import { create } from "zustand";
 import type { Ephemeris, Horizon } from "../lib/analysis";
 import { loadEphemeris, loadHorizon, loadSites, type Loaded, type Site } from "../lib/data";
 
-export type Tab = "overview" | "land" | "windows" | "compare" | "grid" | "power" | "moon3d" | "data" | "method" | "sitemap";
+export type Tab = "overview" | "land" | "windows" | "compare" | "grid" | "power" | "moon3d" | "data" | "method";
 
 interface State {
   ready: boolean;
@@ -18,7 +18,7 @@ interface State {
   windowDays: number;
   cursor: number; // sample offset within the window
   tab: Tab;
-  /** A point picked on the Site Map to open in the 3D view: [lat, east lon], or null for the site itself. */
+  /** A point picked in the Layers view of Where to land, passed on to the 3D view: [lat, east lon], or null. */
   spot: [number, number] | null;
   init: () => Promise<void>;
   ensureHorizon: (id: string) => Promise<void>;

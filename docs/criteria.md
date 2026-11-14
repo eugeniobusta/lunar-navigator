@@ -83,8 +83,23 @@ under Balanced it reproduces every published score and the whole ranking exactly
 | Permanent shadow nearby | 21 | 10 | 10 | 90 |
 | Walkable ground | 14 | 5 | 5 | 30 |
 | Milder ground | 7 | 10 | 5 | 0 |
+| Buried ice within reach | 0 | 0 | 0 | 40 |
+| Not in a hollow | 0 | 0 | 0 | 0 |
 | Short nights | 30 | 60 | 0 | 10 |
 | Never out of contact | 30 | 0 | 60 | 15 |
+
+**Two optional criteria** (from Chinh's Site Map). They carry no weight in Balanced, so the published scores do
+not depend on them, but they are layers like the others and anyone can weigh them:
+- *Depth of stable ice*: LRO Diviner Polar Resource Product (the depth at which water ice stays frozen, from a
+  thermal model). Scores 1 where ice is stable at the surface and 0 below 1 m (the reach of VIPER's "1-meter drill")
+  or where there is none within 2.87 m. Half of the passing ground has stable ice within 1 m.
+- *Depth of the hollow*: how far a cell sits below the mean ground within 2 km, from the LOLA elevation map.
+  Scores 1 at or above its surroundings and 0 at 70 m below (a 2 deg wall all round). It is off by default because
+  the sunlight and Earth numbers already contain its effect; it is there to show hollows such as the one the
+  Mons Mouton Plateau point sits in (64 m).
+
+**No veto among soft criteria.** The Site Map demo set the combined score to 0 if any factor scored 0. We did not
+keep that: the hard limits are the veto (they are NASA's), and a soft criterion at 0 only costs its weight.
 
 Weights are relative: only their ratios matter. The three mission presets are a team choice. Where the nine
 Artemis points rank under each one is in docs/PITCH_NUMBERS.md section 6 and in `suitability/artemis_points.csv`.

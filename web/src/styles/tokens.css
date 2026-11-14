@@ -14,6 +14,11 @@
   --cloud: #DCE8FF;     /* Earth as small text and highlights: earth blue is too dark for AA on small text */
   --eclipse: #E0457B;
   --lichen: #8FC28A;
+  /* Colour-blind palette for the maps in "Where to land" (a switch, off by default): a dark blue to yellow ramp
+     that stays readable with red-green colour blindness. The blue here is a map scale, not Earth. */
+  --cb-low: #00204D;
+  --cb-mid: #7C7B78;
+  --cb-high: #FDE737;
   --font: "Barlow", system-ui, sans-serif;
   --font-head: "Barlow Semi Condensed", "Barlow", system-ui, sans-serif;
   --r: 4px;

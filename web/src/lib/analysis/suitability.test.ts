@@ -28,22 +28,23 @@ function loadZones(): { zones: ZoneInput[]; rows: Record<string, string>[] } {
 
 describe("score formula", () => {
   it("is 0 with every layer at 0 and 100 with every layer at 255", () => {
-    expect(mapScore([0, 0, 0, 0, 0, 0], BALANCED)).toBe(0);
-    expect(mapScore([255, 255, 255, 255, 255, 255], BALANCED)).toBe(100);
+    expect(mapScore([0, 0, 0, 0, 0, 0, 0, 0], BALANCED)).toBe(0);
+    expect(mapScore([255, 255, 255, 255, 255, 255, 255, 255], BALANCED)).toBe(100);
+    expect(mapScore([255, 255, 255, 255, 255, 255, 0, 0], BALANCED)).toBe(100); // ice and hollow carry no weight here
   });
   it("weights each layer by its share: sunlight alone is 30 % of the balanced map score", () => {
-    expect(mapScore([255, 0, 0, 0, 0, 0], BALANCED)).toBe(30);
-    expect(mapScore([0, 0, 0, 255, 0, 0], BALANCED)).toBe(15);  // permanent shadow nearby
-    expect(mapScore([0, 0, 0, 0, 0, 255], BALANCED)).toBe(5);   // temperature
+    expect(mapScore([255, 0, 0, 0, 0, 0, 0, 0], BALANCED)).toBe(30);
+    expect(mapScore([0, 0, 0, 255, 0, 0, 0, 0], BALANCED)).toBe(15);  // permanent shadow nearby
+    expect(mapScore([0, 0, 0, 0, 0, 255, 0, 0], BALANCED)).toBe(5);   // temperature
   });
   it("follows the weights: with only one term weighted, the score is that layer", () => {
     const only: Weights = { ...BALANCED, sunlight: 0, earth: 0, landing_slope: 0, walkable: 0, temperature: 0, shadow: 1 };
-    expect(mapScore([255, 255, 255, 51, 255, 255], only)).toBe(20);
-    expect(mapScore([1, 2, 3, 4, 5, 6], { ...only, shadow: 0 })).toBe(0); // no layer weighted at all
+    expect(mapScore([255, 255, 255, 51, 255, 255, 255, 255], only)).toBe(20);
+    expect(mapScore([1, 2, 3, 4, 5, 6, 7, 8], { ...only, shadow: 0 })).toBe(0); // no layer weighted at all
   });
   it("only ratios matter", () => {
     const doubled = Object.fromEntries(Object.entries(BALANCED).map(([k, v]) => [k, 2 * v])) as Weights;
-    expect(mapScore([200, 13, 77, 140, 255, 9], doubled)).toBe(mapScore([200, 13, 77, 140, 255, 9], BALANCED));
+    expect(mapScore([200, 13, 77, 140, 255, 9, 30, 40], doubled)).toBe(mapScore([200, 13, 77, 140, 255, 9, 30, 40], BALANCED));
   });
   it("zone score is 70 % map score + 15 % darkness + 15 % time without Earth under balanced", () => {
     expect(zoneScore(100, 85, 0, BALANCED)).toBe(100);

@@ -385,10 +385,7 @@ export class ExperienceSystem extends createSystem({}) {
     this.message = null;
     const site = params.get('site');
     if (site && this.sites.some((s) => s.id === site && s.terrain === 'dem')) {
-      // Optional exact point (from the Site Map): stand there if it lies on this site's terrain tile.
-      const lat = Number(params.get('lat')), lon = Number(params.get('lon'));
-      const hasSpot = params.has('lat') && params.has('lon') && Number.isFinite(lat) && Number.isFinite(lon);
-      await this.enterLand(site, hasSpot ? [lat, lon] : undefined);
+      await this.enterLand(site);
     } else {
       this.enterOrbit();
     }

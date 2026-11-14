@@ -24,7 +24,7 @@ test("the app loads real data and the skyline explains itself", async ({ page })
   await expect(page.getByText("Showing mock data")).toHaveCount(0);
   // "Why here?" on Overview: one sentence per criterion for the selected site.
   await expect(page.getByRole("heading", { name: /^Why here\? Malapert Massif/ })).toBeVisible();
-  await expect(page.locator(".why li")).toHaveCount(9);
+  await expect(page.locator(".why li")).toHaveCount(11);
   await expect(page.locator(".why")).toContainText("Earth in view 100% of the time: good.");
   await expect(page.getByText("You are standing at")).toBeVisible();
   await expect(page.locator("svg.sky")).toContainText("Earth now");
@@ -83,10 +83,24 @@ test("Where to land shows the map, a zone and the criteria", async ({ page }) =>
   await expect(page.getByRole("button", { name: "Ice science first", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("heading", { name: /^Zone 3:/ })).toHaveCount(0);
   await expect(page.getByText(/^Rank \d+ with your priorities; rank 3 with the balanced ones/)).toBeVisible();
-  await expect(page.getByText("Loading the six map layers")).toHaveCount(0);
+  await expect(page.getByText("Loading the map layers")).toHaveCount(0);
   await page.getByRole("button", { name: "Balanced", exact: true }).click();
   await expect(page.getByRole("heading", { name: /^Zone 3:/ })).toBeVisible();
   await expect(page.getByRole("row", { name: /Malapert Massif/ }).first()).toContainText("32 (65)");
+  // Layers view (Chinh's Site Map, same scoring engine): one criterion at a time, click a spot for its numbers.
+  await page.getByRole("button", { name: "Layers", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Pick a spot" })).toBeVisible();
+  await page.getByRole("button", { name: "Sunlight", exact: true }).click();
+  await page.getByLabel("Colour-blind palette").check();
+  await page.getByLabel("Show the numbers").check();
+  const map = page.locator(".land-map svg");
+  const box = (await map.boundingBox())!;
+  await map.click({ position: { x: box.width * 0.5, y: box.height * 0.18 } }); // towards Malapert, north of the pole
+  await expect(page.getByRole("heading", { name: /^\d+\.\d{3}° S, \d+\.\d{3}° [EW]$/ })).toBeVisible();
+  await expect(page.getByRole("row", { name: /Score with your priorities/ })).toContainText("of 100");
+  await expect(page.getByRole("button", { name: /^Open the 3D view at / })).toBeVisible();
+  await page.getByRole("button", { name: "Zones", exact: true }).click();
+  await expect(page.getByRole("heading", { name: /^Zone 3:/ })).toBeVisible();
   await expect(page.getByRole("cell", { name: /Artemis III must land near the south pole/ })).toBeVisible();
   expect(errors).toEqual([]);
 });

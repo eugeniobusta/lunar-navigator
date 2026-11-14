@@ -112,7 +112,13 @@ SOFT = [
     ("psr_distance_km", 20.0, 2.0, 0.15),
     ("eva_walkable_pct", EVA_WALKABLE_MIN, 95.0, 0.10),
     ("temp_avg_k", 110.0, 150.0, 0.05),
+    # Two more layers that anyone can weigh in "Your priorities". They carry no weight in the balanced score, so
+    # the published scores do not depend on them.
+    ("ice_depth_m", 1.0, 0.0, 0.0),      # Diviner: depth at which water ice is stable; none within 2.87 m scores 0
+    ("hollow_depth_m", 70.0, 0.0, 0.0),  # how far the cell sits below the mean ground within 2 km
 ]
+HOLLOW_RADIUS_M = 2000.0
+NO_DATA_SCORES_ZERO = {"ice_depth_m"}   # "no stable ice" is an answer, not a gap in the data
 MAP_SHARE = 0.70           # zone score = 70 % map score + 15 % longest darkness + 15 % longest time without Earth
 
 
@@ -142,22 +148,23 @@ def zone_score(z):
 
 # ---- "Your priorities": each soft term as its own 0-255 layer, and integer weights anyone can change. ----
 # Layer order matches SOFT. A layer value q is the sub-score: 0 at the reject bound, 255 at the ideal bound.
-LAYER_KEYS = ["sunlight", "earth", "landing_slope", "shadow", "walkable", "temperature"]
+LAYER_KEYS = ["sunlight", "earth", "landing_slope", "shadow", "walkable", "temperature", "ice", "hollow"]
 ZONE_KEYS = ["darkness", "no_earth"]   # only known at zone best cells (our time model), not per pixel
 LAYER_LABELS = {"sunlight": "Sunlight", "earth": "Earth in view", "landing_slope": "Flat landing ground",
                 "shadow": "Permanent shadow nearby", "walkable": "Walkable ground", "temperature": "Milder ground",
+                "ice": "Buried ice within reach", "hollow": "Not in a hollow",
                 "darkness": "Short nights", "no_earth": "Never out of contact"}
 # Weights are relative (only their ratios matter). "balanced" is docs/criteria.md: 0.30 / 0.20 / 0.20 / 0.15 / 0.10 /
 # 0.05 inside the map score, which is 70 % of the zone score, plus 15 % darkness and 15 % time without Earth.
 PRESETS = {
     "balanced": ("Balanced", {"sunlight": 42, "earth": 28, "landing_slope": 28, "shadow": 21, "walkable": 14,
-                              "temperature": 7, "darkness": 30, "no_earth": 30}),
+                              "temperature": 7, "ice": 0, "hollow": 0, "darkness": 30, "no_earth": 30}),
     "power": ("Power first", {"sunlight": 80, "earth": 15, "landing_slope": 20, "shadow": 10, "walkable": 5,
-                              "temperature": 10, "darkness": 60, "no_earth": 0}),
+                              "temperature": 10, "ice": 0, "hollow": 0, "darkness": 60, "no_earth": 0}),
     "radio": ("Radio link first", {"sunlight": 20, "earth": 80, "landing_slope": 20, "shadow": 10, "walkable": 5,
-                                   "temperature": 5, "darkness": 0, "no_earth": 60}),
+                                   "temperature": 5, "ice": 0, "hollow": 0, "darkness": 0, "no_earth": 60}),
     "ice": ("Ice science first", {"sunlight": 20, "earth": 15, "landing_slope": 20, "shadow": 90, "walkable": 30,
-                                  "temperature": 0, "darkness": 10, "no_earth": 15}),
+                                  "temperature": 0, "ice": 40, "hollow": 0, "darkness": 10, "no_earth": 15}),
 }
 
 
@@ -197,13 +204,14 @@ def quantise_layers(g):
     int_map_score(layers, balanced) reproduces the published map score at every cell.
     """
     s = np.stack([subscore(np.nan_to_num(g[key], nan=reject), reject, ideal) for key, reject, ideal, _ in SOFT])
+    weighted = np.array([wt > 0 for *_, wt in SOFT])
     # A term with no data (temperature in a few cells at the corners of the computed square) takes the weighted
     # mean of the other terms there, which is what "left out and the weights rescaled" means for the score.
     w = np.array([wt for *_, wt in SOFT])
     for i, (key, *_rest) in enumerate(SOFT):
         missing = ~np.isfinite(g[key])
-        if missing.any():
-            others = np.delete(np.arange(len(SOFT)), i)
+        if missing.any() and key not in NO_DATA_SCORES_ZERO:
+            others = np.array([j for j in range(len(SOFT)) if j != i and weighted[j]])
             s[i][missing] = (np.tensordot(w[others], s[others], axes=1) / w[others].sum())[missing]
     target = np.clip(np.rint(g["score"]), 0, 100).astype(np.int64)
     q = np.rint(255.0 * s).astype(np.int64)
@@ -215,12 +223,12 @@ def quantise_layers(g):
             need = np.flatnonzero((cur < target) if direction > 0 else (cur > target))
             if need.size == 0:
                 break
-            qn = q.reshape(6, -1)[:, need]
-            fn = frac.reshape(6, -1)[:, need]
-            room = (qn + direction >= 0) & (qn + direction <= 255)
+            qn = q.reshape(len(SOFT), -1)[:, need]
+            fn = frac.reshape(len(SOFT), -1)[:, need]
+            room = (qn + direction >= 0) & (qn + direction <= 255) & weighted[:, None]  # only layers that count
             k = np.argmax(np.where(room, direction * fn, -np.inf), axis=0)   # the layer that lost most to rounding
-            q.reshape(6, -1)[k, need] += direction
-            frac.reshape(6, -1)[k, need] -= direction
+            q.reshape(len(SOFT), -1)[k, need] += direction
+            frac.reshape(len(SOFT), -1)[k, need] -= direction
     assert np.array_equal(int_map_score(q, balanced), target), "layers do not reproduce the published score"
     return q.astype(np.uint8), float(np.abs(q - 255.0 * s).max())
 
@@ -230,7 +238,7 @@ def _row(parameter, kind, unit, ideal, acceptable, reject, weight, reason, sourc
             "reject": reject, "weight_pct": weight, "reason": reason, "source": source}
 
 
-_W = {key: round(100 * MAP_SHARE * w, 1) for key, _, _, w in SOFT}  # share of the zone score, percent
+_W = {key: round(100 * MAP_SHARE * w, 1) for key, _, _, w in SOFT if w > 0}  # share of the zone score, percent
 CRITERIA = [
     _row("Distance from the pole", "hard", "deg of latitude", "within 6 (84 S or further south)", "", "more than 6",
          "", "Artemis III must land near the south pole, where the ice and the long sunlight are.",
@@ -280,6 +288,18 @@ CRITERIA = [
          '110 K: "surfaces below 110 K capable of cold trapping water" (Williams et al. 2019, doi:10.1029/2019JE006028). '
          "150 K ideal is a team choice. Data: LRO Diviner Polar Resource Product, "
          "https://pds-geosciences.wustl.edu/lro/urn-nasa-pds-lro_diviner_derived1/data_derived_prp/ (a thermal model on a ~0.5 km mesh)."),
+    _row("Depth of stable ice", "soft", "m below the surface", "0 (ice stable at the surface)", "down to 1",
+         "deeper than 1, or none", 0,
+         "Buried ice within a drill's reach can be sampled without driving into a permanent shadow.",
+         "Off in the balanced score (weight 0); 40 in the 'Ice science first' preset. 1 m: NASA's VIPER rover carries "
+         "\"a 3.28-foot (1-meter) drill\" (https://science.nasa.gov/mission/viper/in-depth/). Data: LRO Diviner Polar "
+         "Resource Product, ice stability depth (thermal model, ~0.5 km mesh; none within 2.87 m counts as none), "
+         "https://pds-geosciences.wustl.edu/lro/urn-nasa-pds-lro_diviner_derived1/data_derived_prp/"),
+    _row("Depth of the hollow", "soft", "m below the mean ground within 2 km", "0 or less (level with or above its surroundings)",
+         "up to 70", "70 or more", 0,
+         "A spot in a hollow has raised ground all round, which hides a Sun that never climbs more than a few degrees.",
+         "Off in the balanced score (weight 0): the sunlight and Earth numbers already include this effect. Team choice "
+         "of 70 m: a 2 deg rise all round over 2 km. Data: LOLA LDEM_75S_120M, PDS Geosciences Node. Proposed by Chinh."),
     _row("Longest darkness, 2026 to 2029", "soft", "hours in a row", "85 or less", "85 to 354", "354 or more", 15.0,
          "Most landers are built for one lunar day and die in a long night; a short night can be survived on batteries.",
          'Ideal: NASA\'s rover goal to "survive an extended lunar night duration of at least 85 hours" (NTRS 20230002802). '

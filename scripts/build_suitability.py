@@ -45,15 +45,16 @@ def window(dem):
     return slice(r0 - half, r0 + half), slice(c0 - half, c0 + half)
 
 
-def diviner_mean_temperature(dem, sl):
-    """Annual mean surface temperature (K) from the Diviner polar resource product, on the DEM window. NaN = no data."""
+def diviner_grids(dem, sl):
+    """From the Diviner polar resource product, on the DEM window: annual mean temperature (K; NaN = no data) and
+    the depth at which water ice is stable (m; NaN = none within 2.87 m, or no data)."""
     if not DIVINER.exists():
-        return None
+        return None, None
     raw = np.memmap(DIVINER, dtype="S1", mode="r")
     rec = np.frombuffer(raw, count=raw.size // 210, dtype=np.dtype([
         ("xyz", "S126"), ("lon", "S15"), ("s1", "S2"), ("lat", "S15"), ("s2", "S2"), ("alt", "S15"), ("s3", "S2"),
         ("tavg", "S8"), ("s4", "S2"), ("tmax", "S8"), ("s5", "S2"), ("ice", "S11"), ("eol", "S2")]))[1:]
-    lon, lat, tavg = (rec[k].astype(np.float64) for k in ("lon", "lat", "tavg"))
+    lon, lat, tavg, ice = (rec[k].astype(np.float64) for k in ("lon", "lat", "tavg", "ice"))
     x, y = dem.xy(lat, lon)
     rows, cols = sl[0].stop - sl[0].start, sl[1].stop - sl[1].start
     col = np.floor(x / dem.scale_m + dem.sample_offset + 0.5).astype(np.int64) - sl[1].start
@@ -65,7 +66,15 @@ def diviner_mean_temperature(dem, sl):
     total = np.bincount(flat, weights=tavg[ok], minlength=size)
     count = np.bincount(flat, minlength=size)
     coarse = np.where(count > 0, total / np.maximum(count, 1), np.nan).reshape(rows // b + 1, cols // b + 1)
-    return np.repeat(np.repeat(coarse, b, axis=0), b, axis=1)[:rows, :cols]
+    temp = np.repeat(np.repeat(coarse, b, axis=0), b, axis=1)[:rows, :cols]
+    # Ice stability depth: the product gives -999 where ice is not stable within 2.87 m. A 600 m bin has stable
+    # ice if at least half of its triangles do; its depth is the mean over those.
+    has = ok & (ice >= 0)
+    n_ice = np.bincount(flat[has[ok]], minlength=size)
+    depth = np.bincount(flat[has[ok]], weights=ice[has], minlength=size)
+    coarse = np.where((count > 0) & (2 * n_ice >= count), depth / np.maximum(n_ice, 1), np.nan)
+    coarse = coarse.reshape(rows // b + 1, cols // b + 1)
+    return temp, np.repeat(np.repeat(coarse, b, axis=0), b, axis=1)[:rows, :cols]
 
 
 _PGDA = {}
@@ -97,7 +106,8 @@ def compute_grids(dem, sl=None):
     psr = features.sieve((sun == 0).astype(np.uint8), C.PSR_MIN_PX, connectivity=8).astype(bool) & (sun == 0)
     g["psr"] = psr
     g["psr_distance_km"] = C.distance_px(psr, PSR_CAP_PX) * s / 1000.0
-    g["temp_avg_k"] = diviner_mean_temperature(dem, sl)
+    g["temp_avg_k"], g["ice_depth_m"] = diviner_grids(dem, sl)
+    g["hollow_depth_m"] = C.disc_mean(h, C.HOLLOW_RADIUS_M / s) - h
 
     fails = np.zeros(h.shape, dtype=np.uint8)
     fails[~(g["landing_slope_deg"] < C.LANDING_SLOPE_MAX)] |= LIMIT_BITS["landing_slope"]
@@ -233,6 +243,14 @@ def write_site_tiles(dem, sl, g, sites):
         (OUT / "sites" / f"{s['id']}_limits.u8").write_bytes(limits[r0:r0 + n, c0:c0 + n].tobytes())
 
 
+def extras(g, flat_index):
+    """The two newer criteria at one cell, for publication: ice stability depth (m, "" = none) and hollow depth (m)."""
+    r, c = divmod(int(flat_index), g["score"].shape[1])
+    ice = g["ice_depth_m"]
+    return ["" if ice is None or not np.isfinite(ice[r, c]) else round(float(ice[r, c]), 2),
+            round(float(g["hollow_depth_m"][r, c]))]
+
+
 def write_layers(dem, sl, g, q, source, sites, zones, sun_dir, earth_km):
     """'Your priorities' (docs/INTERFACES.md section 11): each soft term as a 0-255 layer, plus what the browser
     needs to re-rank the zones and the Artemis points under any weights. Only adds files; changes none."""
@@ -255,8 +273,8 @@ def write_layers(dem, sl, g, q, source, sites, zones, sun_dir, earth_km):
 
     with open(OUT / "zones_layers.csv", "w", newline="") as f:
         w = csv.writer(f, lineterminator="\n")
-        w.writerow(["rank", *C.LAYER_KEYS])
-        w.writerows([z["rank"], *(int(v) for v in flat[:, z["_flat"]])] for z in zones)
+        w.writerow(["rank", *C.LAYER_KEYS, "ice_depth_m", "hollow_depth_m"])
+        w.writerows([z["rank"], *(int(v) for v in flat[:, z["_flat"]]), *extras(g, z["_flat"])] for z in zones)
 
     # The nine Artemis points: their own layer values and model numbers, and where they would rank among the
     # zones whose stay window is confirmed, under each preset.
@@ -294,7 +312,7 @@ def write_layers(dem, sl, g, q, source, sites, zones, sun_dir, earth_km):
 
     soft = {k: (key, reject, ideal) for k, (key, reject, ideal, _) in zip(C.LAYER_KEYS, C.SOFT, strict=True)}
     units = {"sunlight": "% of time", "earth": "% of time", "landing_slope": "deg", "shadow": "km", "walkable": "%",
-             "temperature": "K"}
+             "temperature": "K", "ice": "m", "hollow": "m"}
     (OUT / "weights.json").write_text(json.dumps({
         "version": 1,
         "layers": [{"key": k, "label": C.LAYER_LABELS[k], "parameter": soft[k][0], "unit": units[k],
@@ -318,7 +336,8 @@ def write_layers(dem, sl, g, q, source, sites, zones, sun_dir, earth_km):
 
 SITE_VALUE_COLUMNS = ["id", "name", "lat", "lon", "passes_hard_limits", "failed_limits", "map_score", "elevation_m",
                       "landing_slope_deg", "eva_slope_deg", "eva_walkable_pct", "sun_pct", "earth_pct", "psr_distance_km",
-                      "temp_avg_k", "longest_dark_h", "longest_no_earth_h", "longest_sun_and_earth_h"]
+                      "temp_avg_k", "longest_dark_h", "longest_no_earth_h", "longest_sun_and_earth_h", "ice_depth_m",
+                      "hollow_depth_m"]
 
 
 def write_site_values(dem, sl, g, sites, sun_dir, earth_km):
@@ -335,7 +354,8 @@ def write_site_values(dem, sl, g, sites, sun_dir, earth_km):
                      "passes_hard_limits": "yes" if g["passes"][r, c] else "no",
                      "failed_limits": " ".join(name for name, bit in LIMIT_BITS.items() if g["fails"][r, c] & bit),
                      "map_score": round(float(g["score"][r, c])), **values_at(g, r, c),
-                     **{k: mm[k] for k in ("longest_dark_h", "longest_no_earth_h", "longest_sun_and_earth_h")}})
+                     **{k: mm[k] for k in ("longest_dark_h", "longest_no_earth_h", "longest_sun_and_earth_h")},
+                     **dict(zip(("ice_depth_m", "hollow_depth_m"), extras(g, r * g["score"].shape[1] + c), strict=True))})
     with open(OUT / "site_values.csv", "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=SITE_VALUE_COLUMNS, lineterminator="\n")
         w.writeheader()

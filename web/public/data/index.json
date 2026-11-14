@@ -5,7 +5,7 @@
  "files": [
   {
    "path": "criteria.csv",
-   "bytes": 6661,
+   "bytes": 7740,
    "format": "CSV",
    "description": "Landing criteria: good, acceptable and rejected ranges, the reason and the source for each."
   },
@@ -119,7 +119,7 @@
   },
   {
    "path": "index.json",
-   "bytes": 42049,
+   "bytes": 45129,
    "format": "JSON",
    "description": "This list: every published file with its size, format and description."
   },
@@ -128,60 +128,6 @@
    "bytes": 17710,
    "format": "CSV",
    "description": "Every lunar soft-landing attempt: where, when, outcome, lesson, and our criteria at the polar ones."
-  },
-  {
-   "path": "sitemap/bowl_depth_m.u8",
-   "bytes": 1048576,
-   "format": "binary, uint8",
-   "description": "Site Map (demo) factor layer 'bowl_depth_m', raw value on the 1024 x 1024 south-pole grid (encoding in sitemap/layers.json; 255 = no data)."
-  },
-  {
-   "path": "sitemap/earth_pct.u8",
-   "bytes": 1048576,
-   "format": "binary, uint8",
-   "description": "Site Map (demo) factor layer 'earth_pct', raw value on the 1024 x 1024 south-pole grid (encoding in sitemap/layers.json; 255 = no data)."
-  },
-  {
-   "path": "sitemap/eva_slope_deg.u8",
-   "bytes": 1048576,
-   "format": "binary, uint8",
-   "description": "Site Map (demo) factor layer 'eva_slope_deg', raw value on the 1024 x 1024 south-pole grid (encoding in sitemap/layers.json; 255 = no data)."
-  },
-  {
-   "path": "sitemap/ice_depth_m.u8",
-   "bytes": 1048576,
-   "format": "binary, uint8",
-   "description": "Site Map (demo) factor layer 'ice_depth_m', raw value on the 1024 x 1024 south-pole grid (encoding in sitemap/layers.json; 255 = no data)."
-  },
-  {
-   "path": "sitemap/landing_slope_deg.u8",
-   "bytes": 1048576,
-   "format": "binary, uint8",
-   "description": "Site Map (demo) factor layer 'landing_slope_deg', raw value on the 1024 x 1024 south-pole grid (encoding in sitemap/layers.json; 255 = no data)."
-  },
-  {
-   "path": "sitemap/layers.json",
-   "bytes": 4343,
-   "format": "JSON",
-   "description": "Site Map (demo): grid, factor list, encodings, reject/ideal bounds and sources of the factor layers."
-  },
-  {
-   "path": "sitemap/psr_distance_km.u8",
-   "bytes": 1048576,
-   "format": "binary, uint8",
-   "description": "Site Map (demo) factor layer 'psr_distance_km', raw value on the 1024 x 1024 south-pole grid (encoding in sitemap/layers.json; 255 = no data)."
-  },
-  {
-   "path": "sitemap/sun_pct.u8",
-   "bytes": 1048576,
-   "format": "binary, uint8",
-   "description": "Site Map (demo) factor layer 'sun_pct', raw value on the 1024 x 1024 south-pole grid (encoding in sitemap/layers.json; 255 = no data)."
-  },
-  {
-   "path": "sitemap/temp_avg_k.u8",
-   "bytes": 1048576,
-   "format": "binary, uint8",
-   "description": "Site Map (demo) factor layer 'temp_avg_k', raw value on the 1024 x 1024 south-pole grid (encoding in sitemap/layers.json; 255 = no data)."
   },
   {
    "path": "sites.json",
@@ -197,7 +143,7 @@
   },
   {
    "path": "suitability/artemis_points.csv",
-   "bytes": 1231,
+   "bytes": 1303,
    "format": "CSV",
    "description": "The nine Artemis points: layer values, model numbers, score and rank under each preset."
   },
@@ -206,6 +152,18 @@
    "bytes": 262144,
    "format": "binary, uint8",
    "description": "Sub-score layer for Earth in view around de Gerlache Rim 2, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/dgr203_hollow.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for depth of the hollow around de Gerlache Rim 2, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/dgr203_ice.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for depth of stable ice around de Gerlache Rim 2, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
   },
   {
    "path": "suitability/layers/sites/dgr203_landing_slope.u8",
@@ -244,6 +202,18 @@
    "description": "Sub-score layer for Earth in view around Haworth, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
   },
   {
+   "path": "suitability/layers/sites/hw02_hollow.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for depth of the hollow around Haworth, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/hw02_ice.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for depth of stable ice around Haworth, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
    "path": "suitability/layers/sites/hw02_landing_slope.u8",
    "bytes": 262144,
    "format": "binary, uint8",
@@ -278,6 +248,18 @@
    "bytes": 262144,
    "format": "binary, uint8",
    "description": "Sub-score layer for Earth in view around IM-2 Athena (Mons Mouton), Mar 2025, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/im2_hollow.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for depth of the hollow around IM-2 Athena (Mons Mouton), Mar 2025, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/im2_ice.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for depth of stable ice around IM-2 Athena (Mons Mouton), Mar 2025, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
   },
   {
    "path": "suitability/layers/sites/im2_landing_slope.u8",
@@ -316,6 +298,18 @@
    "description": "Sub-score layer for Earth in view around Malapert Massif, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
   },
   {
+   "path": "suitability/layers/sites/mma01_hollow.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for depth of the hollow around Malapert Massif, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/mma01_ice.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for depth of stable ice around Malapert Massif, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
    "path": "suitability/layers/sites/mma01_landing_slope.u8",
    "bytes": 262144,
    "format": "binary, uint8",
@@ -350,6 +344,18 @@
    "bytes": 262144,
    "format": "binary, uint8",
    "description": "Sub-score layer for Earth in view around Mons Mouton, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/mmo01_hollow.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for depth of the hollow around Mons Mouton, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/mmo01_ice.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for depth of stable ice around Mons Mouton, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
   },
   {
    "path": "suitability/layers/sites/mmo01_landing_slope.u8",
@@ -388,6 +394,18 @@
    "description": "Sub-score layer for Earth in view around Mons Mouton Plateau, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
   },
   {
+   "path": "suitability/layers/sites/mmp06_hollow.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for depth of the hollow around Mons Mouton Plateau, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/mmp06_ice.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for depth of stable ice around Mons Mouton Plateau, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
    "path": "suitability/layers/sites/mmp06_landing_slope.u8",
    "bytes": 262144,
    "format": "binary, uint8",
@@ -422,6 +440,18 @@
    "bytes": 262144,
    "format": "binary, uint8",
    "description": "Sub-score layer for Earth in view around Nobile Rim 1, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/nr107_hollow.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for depth of the hollow around Nobile Rim 1, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/nr107_ice.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for depth of stable ice around Nobile Rim 1, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
   },
   {
    "path": "suitability/layers/sites/nr107_landing_slope.u8",
@@ -460,6 +490,18 @@
    "description": "Sub-score layer for Earth in view around Nobile Rim 2, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
   },
   {
+   "path": "suitability/layers/sites/nr208_hollow.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for depth of the hollow around Nobile Rim 2, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/nr208_ice.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for depth of stable ice around Nobile Rim 2, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
    "path": "suitability/layers/sites/nr208_landing_slope.u8",
    "bytes": 262144,
    "format": "binary, uint8",
@@ -494,6 +536,18 @@
    "bytes": 262144,
    "format": "binary, uint8",
    "description": "Sub-score layer for Earth in view around Peak near Cabeus B, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/pcb03_hollow.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for depth of the hollow around Peak near Cabeus B, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/pcb03_ice.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for depth of stable ice around Peak near Cabeus B, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
   },
   {
    "path": "suitability/layers/sites/pcb03_landing_slope.u8",
@@ -532,6 +586,18 @@
    "description": "Sub-score layer for Earth in view around Slater Plain, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
   },
   {
+   "path": "suitability/layers/sites/sp07_hollow.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for depth of the hollow around Slater Plain, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/sites/sp07_ice.u8",
+   "bytes": 262144,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for depth of stable ice around Slater Plain, 512 x 512 at 120 m: 0 = rejected, 255 = ideal."
+  },
+  {
    "path": "suitability/layers/sites/sp07_landing_slope.u8",
    "bytes": 262144,
    "format": "binary, uint8",
@@ -568,6 +634,18 @@
    "description": "Sub-score layer for Earth in view of the south pole, 1024 x 1024: 0 = rejected, 255 = ideal."
   },
   {
+   "path": "suitability/layers/south_pole_hollow.u8",
+   "bytes": 1048576,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for depth of the hollow of the south pole, 1024 x 1024: 0 = rejected, 255 = ideal."
+  },
+  {
+   "path": "suitability/layers/south_pole_ice.u8",
+   "bytes": 1048576,
+   "format": "binary, uint8",
+   "description": "Sub-score layer for depth of stable ice of the south pole, 1024 x 1024: 0 = rejected, 255 = ideal."
+  },
+  {
    "path": "suitability/layers/south_pole_landing_slope.u8",
    "bytes": 1048576,
    "format": "binary, uint8",
@@ -599,7 +677,7 @@
   },
   {
    "path": "suitability/site_values.csv",
-   "bytes": 1193,
+   "bytes": 1283,
    "format": "CSV",
    "description": "The landing criteria values at each site with modelled terrain, for the 'Why here?' box."
   },
@@ -743,7 +821,7 @@
   },
   {
    "path": "suitability/weights.json",
-   "bytes": 2836,
+   "bytes": 3424,
    "format": "JSON",
    "description": "The scoring layers, their bounds, and the weight presets (balanced, power, radio, ice)."
   },
@@ -761,7 +839,7 @@
   },
   {
    "path": "suitability/zones_layers.csv",
-   "bytes": 135811,
+   "bytes": 205250,
    "format": "CSV",
    "description": "The six layer values at each zone's best cell, for re-ranking zones under other weights."
   },

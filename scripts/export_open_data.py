@@ -81,15 +81,11 @@ def describe(rel, names):
     if rel.startswith("suitability/layers/"):
         key = stem.split("_", 1)[1] if rel.startswith("suitability/layers/sites/") else stem.removeprefix("south_pole_")
         what = {"sunlight": "sunlight", "earth": "Earth in view", "landing_slope": "landing slope",
-                "shadow": "distance to permanent shadow", "walkable": "walkable ground", "temperature": "ground temperature"}[key]
+                "shadow": "distance to permanent shadow", "walkable": "walkable ground", "temperature": "ground temperature",
+                "ice": "depth of stable ice", "hollow": "depth of the hollow"}[key]
         where = (f"around {names[stem.split('_', 1)[0]]}, 512 x 512 at 120 m" if "/sites/" in rel
                  else "of the south pole, 1024 x 1024")
         return f"Sub-score layer for {what} {where}: 0 = rejected, 255 = ideal."
-    if rel == "sitemap/layers.json":
-        return "Site Map (demo): grid, factor list, encodings, reject/ideal bounds and sources of the factor layers."
-    if rel.startswith("sitemap/"):
-        return (f"Site Map (demo) factor layer '{stem}', raw value on the 1024 x 1024 south-pole grid "
-                "(encoding in sitemap/layers.json; 255 = no data).")
     if rel.startswith("suitability/sites/"):
         site, kind = names[stem.rsplit("_", 1)[0]], stem.rsplit("_", 1)[1]
         return (f"Landing suitability score around {site}, 512 x 512 at 120 m per pixel." if kind == "score"

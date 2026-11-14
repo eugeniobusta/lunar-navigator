@@ -3,11 +3,12 @@
 // Data: web/public/data/suitability/ (docs/INTERFACES.md sections 10 and 11). Method: docs/criteria.md.
 //
 // Each soft criterion is published as a layer of bytes: 0 at its "reject" bound, 255 at its "ideal" bound.
+// This is the one scoring engine: "Where to land", its Layers view and the VR all score through this file.
 // The score is the weighted mean of the layers, scaled to 0..100, in integer arithmetic so that this file and the
 // Python pipeline (engine/criteria.py) agree exactly. With the "balanced" weights it reproduces the published scores.
 
-/** The six per-pixel layers, in file order. */
-export const LAYER_KEYS = ["sunlight", "earth", "landing_slope", "shadow", "walkable", "temperature"] as const;
+/** The per-pixel layers, in file order. The last two carry no weight in the balanced score. */
+export const LAYER_KEYS = ["sunlight", "earth", "landing_slope", "shadow", "walkable", "temperature", "ice", "hollow"] as const;
 export type LayerKey = (typeof LAYER_KEYS)[number];
 /** The two terms only our time model can give, known at zone best cells: longest darkness, longest time without Earth. */
 export const ZONE_KEYS = ["darkness", "no_earth"] as const;
@@ -23,7 +24,8 @@ export const NO_EARTH: ZoneTerm = { reject: 336, ideal: 0 };
 
 /** The default weights of docs/criteria.md. suitability/weights.json holds this and the other presets. */
 export const BALANCED: Weights = {
-  sunlight: 42, earth: 28, landing_slope: 28, shadow: 21, walkable: 14, temperature: 7, darkness: 30, no_earth: 30,
+  sunlight: 42, earth: 28, landing_slope: 28, shadow: 21, walkable: 14, temperature: 7, ice: 0, hollow: 0,
+  darkness: 30, no_earth: 30,
 };
 
 /** 0 at the reject bound, 1 at the ideal bound, linear in between (either direction). */
@@ -42,26 +44,29 @@ function layerWeights(w: Weights): { w: number[]; den: number } {
   return { w: list, den: 255 * list.reduce((a, b) => a + b, 0) };
 }
 
-/** Map score 0..100 from the six layer bytes of one cell: round-half-up of 100 * sum(W q) / (255 * sum(W)). */
+/** Map score 0..100 from the layer bytes of one cell (LAYER_KEYS order): round-half-up of 100 * sum(W q) / (255 * sum(W)). */
 export function mapScore(q: ArrayLike<number>, weights: Weights): number {
   const { w, den } = layerWeights(weights);
   if (den === 0) return 0;
   let num = 0;
-  for (let i = 0; i < 6; i++) num += w[i] * q[i];
+  for (let i = 0; i < w.length; i++) num += w[i] * q[i];
   return Math.floor((200 * num + den) / (2 * den));
 }
 
-/** Map score for every cell of a grid. `layers` are the six layer grids in LAYER_KEYS order, all the same length. */
+/** Map score for every cell of a grid. `layers` are the layer grids in LAYER_KEYS order, all the same length. */
 export function mapScoreGrid(layers: ArrayLike<number>[], weights: Weights, out?: Uint8Array): Uint8Array {
   const n = layers[0].length;
   const res = out ?? new Uint8Array(n);
   const { w, den } = layerWeights(weights);
   if (den === 0) return res.fill(0);
-  const [a, b, c, d, e, f] = layers;
-  for (let i = 0; i < n; i++) {
-    const num = w[0] * a[i] + w[1] * b[i] + w[2] * c[i] + w[3] * d[i] + w[4] * e[i] + w[5] * f[i];
-    res[i] = Math.floor((200 * num + den) / (2 * den));
+  // Sum the weighted layers one at a time (layers with no weight are skipped), then scale.
+  const num = new Float64Array(n);
+  for (let k = 0; k < w.length; k++) {
+    const wk = w[k], layer = layers[k];
+    if (wk === 0) continue;
+    for (let i = 0; i < n; i++) num[i] += wk * layer[i];
   }
+  for (let i = 0; i < n; i++) res[i] = Math.floor((200 * num[i] + den) / (2 * den));
   return res;
 }
 

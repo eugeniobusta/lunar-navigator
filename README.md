@@ -52,7 +52,7 @@ Live app: https://claudes-plan-lunar-navigator.vercel.app (open the **Data** tab
 - **Licences**: code MIT (LICENSE); our derived data CC BY 4.0 (DATA_LICENSE.md); NASA and JPL source data keeps
   its own terms.
 - **Rebuild it yourself**: `git clone https://github.com/eugeniobusta/lunar-navigator.git && cd lunar-navigator`,
-  then `make download` (about 380 MB, about 3 minutes on our laptop) and `make data` (about 7 seconds).
+  then `make download` (about 1 GB) and `make data` (about 2 minutes on our laptop).
 
 ## Team: Claude's Plan
 

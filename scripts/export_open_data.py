@@ -19,7 +19,7 @@ import validate_pgda as pgda
 
 DATA = ROOT / "web" / "public" / "data"
 VALIDATION = DATA / "validation"
-FORMATS = {".json": "JSON", ".csv": "CSV", ".u16": "binary, little-endian uint16", ".u8": "binary, uint8"}
+FORMATS = {".json": "JSON", ".geojson": "GeoJSON", ".csv": "CSV", ".u16": "binary, little-endian uint16", ".u8": "binary, uint8"}
 
 
 def write_csv(path, header, rows):
@@ -76,7 +76,18 @@ def describe(rel, names):
             "earth.u8": f"NASA PGDA average Earth visibility around {site}, percent, 120 m per pixel.",
             "slope.u8": f"Terrain slope around {site}, degrees, 120 m per pixel.",
         }[Path(rel).name]
+    if rel.startswith("suitability/sites/"):
+        site, kind = names[stem.rsplit("_", 1)[0]], stem.rsplit("_", 1)[1]
+        return (f"Landing suitability score around {site}, 512 x 512 at 120 m per pixel." if kind == "score"
+                else f"Which hard limits fail around {site} (bit flags), 512 x 512 at 120 m per pixel.")
     return {
+        "criteria.csv": "Landing criteria: good, acceptable and rejected ranges, the reason and the source for each.",
+        "missions.csv": "Every lunar soft-landing attempt: where, when, outcome, lesson, and our criteria at the polar ones.",
+        "suitability/zones.csv": "Goldilocks zones: every area that passes all hard limits, ranked, with its numbers.",
+        "suitability/zones.geojson": "The 500 best Goldilocks zones as GeoJSON points (lunar longitude and latitude).",
+        "suitability/south_pole_score.u8": "Landing suitability score of the south pole, 1024 x 1024, about 430 m per pixel.",
+        "suitability/south_pole_limits.u8": "Which hard limits fail (bit flags), on the same 1024 x 1024 grid.",
+        "suitability/summary.json": "Headline numbers of the suitability analysis.",
         "terrain/south_pole.json": "Grid definition, site positions and sources for the south-pole terrain files.",
         "terrain/south_pole_height.u16": "South-pole terrain heights, 1024 x 1024, about 430 m per pixel.",
         "terrain/south_pole_sun.u8": "NASA PGDA average sunlight, percent, on the same grid.",

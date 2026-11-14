@@ -99,7 +99,11 @@ export function Data() {
           Our derived data is licensed <a href={`${REPO}/blob/main/DATA_LICENSE.md`}>CC BY 4.0</a>; the code
           is <a href={`${REPO}/blob/main/LICENSE`}>MIT</a>. Every field is described in
           the <a href={`${REPO}/blob/main/docs/DATA_DICTIONARY.md`}>data dictionary</a>. The checks against JPL and
-          NASA are downloadable too: <a href={`${BASE}validation/jpl.csv`}>jpl.csv</a> and <a href={`${BASE}validation/pgda.csv`}>pgda.csv</a>.
+          NASA are downloadable too: <a href={`${BASE}validation/jpl.csv`}>jpl.csv</a> and <a href={`${BASE}validation/pgda.csv`}>pgda.csv</a>.{" "}
+          The landing criteria come as a table, <a href={`${BASE}criteria.csv`}>criteria.csv</a>, with
+          the <a href={`${REPO}/blob/main/docs/criteria.md`}>method</a>, a one-page <a href={`${REPO}/blob/main/docs/CHEATSHEET.md`}>cheat sheet</a> and
+          the <a href={`${REPO}/blob/main/docs/PARAMETERS.md`}>parameter inventory</a>; every lunar landing attempt
+          is in <a href={`${BASE}missions.csv`}>missions.csv</a>.
         </p>
       </div>
       {failed && <p className="note">The file list could not be loaded. The files are in web/public/data/ in the repository.</p>}
@@ -132,8 +136,8 @@ export function Data() {
 make download
 make data`}</pre>
         <p className="note">
-          Measured on our laptop (Apple-silicon Mac): the download is about 380 MB and took about 3 minutes;
-          make data took about 7 seconds and reproduces the published files byte for byte.
+          Measured on our laptop (Apple-silicon Mac): the download is about 1 GB; make data took about
+          2 minutes and reproduces the published files byte for byte.
         </p>
       </div>
     </section>

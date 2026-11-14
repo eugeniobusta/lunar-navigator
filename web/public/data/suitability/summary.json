@@ -1,0 +1,132 @@
+{
+ "version": 1,
+ "region_km2": 104184,
+ "pass_km2": 14928,
+ "pass_pct_of_region": 14.3,
+ "fail_pct_of_region": {
+  "landing_slope": 45.7,
+  "eva_slope": 5.5,
+  "sunlight": 55.6,
+  "earth": 49.3
+ },
+ "zones": 5297,
+ "zones_stay_window_ok": 4224,
+ "zones_1km2_or_more": 643,
+ "largest_zone_km2": 2191.997,
+ "top20_near_artemis": 1,
+ "top20_nearest_regions": [
+  "Malapert Massif"
+ ],
+ "artemis_near_km": 12.5,
+ "zones_near_artemis": 263,
+ "pass_km2_near_artemis": 878,
+ "signal_delay_s": {
+  "min": 1.19,
+  "max": 1.357,
+  "mean": 1.284
+ },
+ "psr_km2_in_region": 9616,
+ "temperature_available": true,
+ "region_pct_near_artemis": 3.3,
+ "pass_pct_near_artemis": 5.9,
+ "artemis": [
+  {
+   "id": "pcb03",
+   "name": "Peak near Cabeus B",
+   "passes_at_point": false,
+   "failed_limits": [
+    "latitude"
+   ],
+   "score_at_point": 76,
+   "zones_nearby": 0,
+   "best_zone_rank_nearby": null,
+   "best_zone_score_nearby": null
+  },
+  {
+   "id": "hw02",
+   "name": "Haworth",
+   "passes_at_point": true,
+   "failed_limits": [],
+   "score_at_point": 76,
+   "zones_nearby": 33,
+   "best_zone_rank_nearby": 22,
+   "best_zone_score_nearby": 66
+  },
+  {
+   "id": "mma01",
+   "name": "Malapert Massif",
+   "passes_at_point": true,
+   "failed_limits": [],
+   "score_at_point": 72,
+   "zones_nearby": 29,
+   "best_zone_rank_nearby": 13,
+   "best_zone_score_nearby": 69
+  },
+  {
+   "id": "mmp06",
+   "name": "Mons Mouton Plateau",
+   "passes_at_point": false,
+   "failed_limits": [
+    "sunlight"
+   ],
+   "score_at_point": 57,
+   "zones_nearby": 26,
+   "best_zone_rank_nearby": 96,
+   "best_zone_score_nearby": 60
+  },
+  {
+   "id": "mmo01",
+   "name": "Mons Mouton",
+   "passes_at_point": true,
+   "failed_limits": [],
+   "score_at_point": 84,
+   "zones_nearby": 44,
+   "best_zone_rank_nearby": 33,
+   "best_zone_score_nearby": 65
+  },
+  {
+   "id": "nr107",
+   "name": "Nobile Rim 1",
+   "passes_at_point": true,
+   "failed_limits": [],
+   "score_at_point": 75,
+   "zones_nearby": 30,
+   "best_zone_rank_nearby": 27,
+   "best_zone_score_nearby": 66
+  },
+  {
+   "id": "nr208",
+   "name": "Nobile Rim 2",
+   "passes_at_point": false,
+   "failed_limits": [
+    "latitude"
+   ],
+   "score_at_point": 65,
+   "zones_nearby": 19,
+   "best_zone_rank_nearby": 26,
+   "best_zone_score_nearby": 66
+  },
+  {
+   "id": "dgr203",
+   "name": "de Gerlache Rim 2",
+   "passes_at_point": true,
+   "failed_limits": [],
+   "score_at_point": 80,
+   "zones_nearby": 62,
+   "best_zone_rank_nearby": 21,
+   "best_zone_score_nearby": 67
+  },
+  {
+   "id": "sp07",
+   "name": "Slater Plain",
+   "passes_at_point": true,
+   "failed_limits": [],
+   "score_at_point": 65,
+   "zones_nearby": 39,
+   "best_zone_rank_nearby": 192,
+   "best_zone_score_nearby": 55
+  }
+ ],
+ "artemis_points_passing": 6,
+ "artemis_regions_with_a_zone": 8
+}

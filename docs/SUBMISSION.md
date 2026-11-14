@@ -5,7 +5,7 @@ pasting; the summary is 98 words.
 
 ## Project name
 
-Lunar Landing Site Navigator
+Claude's P.L.A.N: Lunar Landing Site Navigator
 
 ## High-level summary (under 100 words)
 
@@ -23,7 +23,10 @@ requirements, and lets you stand on the Moon in 3D or VR.
 
 ## Detailed project description
 
-**What it does.** The Lunar Landing Site Navigator answers the two questions a south-pole lander lives or dies by:
+**What it does.** Claude's P.L.A.N: Lunar Landing Site Navigator (P.L.A.N for Polar Lunar Augmented Navigation)
+has one site with two views, switched in the menu bar: Simple ("Explore a site" and "Plan a landing", in plain
+steps, for a first visit) and Detailed (one page per tool, listed below). Both use the same data, map and scoring.
+It answers the two questions a south-pole lander lives or dies by:
 will it have sunlight for power, and will it see Earth for a direct radio link?
 
 - **Overview.** Pick a landing site and a date. The whole horizon is unrolled into one chart with the real
@@ -33,7 +36,7 @@ will it have sunlight for power, and will it see Earth for a direct radio link?
 - **Window Finder.** Describe the mission and get every landing day that works. A 14-day mission at Malapert Massif
   (at least 70 % sunlight, 50 % Earth in view, no night longer than 48 hours) can land on 32 of the next 365 days,
   in 13 short clusters at most 3 days long.
-- **The landing map (home page).** Every 120 m square within 6 degrees of the pole is tested against NASA's
+- **Site Finder (the landing map).** Every 120 m square within 6 degrees of the pole is tested against NASA's
   Artemis III landing requirements, drawn over shaded relief with the craters named. 14.3 % of the ground passes
   all of them (14,928 of 104,184 km2), in 5,297 "Goldilocks zones", ranked by a 0 to 100 score. The map shows
   three classes: green good, amber acceptable, red poor; ground that fails a NASA limit is hatched red and says
@@ -81,11 +84,11 @@ A Meta Quest 3 for VR. Formulas are in docs/SCIENCE.md, the criteria in docs/cri
 | NASA data | How we used it |
 |-----------|----------------|
 | **LRO LOLA elevation map LDEM_75S_120M** (PDS Geosciences Node) | The terrain: the skyline around every site, slopes for the landing and walking limits, and the 3D ground. |
-| **NASA Goddard PGDA lunar polar illumination and Earth visibility maps** (product 69, AVGVISIB_75S_120M_201608) | The long-run sunlight and Earth-in-view layers of the landing map, the permanent shadows, and an independent check of our own model (within 3.5 and 4.3 percentage points). |
+| **NASA Goddard PGDA lunar polar illumination and Earth visibility maps** (product 69, AVGVISIB_75S_120M_201608) | The long-run sunlight and Earth-in-view layers of Site Finder, the permanent shadows, and an independent check of our own model (within 3.5 and 4.3 percentage points). |
 | **JPL DE421 ephemeris and NAIF lunar orientation and frame kernels** (de421.bsp, moon_pa_de421_1900-2050.bpc, moon_080317.tf, pck00008.tpc) | The position of the Sun and Earth as seen from the Moon, every hour from November 2026 to December 2029. |
 | **JPL Horizons API** | An independent check of those positions (largest difference 0.0007 degrees). |
 | **LRO Diviner Polar Resource Product** (PDS Geosciences Node) | Mean ground temperature and the depth at which water ice is stable, two of the soft criteria. |
-| **NASA "Artemis Human Landing System Update" (2024), NTRS 20240009596** | The six hard limits of the landing map: within 6 degrees of the pole, landing slope under 10 degrees, EVA slope under 20 degrees within 2 km, direct communication with Earth, lit for the surface stay, 100 m x 100 m accuracy. |
+| **NASA "Artemis Human Landing System Update" (2024), NTRS 20240009596** | The six hard limits of Site Finder: within 6 degrees of the pole, landing slope under 10 degrees, EVA slope under 20 degrees within 2 km, direct communication with Earth, lit for the surface stay, 100 m x 100 m accuracy. |
 | **NASA NSSDCA "Lunar Artifact Impacts and Landings"** | Positions and outcomes of the 41 lunar landing attempts in our lessons table. |
 | **NASA releases on the Artemis III candidate regions** (19 Aug 2022, 28 Oct 2024) | The 6.5-day stay and the names of the nine regions. |
 
@@ -136,6 +139,6 @@ Artemis coordinates. No AI-generated images, video or audio are in the project, 
   percentage points).
 - Every threshold in the landing criteria carries its source with a quotation; the ones we chose ourselves are
   marked "team choice".
-- Every change went through a pull request with automated tests: 56 Python tests, 143 browser-maths tests and 6
+- Every change went through a pull request with automated tests: 57 Python tests, 166 browser-maths tests and 11
   end-to-end browser tests.
-- The app, the README and the Data tab each state that the project was built with AI assistance.
+- The app, the README and the Data & Method page each state that the project was built with AI assistance.

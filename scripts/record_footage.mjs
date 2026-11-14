@@ -1,6 +1,6 @@
 // Records the two demo videos from the production build, 1920 x 1080, no visible cursor:
 //   media/vr-tour.webm  the guided tour of /xr/ on the laptop view, about 60 s
-//   media/web-30s.webm  30 s: Malapert Overview, Window Finder, Where to land, the VR
+//   media/web-30s.webm  30 s: Malapert Overview, Window Finder, Site Finder (the Detailed view), the VR
 //
 // Usage (from the repository root):
 //   make build && make xr && (cd web && npx vite preview --port 4179 --strictPort) &
@@ -88,8 +88,9 @@ const tour = ONLY === 'web' ? null : await clip(async (page, cut) => {
 // ------------------------------------------------------------------------------------------------ the website
 
 const web = ONLY === 'tour' ? null : await clip(async (page, cut) => {
-  await page.goto(`${BASE}/?site=${SITE}&date=${DATE}&tab=overview`);
-  await page.waitForSelector('nav.tabs');
+  // The Detailed view (one page per tool); the menu bar is Chinh's, with the pages in #pages.
+  await page.goto(`${BASE}/?view=detailed&site=${SITE}&date=${DATE}&tab=overview`);
+  await page.waitForSelector('#pages');
   await page.waitForSelector('.hero svg');
   await wait(page, 1.5);
   cut();
@@ -98,19 +99,19 @@ const web = ONLY === 'tour' ? null : await clip(async (page, cut) => {
   const y = bar.y + bar.height / 2;
   await wait(page, 0.8);
   await drag(page, bar.x + 8, y, bar.width * 0.45, 0, 3.2);
-  await scrollTo(page, 'nav.tabs');
+  await scrollTo(page, '.verdict', 96);
   await wait(page, 3.5);
-  // Window Finder
-  await page.click('nav.tabs button:has-text("Window Finder")');
+  // Window Finder: the search runs by itself; show the answer and the calendar
+  await page.click('#pages button:has-text("Window Finder")');
+  await page.waitForSelector('.window-head');
   await wait(page, 1.2);
-  await page.click('button:has-text("Find landing days")');
-  await wait(page, 0.8);
-  await scrollTo(page, 'nav.tabs');
+  await scrollTo(page, '.window-head', 96);
   await wait(page, 5.5);
-  // Where to land: the priorities, then the map and the ranking
-  await page.click('nav.tabs button:has-text("Where to land")');
+  // Site Finder: the traffic-light map, a preset, then the region at a glance and the ranking
+  await page.click('#pages button:has-text("Site Finder")');
+  await page.waitForSelector('.map-view canvas');
   await wait(page, 2.5);
-  await page.click('button:has-text("Power first")');
+  await page.click('#finder-side button:has-text("Power first")');
   await wait(page, 1.5);
   await page.evaluate(() => window.scrollBy({ top: 620, behavior: 'smooth' }));
   await wait(page, 3.5);

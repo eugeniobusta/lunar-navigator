@@ -116,6 +116,24 @@ def describe(rel, names):
     }[rel]
 
 
+def third_party():
+    """Pictures and textures that are not ours: the NASA photos of the website (docs/research/media_assets.json)
+    and the VR globe (xr/public/moon/moon.json). Credits only; the files are not part of the open data."""
+    media = json.loads((ROOT / "docs" / "research" / "media_assets.json").read_text())
+    moon = json.loads((ROOT / "xr" / "public" / "moon" / "moon.json").read_text())
+    return {"note": "Third-party pictures and textures used by the site, with their credits (docs/CREDITS.md). They "
+                    "keep their own terms and are not covered by our CC BY 4.0 licence.",
+            "nasa_media_terms": media["terms"],
+            "website_photos": [{"file": a["file"], "nasa_id": a["nasa_id"], "title": a["title"], "credit": a["credit"],
+                                "date": a["date"], "shown": a["where"],
+                                "source": f"https://images.nasa.gov/details/{a['nasa_id']}"} for a in media["assets"]],
+            "vr_textures": [{"files": "xr/public/moon/", "what": "The whole Moon: colour, relief and heights",
+                             "credit": moon["credit"], "source": moon["source"], "licence": moon["licence"]},
+                            {"files": "not in the repository yet", "what": "Earth texture (NASA Blue Marble) and Sun "
+                             "texture (NASA SDO), being added by the VR view", "credit": "to be recorded when added",
+                             "source": "", "licence": "unconfirmed"}]}
+
+
 def export_index():
     names = {s["id"]: s["name"] for s in json.loads((DATA / "sites.json").read_text())["sites"]}
     index = DATA / "index.json"
@@ -125,6 +143,7 @@ def export_index():
         files = [{"path": p.relative_to(DATA).as_posix(), "bytes": p.stat().st_size, "format": FORMATS[p.suffix],
                   "description": describe(p.relative_to(DATA).as_posix(), names)} for p in paths]
         doc = {"version": 1, "licence": "CC BY 4.0 (see DATA_LICENSE.md); NASA source data keeps its own terms",
+               "third_party": third_party(),
                "dictionary": "https://github.com/eugeniobusta/lunar-navigator/blob/main/docs/DATA_DICTIONARY.md",
                "files": files}
         index.write_text(json.dumps(doc, indent=1))

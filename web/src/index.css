@@ -1,4 +1,5 @@
 @import "./styles/tokens.css";
+@import "./styles/shell.css";
 
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--shadow); color: var(--bone); font: 16px/1.5 var(--font); font-variant-numeric: tabular-nums; }
@@ -10,14 +11,8 @@ a { color: var(--bone); text-decoration-color: var(--ash); text-underline-offset
 a:hover { text-decoration-color: var(--bone); }
 :focus-visible { outline: 2px solid var(--bone); outline-offset: 2px; }
 
-.app { max-width: 1760px; margin: 0 auto; padding: 16px 24px 40px; }
-main > .panel, .hero, .site-bar, .foot { max-width: 1240px; }
 .loading { padding: 40px; color: var(--ash); }
 
-.top { display: flex; flex-wrap: wrap; gap: 4px 32px; align-items: flex-end; justify-content: space-between; border-bottom: 1px solid var(--rim); }
-.brand { padding-bottom: 10px; }
-h1 { font-size: 1.25rem; }
-.brand p { margin: 2px 0 0; color: var(--ash); font-size: 0.875rem; max-width: 100ch; }
 
 .controls { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: flex-end; margin-bottom: var(--s4); }
 .field { display: flex; flex-direction: column; gap: 4px; font-size: 0.8125rem; color: var(--ash); }
@@ -40,7 +35,7 @@ button.primary:hover:not(:disabled), a.primary:hover { background: var(--cloud);
 .banner { margin: 16px 0 0; padding: 8px 12px; border: 1px solid var(--eclipse); border-radius: var(--r); background: var(--dust); font-size: 0.9375rem; }
 
 /* Hero: the skyline. */
-.hero { margin: 24px 0 0; }
+.hero { margin: 24px 0 8px; }
 .hero-head { display: flex; flex-wrap: wrap; gap: 12px 32px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
 .hero-head p { margin: 0; max-width: 70ch; font-size: 1.0625rem; }
 .hero-head strong { font-weight: 600; }
@@ -52,12 +47,16 @@ button.primary:hover:not(:disabled), a.primary:hover { background: var(--cloud);
 .sky .grid { stroke: var(--rim); stroke-width: 1; }
 .sky .grid.zero { stroke: var(--ash); stroke-dasharray: 3 5; stroke-opacity: 0.7; }
 .sky .terrain { fill: var(--regolith); }
-.sky .crest { fill: none; stroke: color-mix(in oklab, var(--regolith), var(--bone) 60%); stroke-width: 1.5; stroke-linejoin: round; }
-.sky .path { fill: none; stroke-width: 1.5; }
+.sky .crest { fill: none; stroke: color-mix(in oklab, var(--regolith), var(--bone) 60%); stroke-width: 0.75; stroke-linejoin: round; }
+.sky .path { fill: none; stroke-width: 0.6; }
 .sky .path.sun { stroke: var(--sunlight); stroke-opacity: 0.7; }
-.sky .path.earth { stroke: var(--earth); stroke-dasharray: 4 3; }
+.sky .path.earth { stroke: var(--earth); stroke-dasharray: 3 2; }
 .sky .sun-disc { fill: var(--sunlight); }
 .sky .earth-disc { fill: var(--earth); stroke: var(--cloud); stroke-width: 1.5; }
+.sky .earth-night { fill: #0B1626; }
+.sky .earth-day { fill: var(--earth); }
+.sky .star { fill: var(--bone); }
+.sky .rock-shadow { fill: #000; opacity: 0.45; }
 .sky .ghost { stroke: var(--shadow); stroke-width: 1.5; stroke-dasharray: 3 3; fill-opacity: 0.45; }
 .sky .ghost.sun { fill: var(--sunlight); }
 .sky .ghost.earth { fill: var(--earth); }
@@ -76,10 +75,6 @@ button.primary:hover:not(:disabled), a.primary:hover { background: var(--cloud);
 .scrub { display: flex; align-items: center; gap: 16px; margin-top: 10px; font-size: 0.875rem; color: var(--ash); }
 .scrub span { white-space: nowrap; min-width: 17ch; font-variant-numeric: tabular-nums; color: var(--bone); }
 
-.tabs { display: flex; gap: 4px; margin: 0 0 -1px; overflow-x: auto; scrollbar-width: thin; max-width: 100%; }
-.tab { flex: none; background: none; border: none; border-bottom: 2px solid transparent; border-radius: 0; padding: 10px 14px; color: var(--ash); white-space: nowrap; }
-.tab:hover:not(:disabled) { color: var(--bone); }
-.tab.on { color: var(--bone); border-bottom-color: var(--bone); font-weight: 600; }
 
 .panel { padding: 20px 0; }
 .lede { margin: 0 0 12px; max-width: 72ch; }
@@ -139,13 +134,9 @@ table.compare { border-collapse: collapse; margin-top: 20px; min-width: min(560p
 .soc .empty { fill: var(--eclipse); }
 
 /* ---- Landing map (home) ---- */
-.landing { padding: var(--s4) 0 0; }
-.landing-head h2 { font-size: 1.5rem; }
-.landing-head p { margin: var(--s2) 0 0; max-width: 110ch; color: var(--ash); }
-.landing-head strong { color: var(--bone); font-weight: 600; }
-.landing-body { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 0 var(--s5); margin-top: var(--s4); align-items: start; }
+.landing { padding: 0; }
 .map-col { min-width: 0; position: relative; }
-.map-view { position: relative; height: clamp(440px, calc(100vh - 345px), 980px); background: var(--void); overflow: hidden; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+.map-view { position: relative; height: clamp(440px, calc(100vh - 300px), 980px); background: var(--void); overflow: hidden; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
 .map-view:active { cursor: grabbing; }
 .map-view canvas, .map-view > svg { position: absolute; inset: 0; display: block; }
 .map-view > svg { pointer-events: none; }
@@ -204,13 +195,9 @@ li > .cls, .verdict-line > .cls { margin-right: 0; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
 /* The side panel: one quiet column, like a flight plan. Hierarchy from type, not boxes. */
-.side { border-left: 1px solid var(--rim); padding-left: var(--s5); min-width: 0; max-height: calc(clamp(440px, calc(100vh - 345px), 980px) + 110px); overflow-y: auto; scrollbar-width: thin; }
-.side-tabs { display: flex; gap: var(--s4); border-bottom: 1px solid var(--rim); margin-bottom: var(--s4); position: sticky; top: 0; background: var(--shadow); z-index: 1; }
-.side-tabs button { background: none; border: none; border-bottom: 2px solid transparent; border-radius: 0; padding: var(--s2) 0; color: var(--ash); }
-.side-tabs button.on { color: var(--bone); border-bottom-color: var(--bone); font-weight: 600; }
-.side h2 { font-size: 1.25rem; font-variant-numeric: tabular-nums; }
-.side h3 { font-size: 0.9375rem; margin: var(--s5) 0 var(--s2); color: var(--bone); }
-.side .sub, .side .meaning, .layers > p { margin: var(--s2) 0 0; color: var(--ash); font-size: 0.875rem; line-height: 1.4; }
+.land-side h2 { font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.land-side h3 { font-size: 0.9375rem; margin: var(--s5) 0 var(--s2); color: var(--bone); }
+.land-side .sub, .land-side .meaning, .layers > p { margin: var(--s2) 0 0; color: var(--ash); font-size: 0.875rem; line-height: 1.4; }
 .meaning { color: var(--ash); font-size: 0.8125rem; font-weight: 400; }
 .preset-row { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s4); align-items: baseline; }
 .panel > .preset-row { margin: 0 0 var(--s4); }
@@ -283,21 +270,13 @@ table.measure, table.ranked { width: 100%; border-collapse: collapse; font-size:
 .landing-more details[open] { padding-bottom: var(--s4); }
 .compare .unit { display: block; font-size: 0.8125rem; }
 button.link { background: none; border: none; padding: 0; color: var(--bone); text-decoration: underline; text-decoration-color: var(--ash); text-underline-offset: 3px; cursor: pointer; }
-.site-bar { display: flex; flex-wrap: wrap; gap: var(--s3); align-items: flex-end; margin-top: var(--s4); }
-.site-bar .back { margin-left: auto; padding-bottom: var(--s2); }
 
 @media (max-width: 980px) {
-  .landing-body { grid-template-columns: minmax(0, 1fr); }
   .map-view { height: clamp(340px, 62vh, 640px); }
-  .side { border-left: none; padding-left: 0; margin-top: var(--s4); max-height: none; overflow: visible; }
-  .side-tabs { position: static; }
-}
+    }
 .outcome { color: var(--eclipse); white-space: nowrap; }
 .outcome.ok { color: var(--lichen); }
-.why { margin-top: 24px; max-width: 86ch; }
-.why ul { margin: 8px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--rim); }
-.why li { padding: 8px 0; border-bottom: 1px solid var(--rim); color: var(--ash); }
-.why li strong { color: var(--bone); font-weight: 600; }
+.why { margin-top: 24px; }
 .why-verdict { font-weight: 600; }
 .why-verdict.good { color: var(--go); }
 .why-verdict.acceptable { color: var(--caution); }
@@ -312,18 +291,13 @@ button.link { background: none; border: none; padding: 0; color: var(--bone); te
 .compare.wide th:first-child { min-width: 11rem; }
 .prose pre { background: var(--dust); border: 1px solid var(--rim); padding: 12px 14px; border-radius: var(--r); white-space: pre-wrap; overflow-wrap: anywhere; }
 
-.foot { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--rim); color: var(--ash); font-size: 0.8125rem; max-width: 100ch; }
 
 @media (max-width: 640px) {
-  .app { padding: 16px 16px 32px; }
   .controls .field { flex: 1 1 140px; }
   .field input:not([type=checkbox]):not([type=range]), .field select { width: 100%; }
   .hero-head p { font-size: 1rem; }
   .vr-link { width: 100%; text-align: center; }
   .verdict { font-size: 1.1875rem; }
-  .tabs { margin-inline: -16px; padding-inline: 16px; max-width: none; }
-  .brand p { display: none; }
-  .site-bar .field { flex: 1 1 140px; }
   .cal-hint { display: block; }
 }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }

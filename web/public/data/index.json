@@ -1,6 +1,109 @@
 {
  "version": 1,
  "licence": "CC BY 4.0 (see DATA_LICENSE.md); NASA source data keeps its own terms",
+ "third_party": {
+  "note": "Third-party pictures and textures used by the site, with their credits (docs/CREDITS.md). They keep their own terms and are not covered by our CC BY 4.0 licence.",
+  "nasa_media_terms": "https://www.nasa.gov/nasa-brand-center/images-and-media/",
+  "website_photos": [
+   {
+    "file": "media/moon-gibbous.jpg",
+    "nasa_id": "GSFC_20171208_Archive_e001860",
+    "title": "Waning Gibbous (rendered from LRO LOLA terrain)",
+    "credit": "NASA Goddard",
+    "date": "2017-12-08",
+    "shown": "Homepage, the Moon in the first screen",
+    "source": "https://images.nasa.gov/details/GSFC_20171208_Archive_e001860"
+   },
+   {
+    "file": "media/apollo8-earthrise.jpg",
+    "nasa_id": "as08-14-2383",
+    "title": "Apollo 8 Mission image, Earth over the horizon of the moon (Earthrise)",
+    "credit": "NASA",
+    "date": "1968-12-24",
+    "shown": "Homepage, \"Stand at a site\" / \"Explore a site\"",
+    "source": "https://images.nasa.gov/details/as08-14-2383"
+   },
+   {
+    "file": "media/artemis2-lunar-day-shadows.jpg",
+    "nasa_id": "art002e009281",
+    "title": "Shadows at the Edge of Lunar Day",
+    "credit": "NASA, Artemis II crew",
+    "date": "2026-04-06",
+    "shown": "Homepage, Window Finder (Detailed view)",
+    "source": "https://images.nasa.gov/details/art002e009281"
+   },
+   {
+    "file": "media/artemis2-earthset.jpg",
+    "nasa_id": "art002e021278",
+    "title": "A Breathtaking Earthset from Orion",
+    "credit": "NASA, Artemis II crew",
+    "date": "2026-04-06",
+    "shown": "Homepage, Compare sites (Detailed view)",
+    "source": "https://images.nasa.gov/details/art002e021278"
+   },
+   {
+    "file": "media/artemis3-lighting-test.jpg",
+    "nasa_id": "CEB_1528",
+    "title": "NASA Engineers Simulate Lunar Lighting for Artemis III Moon Landing",
+    "credit": "NASA/Charles Beason",
+    "date": "2025-05-09",
+    "shown": "Homepage, Battery (Detailed view)",
+    "source": "https://images.nasa.gov/details/CEB_1528"
+   },
+   {
+    "file": "media/apollo15-rover.jpg",
+    "nasa_id": "as15-86-11603",
+    "title": "Astronaut James Irwin works at Lunar Roving Vehicle during Apollo 15 EVA",
+    "credit": "NASA",
+    "date": "1971-07-31",
+    "shown": "Homepage, 3D Moon (Detailed view)",
+    "source": "https://images.nasa.gov/details/as15-86-11603"
+   },
+   {
+    "file": "media/artemis2-moon-and-earth.jpg",
+    "nasa_id": "art002e009287",
+    "title": "A New View of the Moon",
+    "credit": "NASA, Artemis II crew",
+    "date": "2026-04-06",
+    "shown": "Homepage, \"Every number, yours to check\"",
+    "source": "https://images.nasa.gov/details/art002e009287"
+   },
+   {
+    "file": "media/earth-apollo17.jpg",
+    "nasa_id": "as17-148-22727",
+    "title": "View of the Earth seen by the Apollo 17 crew traveling toward the moon",
+    "credit": "NASA",
+    "date": "1972-12-07",
+    "shown": "Sky chart: Earth, drawn in its phase as seen from the Moon",
+    "source": "https://images.nasa.gov/details/as17-148-22727"
+   },
+   {
+    "file": "media/sun-sdo.jpg",
+    "nasa_id": "PIA26681",
+    "title": "Image of Sun From NASA's Solar Dynamics Observatory",
+    "credit": "NASA/GSFC/Solar Dynamics Observatory",
+    "date": "2025-09-15",
+    "shown": "Sky chart: the Sun",
+    "source": "https://images.nasa.gov/details/PIA26681"
+   }
+  ],
+  "vr_textures": [
+   {
+    "files": "xr/public/moon/",
+    "what": "The whole Moon: colour, relief and heights",
+    "credit": "NASA's Scientific Visualization Studio, CGI Moon Kit: LROC WAC colour (ASU), LOLA elevation (GSFC)",
+    "source": "https://svs.gsfc.nasa.gov/4720",
+    "licence": "public domain (NASA)"
+   },
+   {
+    "files": "not in the repository yet",
+    "what": "Earth texture (NASA Blue Marble) and Sun texture (NASA SDO), being added by the VR view",
+    "credit": "to be recorded when added",
+    "source": "",
+    "licence": "unconfirmed"
+   }
+  ]
+ },
  "dictionary": "https://github.com/eugeniobusta/lunar-navigator/blob/main/docs/DATA_DICTIONARY.md",
  "files": [
   {
@@ -143,7 +246,7 @@
   },
   {
    "path": "index.json",
-   "bytes": 45984,
+   "bytes": 49862,
    "format": "JSON",
    "description": "This list: every published file with its size, format and description."
   },

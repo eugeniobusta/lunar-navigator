@@ -1,5 +1,7 @@
 // Open data: what we use, what we publish, and how to rebuild it.
 import { useEffect, useState } from "react";
+import { HBars, type BarRow } from "../components/ui/Charts";
+import { parseCsv } from "../lib/data/csv";
 
 const REPO = "https://github.com/eugeniobusta/lunar-navigator";
 const BASE = `${import.meta.env.BASE_URL}data/`;
@@ -60,47 +62,95 @@ const SOURCES: Source[] = [
 ];
 
 interface FileEntry { path: string; bytes: number; format: string; description: string }
+/** Pictures and textures that are not ours (index.json `third_party`, docs/CREDITS.md). */
+interface ThirdParty {
+  nasa_media_terms: string;
+  website_photos: { file: string; nasa_id: string; title: string; credit: string; date: string; shown: string; source: string }[];
+  vr_textures: { files: string; what: string; credit: string; source: string; licence: string }[];
+}
 
 const fmtBytes = (b: number) => (b >= 1e6 ? `${(b / 1e6).toFixed(2)} MB` : `${(b / 1e3).toFixed(1)} kB`);
 
 export function Data() {
   const [files, setFiles] = useState<FileEntry[] | null>(null);
   const [failed, setFailed] = useState(false);
+  const [credits, setCredits] = useState<ThirdParty | null>(null);
   useEffect(() => {
     fetch(`${BASE}index.json`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((d: { files: FileEntry[] }) => setFiles(d.files))
+      .then((d: { files: FileEntry[]; third_party?: ThirdParty }) => { setFiles(d.files); setCredits(d.third_party ?? null); })
       .catch(() => setFailed(true));
   }, []);
+  // The reference tables that used to sit under Site Finder: the landing criteria and every past landing attempt.
+  const [criteria, setCriteria] = useState<Record<string, string>[]>([]);
+  const [missions, setMissions] = useState<Record<string, string>[]>([]);
+  useEffect(() => {
+    const text = (p: string) => fetch(BASE + p).then((r) => (r.ok ? r.text() : Promise.reject(new Error(p))));
+    text("criteria.csv").then((t) => setCriteria(parseCsv(t))).catch(() => {});
+    text("missions.csv").then((t) => setMissions(parseCsv(t))).catch(() => {});
+  }, []);
   const total = files?.reduce((a, f) => a + f.bytes, 0) ?? 0;
+  // What we publish, by folder: size and number of files.
+  const folders = new Map<string, { bytes: number; n: number }>();
+  for (const f of files ?? []) {
+    const top = f.path.includes("/") ? f.path.split("/")[0] : "tables and lists";
+    const e = folders.get(top) ?? { bytes: 0, n: 0 };
+    folders.set(top, { bytes: e.bytes + f.bytes, n: e.n + 1 });
+  }
+  const folderBars: BarRow[] = [...folders.entries()].sort((a, b) => b[1].bytes - a[1].bytes).map(([k, v]) => ({
+    key: k, label: k, note: `${v.n} file${v.n === 1 ? "" : "s"}`, value: v.bytes, text: fmtBytes(v.bytes), colour: "var(--bone)" }));
 
   return (
     <section className="panel">
-      <div className="prose">
-        <h2>Open data</h2>
-        <p>
-          Everything here is built from open NASA and JPL data, and everything we compute from it is published
-          for anyone to download, check and reuse.
-        </p>
-        <h3>Open data we use</h3>
+      <p className="lede">
+        Everything here is built from open NASA and JPL data, and everything we compute from it is published
+        for anyone to download, check and reuse.
+      </p>
+      <h3>Open data we use</h3>
+      <div className="source-cards">
+        {SOURCES.map((s) => (
+          <article key={s.name} className="card source">
+            <h4><a href={s.url}>{s.name}</a></h4>
+            <p>{s.what}</p>
+            <p><span className="label">We use it for</span>{s.use}{s.also ? <> <a href={s.also[1]}>{s.also[0]}</a>.</> : null}</p>
+            <p className="note"><span className="label">Terms</span>{s.terms} <a href={s.termsUrl}>Terms page</a></p>
+          </article>
+        ))}
       </div>
-      <div className="table-scroll">
-        <table className="compare wide">
-          <thead>
-            <tr><th>Dataset</th><th>What it is</th><th>What we use it for</th><th>Licence or usage terms</th></tr>
-          </thead>
-          <tbody>
-            {SOURCES.map((s) => (
-              <tr key={s.name}>
-                <th><a href={s.url}>{s.name}</a></th>
-                <td>{s.what}</td>
-                <td>{s.use}{s.also ? <> <a href={s.also[1]}>{s.also[0]}</a>.</> : null}</td>
-                <td>{s.terms} <a href={s.termsUrl}>Terms page</a></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+
+      {credits && (
+        <details className="fold" open>
+          <summary>Pictures and textures: every credit</summary>
+          <p className="note">
+            The photographs on the homepage and in the sky chart are NASA images, used as NASA's media guidelines
+            allow: in a factual way, credited, with no NASA logo and no implied endorsement
+            (<a href={credits.nasa_media_terms}>NASA: Images and Media</a>). They keep their own terms and are not part of
+            our CC BY 4.0 data. The full list, with fonts and libraries, is <a href={`${REPO}/blob/main/docs/CREDITS.md`}>docs/CREDITS.md</a>.
+          </p>
+          <div className="table-scroll">
+            <table className="compare wide">
+              <thead><tr><th>Picture</th><th>Where it is shown</th><th>NASA ID</th><th>Date</th><th>Credit</th></tr></thead>
+              <tbody>
+                {credits.website_photos.map((a) => (
+                  <tr key={a.file}>
+                    <th>{a.title}</th><td>{a.shown}</td><td><a href={a.source}>{a.nasa_id}</a></td><td>{a.date}</td><td>{a.credit}</td>
+                  </tr>
+                ))}
+                {credits.vr_textures.map((t) => (
+                  <tr key={t.what}>
+                    <th>{t.what}</th><td>3D / VR view</td><td>{t.source ? <a href={t.source}>NASA SVS CGI Moon Kit</a> : "not added yet"}</td><td /><td>{t.credit}{t.licence === "unconfirmed" ? " (unconfirmed)" : ""}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="note">
+            The shaded relief under the landing map and the south-pole map on the homepage are our own drawings from NASA's LOLA
+            elevation map. The rock texture and boulders in the sky chart are illustration. Fonts: Barlow and Barlow Semi
+            Condensed, SIL Open Font License 1.1.
+          </p>
+        </details>
+      )}
 
       <div className="prose">
         <h3>Open data we publish</h3>
@@ -118,6 +168,14 @@ export function Data() {
       {failed && <p className="note">The file list could not be loaded. The files are in web/public/data/ in the repository.</p>}
       {!files && !failed && <p className="note">Loading the file list…</p>}
       {files && (
+        <div className="card data-glance">
+          <h3>{files.length} files, {fmtBytes(total)}, by folder</h3>
+          <HBars rows={folderBars} max={Math.max(1, ...folderBars.map((r) => r.value))} label="Published data by folder" />
+        </div>
+      )}
+      {files && (
+        <details className="fold">
+          <summary>Every file, one by one ({files.length})</summary>
         <div className="table-scroll">
           <table className="compare wide">
             <caption className="note">{files.length} files, {fmtBytes(total)} in total.</caption>
@@ -136,6 +194,46 @@ export function Data() {
             </tbody>
           </table>
         </div>
+        </details>
+      )}
+
+      {criteria.length > 0 && (
+        <details className="fold">
+          <summary>The landing criteria, with sources</summary>
+          <div className="table-scroll">
+            <table className="compare wide">
+              <thead><tr><th>What</th><th>Good</th><th>Acceptable</th><th>Rejected</th><th>Why it matters</th></tr></thead>
+              <tbody>
+                {criteria.map((c) => (
+                  <tr key={`${c.parameter} ${c.kind}`}>
+                    <th>{c.parameter}{c.kind === "hard" ? " (hard limit)" : c.kind === "reported" ? " (reported only)" : ""}<span className="unit">{c.unit}</span></th>
+                    <td>{c.ideal}</td><td>{c.acceptable}</td><td>{c.reject}</td><td>{c.reason}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      )}
+      {missions.length > 0 && (
+        <details className="fold">
+          <summary>What past landings teach ({missions.length} attempts)</summary>
+          <div className="table-scroll">
+            <table className="compare wide">
+              <thead><tr><th>Mission</th><th>Date</th><th>Outcome</th><th>Lesson</th></tr></thead>
+              <tbody>
+                {[...missions].reverse().map((m) => (
+                  <tr key={m.id}>
+                    <th><a href={m.source_url}>{m.name}</a></th>
+                    <td>{m.landing_date_utc}</td>
+                    <td className={m.outcome === "landed" ? "outcome ok" : "outcome"}>{m.outcome}</td>
+                    <td>{m.lesson}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
       )}
 
       <div className="prose">
@@ -150,7 +248,7 @@ export function Data() {
           Every number here comes from code we ran, not from a model's memory. Sun and Earth positions are checked
           against JPL Horizons, and long-run sunlight and Earth visibility against NASA's PGDA maps: the differences
           are in <a href={`${BASE}validation/jpl.csv`}>jpl.csv</a> and <a href={`${BASE}validation/pgda.csv`}>pgda.csv</a> and
-          on the Method tab. Thresholds we chose ourselves are marked "team choice" in{" "}
+          under How it works. Thresholds we chose ourselves are marked "team choice" in{" "}
           <a href={`${BASE}criteria.csv`}>criteria.csv</a>.
         </p>
         <h3>Rebuild it yourself</h3>

@@ -3,9 +3,9 @@
    eclipse = dark, no power, no link; lichen = survives, OK. Everything else is lunar ground. */
 :root {
   --void: #000000;      /* sky areas only */
-  --shadow: #191612;    /* page */
-  --dust: #24201B;      /* panels */
-  --rim: #3B352D;       /* lines */
+  --shadow: #0C0B0A;    /* page: near-black, as in the homepage */
+  --dust: #1A1814;      /* panels */
+  --rim: #34302A;       /* lines */
   --regolith: #A39888;  /* terrain */
   --bone: #EFE8DC;      /* text */
   --ash: #A89F92;       /* secondary text */
@@ -35,6 +35,8 @@
   --font: "Barlow", system-ui, sans-serif;
   --font-head: "Barlow Semi Condensed", "Barlow", system-ui, sans-serif;
   --r: 4px;
+  --nav-h: 72px;        /* height of the top menu bar */
+  --page-max: 1240px;
   --gap: 16px;
   /* Spacing scale */
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px;

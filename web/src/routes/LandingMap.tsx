@@ -1,19 +1,23 @@
-// The home page: the map of the lunar south pole within 6° of the pole, coloured green / amber / red for what is
-// ticked, over shaded relief. One side panel holds the layers, the best zones and the spot that was clicked.
+// Site Finder (this file keeps the name LandingMap.tsx: the VR view's tests read its legend wording): the map of the lunar south pole within 6° of the pole, coloured green / amber / red for what is
+// ticked, over shaded relief, inside Chinh's page: a sidebar with the choices that folds away, the chosen spot
+// beside the map with its score big, then the region at a glance, the ten best zones and the "Why here?" checklist.
+// `simple` is the same map and the same scoring for "Plan a landing": presets only, one combined map, the checklist.
 // All classes and scores come from web/src/lib/analysis/ (rag.ts, suitability.ts, explain.ts); this file only
 // loads the published files, keeps the choices and lays the page out.
 // Data: web/public/data/suitability/ and basemap/ (docs/INTERFACES.md sections 10 to 12).
 import { useEffect, useMemo, useState } from "react";
+import { Donut, HBars, Histogram, type BarRow } from "../components/ui/Charts";
+import { WhyHere } from "../components/ui/WhyHere";
 import { explainFor, TERM_OF, valuesFromRow, type CriterionRow, type PointValues } from "../lib/analysis/explain";
 import { cellAt, latLonToXY, xyToLatLon } from "../lib/analysis/factors";
 import type { PaintStyle, RGB } from "../lib/analysis/paint";
 import {
-  NO_DATA, byteText, cellValues, classGrid, classRanges, classifyByte, classifyCell, classifyScore, classifyValue,
+  BOUNDS, NO_DATA, byteText, cellValues, classGrid, classRanges, classifyByte, classifyCell, classifyScore, classifyValue,
   legend as legendOf, mapMode, RAG_WORD, type Rag,
 } from "../lib/analysis/rag";
 import {
   EVERYTHING, LAYER_KEYS, TERM_KEYS, countedTerms, flippedTerms, mapScore, parameter, presetSelection, rankAmong,
-  rankZonesFor, sameSelection, selectionWeights, zoneScore, type LayerKey, type Preset, type Selection, type TermKey,
+  rankZonesFor, sameSelection, selectionWeights, subscore, zoneScore, type LayerKey, type Preset, type Selection, type TermKey,
   type ZoneInput,
 } from "../lib/analysis/suitability";
 import { parseCsv } from "../lib/data/csv";
@@ -34,7 +38,7 @@ interface WeightsFile {
 interface Summary {
   region_km2: number; pass_km2: number; pass_pct_of_region: number; zones: number; top20_near_artemis: number;
   artemis_near_km: number; signal_delay_s: { min: number; max: number }; artemis_points_passing: number;
-  artemis_regions_with_a_zone: number;
+  artemis_regions_with_a_zone: number; fail_pct_of_region: Record<string, number>;
 }
 interface Feature { name: string; lat: number; lon: number; rank: string; url: string }
 interface Basemap { images: { file: string; half_width_m: number }[] }
@@ -53,7 +57,10 @@ function zoneValues(zone: Row, extra: Row): PointValues {
 }
 const VALUE_KEY = Object.fromEntries((Object.keys(TERM_OF) as (keyof PointValues)[]).filter((k) => TERM_OF[k]).map((k) => [TERM_OF[k], k])) as Record<TermKey, keyof PointValues>;
 
-export function LandingMap() {
+/** The place chosen on the map, for the pages that go on from it (Plan a landing: landing days, battery). */
+export interface Place { lat: number; lon: number; name: string; key: string; nearestSiteId: string | null; nearestRegion: string }
+
+export function SiteFinder({ simple = false, onPlace }: { simple?: boolean; onPlace?: (p: Place) => void } = {}) {
   const sites = useStore((s) => s.sites);
   const landPreset = useStore((s) => s.landPreset);
   const landSelection = useStore((s) => s.landSelection);
@@ -81,12 +88,10 @@ export function LandingMap() {
   const [solo, setSolo] = useState<LayerKey | null>(null);
   const [opacity, setOpacityState] = useState<Record<string, number>>({ combined: 1, limits: 1 });
   const [colourBlind, setColourBlind] = useState(false);
-  const [panel, setPanel] = useState<"layers" | "zones" | "spot">("layers");
+  // The choices: open on a wide screen until a spot is chosen, then folded away (a button brings them back).
+  const [side, setSide] = useState(() => !simple && typeof window !== "undefined" && window.innerWidth > 900);
   const [focus, setFocus] = useState<{ x: number; y: number; k: number; nonce: number } | null>(null);
   const [tokens, setTokens] = useState(0); // bumps once the stylesheet's colours can be read
-  // A spot that arrives from a link, or is still selected on coming back to the map, opens its panel.
-  const hasSpot = mapSpot !== null;
-  useEffect(() => { if (hasSpot) setPanel("spot"); }, [hasSpot]);
 
   useEffect(() => {
     const text = (p: string) => fetch(BASE + p).then((r) => (r.ok ? r.text() : Promise.reject(new Error(p))));
@@ -168,8 +173,10 @@ export function LandingMap() {
   const missionMarks = useMemo<PlaceMark[]>(() => missions.filter((m) => m.lat !== "" && +m.lat < -80).map((m) => { const [x, y] = km(+m.lat, +m.lon); return { id: m.id, name: m.name, x, y, ok: m.outcome === "landed" }; }), [missions]);
   const featureMarks = useMemo<FeatureMark[]>(() => features.map((f) => { const [x, y] = km(f.lat, f.lon); return { name: f.name, x, y, major: f.rank === "major" }; }), [features]);
 
-  // The clicked spot: a grid cell, and the zone whose best cell it is, if any.
-  const spotCell = mapSpot ? cellAt(...latLonToXY(mapSpot[0], mapSpot[1])) : -1;
+  // The spot the panel is about: the one clicked, or the best zone for the ticks until something is clicked.
+  const bestRow0 = best ? zones[best.id - 1] : undefined;
+  const shownSpot = useMemo<[number, number] | null>(() => mapSpot ?? (bestRow0 && counted.length ? [+bestRow0.lat, +bestRow0.lon] : null), [mapSpot, bestRow0, counted.length]);
+  const spotCell = shownSpot ? cellAt(...latLonToXY(shownSpot[0], shownSpot[1])) : -1;
   // A spot in the map cell that holds a zone's best 120 m square is that zone (the best-ranked one, if several).
   const zoneOfCell = useMemo(() => {
     const m = new Map<number, number>();
@@ -178,8 +185,8 @@ export function LandingMap() {
   }, [zones]);
   const spotZone = spotCell >= 0 ? zoneOfCell.get(spotCell) ?? null : null;
   const spot = useMemo<Spot | null>(() => {
-    if (!mapSpot || spotCell < 0 || !layers || !limits || !config || limits[spotCell] === NO_DATA) return null;
-    const [lat, lon] = mapSpot;
+    if (!shownSpot || spotCell < 0 || !layers || !limits || !config || limits[spotCell] === NO_DATA) return null;
+    const [lat, lon] = shownSpot;
     const q = layers.map((l) => l[spotCell]), bits = limits[spotCell];
     const cell = classifyCell(q, bits, selection);
     let nearest: Spot["nearest"] = null;
@@ -217,19 +224,19 @@ export function LandingMap() {
       uncertainty: [base[0], "Values are read back from the map layers: exact to 0.4 % of each parameter's range, and shown as a range at either end.",
         "The longest night and the longest time without Earth come from our hour-by-hour model. They are computed at zone centres and listed sites, not at every point, so they are not part of this spot's score.",
         ...base.slice(1)] };
-  }, [mapSpot, spotCell, spotZone, layers, limits, config, selection, counted, flips, zones, zoneLayers, liveOf, criteria, sites]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [shownSpot, spotCell, spotZone, layers, limits, config, selection, counted, flips, zones, zoneLayers, liveOf, criteria, sites]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pickAt = (xKm: number, yKm: number) => {
     const cell = cellAt(xKm * 1000, yKm * 1000);
     if (cell < 0 || !limits || limits[cell] === NO_DATA) return;
     const [lat, lon] = xyToLatLon(xKm * 1000, yKm * 1000);
     setMapSpot([+lat.toFixed(4), +lon.toFixed(4)]);
-    setPanel("spot");
+    setSide(false);
   };
   const pickZone = (id: number, fly = false) => {
     const z = zones[id - 1];
     setMapSpot([+z.lat, +z.lon]);
-    setPanel("spot");
+    setSide(false);
     if (fly) { const [x, y] = km(+z.lat, +z.lon); setFocus({ x, y, k: 3, nonce: Date.now() }); }
   };
   const describe = (xKm: number, yKm: number): string | null => {
@@ -258,6 +265,15 @@ export function LandingMap() {
     return points.map((pt, i) => ({ pt, cells: columns.map((c) => c[i]) }));
   }, [config, zoneInputs, points, selection, flips]);
 
+  // Tell the page around us which place is chosen (Plan a landing searches landing days there).
+  const placeKey = spot ? `${spot.lat},${spot.lon}` : "";
+  useEffect(() => {
+    if (!onPlace || !spot) return;
+    const zoneRow = spot.zone ? zones[spot.zone.id - 1] : null;
+    onPlace({ lat: spot.lat, lon: spot.lon, key: placeKey, name: spot.zone ? `zone ${spot.zone.id}` : "your spot",
+      nearestSiteId: spot.nearest?.site.id ?? null, nearestRegion: zoneRow?.nearest_artemis_region ?? spot.nearest?.site.name ?? "" });
+  }, [placeKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (failed) return <section className="panel"><p className="note">The suitability files could not be loaded. They are in web/public/data/suitability/ in the repository.</p></section>;
   if (!summary || !config || !best) return <section className="panel"><p className="note">Loading the landing map…</p></section>;
 
@@ -268,157 +284,285 @@ export function LandingMap() {
     : "NASA safety limits only";
   const bestRow = zones[best.id - 1];
   const bestRag = zoneRag(best.id, best.score);
-  const spotXY = mapSpot ? km(mapSpot[0], mapSpot[1]) : null;
+  const spotXY = shownSpot ? km(shownSpot[0], shownSpot[1]) : null;
   const goSite = (tab: "overview" | "windows") => { if (spot?.nearest) { setSite(spot.nearest.site.id); setTab(tab); window.scrollTo({ top: 0 }); } };
-
-  return (
-    <section className={colourBlind ? "landing cb" : "landing"}>
-      <div className="landing-head">
-        <h2>Where can a lander touch down at the Moon's south pole?</h2>
-        <p>
-          <strong>{summary.pass_pct_of_region}% of the ground within 6° of the pole passes every NASA Artemis III limit.</strong>{" "}
-          {colourBlind ? "Yellow is good, grey acceptable, dark blue poor for what you tick; hatched is unsafe." : "Green is good, amber acceptable, red poor for what you tick; hatched red is unsafe."}{" "}
-          {counted.length > 0 && <>Best zone now: <button className="link" onClick={() => pickZone(best.id, true)}>zone {best.id}</button>, score {best.score} ({RAG_WORD[bestRag].toLowerCase()}), at {(-bestRow.lat).toFixed(2)}° S, {Math.abs(+bestRow.lon).toFixed(2)}° {+bestRow.lon < 0 ? "W" : "E"}.</>}
+  const ragColour = (r: Rag) => `var(${r === "green" ? "--go" : r === "amber" ? "--caution" : r === "red" ? "--stop" : "--nodata"})`;
+  const unsafe = !!spot && spot.failed.length > 0;
+  const zoneRow = spot?.zone ? zones[spot.zone.id - 1] : null;
+  // The chosen spot, parameter by parameter: 0 at the reject bound, 100 at the ideal; unticked ones are faint.
+  const spotBars: BarRow[] = spot && spotCell >= 0 && layers ? TERM_KEYS.filter((k) => (LAYER_KEYS as readonly string[]).includes(k) || zoneRow).map((k) => {
+    const li = (LAYER_KEYS as readonly string[]).indexOf(k), m = spot.measurements.find((x) => x.key === k);
+    const zl = spot.zone ? zoneLayers[spot.zone.id - 1] : null;
+    let v = li >= 0 ? (zl ? +zl[k] : layers[li][spotCell]) / 255 : subscore(k === "darkness" ? +zoneRow!.longest_dark_h : +zoneRow!.longest_no_earth_h, BOUNDS[k].reject, BOUNDS[k].ideal);
+    if (flips.includes(k)) v = 1 - v;
+    const pct = Math.round(v * 100);
+    return { key: k, label: labelOf(k), value: pct, text: `${pct}`, colour: ragColour(m?.rag ?? "grey"), faint: !counted.includes(k) };
+  }) : [];
+  // Why ground fails, as a share of the whole region; one square can fail several limits.
+  const failNames: Record<string, string> = { landing_slope: "Slope of 10° or more", eva_slope: "Too little walkable ground", sunlight: "Too little sunlight", earth: "Earth in view too rarely" };
+  const failBars: BarRow[] = Object.entries(summary.fail_pct_of_region).sort((a, b) => b[1] - a[1])
+    .map(([k, v]) => ({ key: k, label: failNames[k] ?? k, value: v, text: `${v} %`, colour: "var(--stop)" }));
+  const answer = (
+    <p className="answer" role="status">
+      <strong>{summary.pass_pct_of_region}% of the ground within 6° of the pole passes every NASA Artemis III limit.</strong>{" "}
+      {colourBlind ? `Yellow is good, grey acceptable, dark blue poor for what you ${simple ? "choose" : "tick"}; hatched is unsafe.` : `Green is good, amber acceptable, red poor for what you ${simple ? "choose" : "tick"}; hatched red is unsafe.`}{" "}
+      {counted.length > 0 && <>Best zone now: <button className="link" onClick={() => pickZone(best.id, true)}>zone {best.id}</button>, score {best.score} ({RAG_WORD[bestRag].toLowerCase()}), at {(-bestRow.lat).toFixed(2)}° S, {Math.abs(+bestRow.lon).toFixed(2)}° {+bestRow.lon < 0 ? "W" : "E"}.</>}
+    </p>
+  );
+  const map = (
+    <div className="map-col">
+      <MapView relief={relief.near} reliefWide={relief.wide} wideHalfKm={relief.wideHalfKm} codes={codes} style={style}
+        zones={zoneMarks} selectedZone={spotZone} onZone={(id) => pickZone(id)} artemis={artemisMarks} missions={missionMarks}
+        features={featureMarks} pick={spotXY} onPick={pickAt} describe={describe} focus={focus}
+        label="Map of the lunar south pole within 6 degrees of the pole, coloured by landing suitability. Drag to move, scroll or pinch to zoom, click a spot for its numbers." />
+      {!codes && <p className="map-loading" role="status">Loading the map layers…</p>}
+      <div className="map-legend" aria-label="Legend">
+        <p className="legend-title">On the map: <strong>{what}</strong>
+          {soloOn && <button className="link" onClick={() => setSolo(null)}>Back to the combined map</button>}
+        </p>
+        <ul>
+          {mode.kind !== "limits" ? (
+            <>
+              <li><span className={cls("green")} />{colourBlind ? "Yellow" : "Green"}, good: {lg.green}</li>
+              <li><span className={cls("amber")} />{colourBlind ? "Grey" : "Amber"}, acceptable: {lg.amber}</li>
+              <li><span className={cls("red")} />{colourBlind ? "Dark blue" : "Red"}, poor: {lg.red}</li>
+            </>
+          ) : <li>Clear ground passes every NASA limit. Tick a parameter to score it.</li>}
+          <li><span className="cls unsafe" />Hatched: unsafe, fails a NASA limit</li>
+          <li><span className="cls grey" />{colourBlind ? "Black" : "Grey"}: no data</li>
+          <li>Beyond the 84° S circle: more than 6° from the pole, outside NASA's limit</li>
+          <li><span className="key-mark zone" />Best zones (rank)</li>
+          <li><span className="key-mark artemis" />Artemis candidate</li>
+          <li><span className="key-mark mission" />Past landing</li>
+        </ul>
+        <p className="legend-foot">
+          <label className="check"><input type="checkbox" checked={colourBlind} onChange={(e) => setColourBlind(e.target.checked)} /><span>Colour-blind palette</span></label>
+          <span>Relief: shading of NASA's LOLA elevation map, not real sunlight. Names: IAU Gazetteer of Planetary Nomenclature.</span>
         </p>
       </div>
+    </div>
+  );
+  /** The headline of the chosen spot, in Chinh's style: the score big, in the colour of its class. */
+  const headline = spot && (
+    <>
+      <h3 className="spot-title">{spot.zone ? `Rank ${spot.zone.rank.toLocaleString("en-GB")}: zone ${spot.zone.id}` : "Your spot"}{!mapSpot && spot.zone ? " (the best for your choice)" : ""}</h3>
+      <div className={`score-big ${unsafe ? "unsafe" : spot.rag}`}>
+        <b>{spot.score ?? "–"}</b>
+        <span>{spot.score === null ? "nothing ticked" : unsafe ? "of 100 if it were safe" : "of 100 for your choice"}</span>
+      </div>
+    </>
+  );
+  const whyList = spot ? spot.why : [];
 
-      <div className="landing-body">
-        <div className="map-col">
-          <MapView relief={relief.near} reliefWide={relief.wide} wideHalfKm={relief.wideHalfKm} codes={codes} style={style}
-            zones={zoneMarks} selectedZone={spotZone} onZone={(id) => pickZone(id)} artemis={artemisMarks} missions={missionMarks}
-            features={featureMarks} pick={spotXY} onPick={pickAt} describe={describe} focus={focus}
-            label="Map of the lunar south pole within 6 degrees of the pole, coloured by landing suitability. Drag to move, scroll or pinch to zoom, click a spot for its numbers." />
-          {!codes && <p className="map-loading" role="status">Loading the map layers…</p>}
-          <div className="map-legend" aria-label="Legend">
-            <p className="legend-title">On the map: <strong>{what}</strong>
-              {soloOn && <button className="link" onClick={() => setSolo(null)}>Back to the combined map</button>}
-            </p>
-            <ul>
-              {mode.kind !== "limits" ? (
-                <>
-                  <li><span className={cls("green")} />{colourBlind ? "Yellow" : "Green"}, good: {lg.green}</li>
-                  <li><span className={cls("amber")} />{colourBlind ? "Grey" : "Amber"}, acceptable: {lg.amber}</li>
-                  <li><span className={cls("red")} />{colourBlind ? "Dark blue" : "Red"}, poor: {lg.red}</li>
-                </>
-              ) : <li>Clear ground passes every NASA limit. Tick a parameter to score it.</li>}
-              <li><span className="cls unsafe" />Hatched: unsafe, fails a NASA limit</li>
-              <li><span className="cls grey" />{colourBlind ? "Black" : "Grey"}: no data</li>
-              <li>Beyond the 84° S circle: more than 6° from the pole, outside NASA's limit</li>
-              <li><span className="key-mark zone" />Best zones (rank)</li>
-              <li><span className="key-mark artemis" />Artemis candidate</li>
-              <li><span className="key-mark mission" />Past landing</li>
-            </ul>
-            <p className="legend-foot">
-              <label className="check"><input type="checkbox" checked={colourBlind} onChange={(e) => setColourBlind(e.target.checked)} /><span>Colour-blind palette</span></label>
-              <span>Relief: shading of NASA's LOLA elevation map, not real sunlight. Names: IAU Gazetteer of Planetary Nomenclature.</span>
-            </p>
+  if (simple) {
+    return (
+      <section className={colourBlind ? "panel finder-page landing cb simple" : "panel finder-page landing simple"}>
+        <div className="presets big" role="group" aria-label="What matters most for your mission">
+          {config.presets.map((p) => {
+            const on = sameSelection(presetSelection(p), selection);
+            return <button key={p.key} className={on ? "chip on" : "chip"} aria-pressed={on} onClick={() => setLandChoice(p.key, null)}>{p.label}</button>;
+          })}
+        </div>
+        {answer}
+        <div className="land">
+          {map}
+          <div className="land-side">
+            {spot ? (
+              <>
+                {headline}
+                <p className={`verdict-line ${unsafe ? "unsafe" : spot.rag}`}>
+                  <span className={`cls ${unsafe ? "unsafe" : spot.rag}`} aria-hidden="true" />
+                  <strong>{unsafe ? "Unsafe" : RAG_WORD[spot.rag]}</strong>
+                  <span className="score">{Math.abs(spot.lat).toFixed(3)}° S, {Math.abs(spot.lon).toFixed(3)}° {spot.lon < 0 ? "W" : "E"}</span>
+                </p>
+                {unsafe
+                  ? <p className="fails">Fails {spot.failed.length === 1 ? "a NASA limit" : `${spot.failed.length} NASA limits`}: {spot.failed.join("; ")}. Ground that fails a limit is ruled out whatever it scores.</p>
+                  : <p className="note">Passes every NASA safety limit.{spot.zone ? ` ${spot.zone.stay}` : ""}</p>}
+                <div className="step-actions two">
+                  <button className="btn-outline small" onClick={() => goSite("overview")} disabled={!spot.nearest}>See its sky</button>
+                  {spot.nearest && <a className="btn-outline small" href={xrUrl(spot.nearest.site.id, nowMs, false, [spot.lat, spot.lon])}>Stand here in VR</a>}
+                </div>
+                {spot.nearest && <p className="note">The sky is modelled at listed sites. Nearest: {spot.nearest.site.name}, {spot.nearest.km < 1 ? "at this spot" : `${spot.nearest.km.toFixed(0)} km away`}.</p>}
+              </>
+            ) : <p className="note">Click anywhere on the map, or a numbered circle, to check that spot.</p>}
           </div>
         </div>
+        {spot && <WhyHere title={`Why here? ${spot.zone ? `Zone ${spot.zone.id}` : "Your spot"} against what matters for this mission`} list={whyList} />}
+      </section>
+    );
+  }
 
-        <aside className="side" aria-label="Layers, best zones and the selected spot">
-          <div className="side-tabs" role="group" aria-label="Side panel">
-            {([["layers", "Layers"], ["zones", "Best zones"], ["spot", "Selected spot"]] as const).map(([k, name]) => (
-              <button key={k} aria-pressed={panel === k} className={panel === k ? "on" : undefined} onClick={() => setPanel(k)}>{name}</button>
-            ))}
+  const sideToggle = (
+    <button type="button" className={side ? "side-toggle on" : "side-toggle"} aria-expanded={side} aria-controls="finder-side"
+      aria-label="What matters for your mission?" onClick={() => setSide(!side)}>
+      <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+        <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" fill="none" stroke="currentColor" strokeWidth="1.6" />
+        <path d="M9.5 4.5v15" stroke="currentColor" strokeWidth="1.6" />
+      </svg>
+      <span>What matters?</span>
+    </button>
+  );
+
+  return (
+    <section className={colourBlind ? "panel finder-page landing cb" : "panel finder-page landing"}>
+      <div className={side ? "finder" : "finder closed"}>
+        <aside id="finder-side" className="finder-side" hidden={!side} aria-label="What matters for your mission?">
+          <div className="side-head">
+            <h2>What matters for your mission?</h2>
+            <button type="button" className="side-close" aria-label="Hide the choices" onClick={() => setSide(false)}>
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </button>
           </div>
-          {panel === "layers" && (
-            <LayerPanel presets={config.presets} selection={selection} choose={choose} choosePreset={(key) => setLandChoice(key, null)}
-              labelOf={labelOf} solo={soloOn} setSolo={setSolo} opacity={opacity} setOpacity={setOpacity} showing={showing} />
-          )}
-          {panel === "zones" && (
-            <div className="zones-list">
-              {counted.length === 0 ? <p className="sub">Nothing is ticked, so nothing is ranked. The map shows where the NASA limits pass: {zones.length.toLocaleString("en-GB")} zones.</p> : (
-                <>
-                  <p className="sub">The ten best of {zones.length.toLocaleString("en-GB")} zones for what you ticked. A zone is a connected area where every NASA limit passes; zones whose 6.5-day stay our model confirms come first.</p>
-                  <table className="ranked">
-                    <thead><tr><th>Rank</th><th>Zone</th><th>Where</th><th>Score</th><th>Area</th></tr></thead>
-                    <tbody>
-                      {ranked.slice(0, 10).map((r) => { const z = zones[r.id - 1], rag = zoneRag(r.id, r.score); return (
-                        <tr key={r.id} className={r.id === spotZone ? "on" : undefined}>
-                          <td>{r.rank}</td>
-                          <th><button className="link" onClick={() => pickZone(r.id, true)} aria-label={`Zone ${r.id}`}>{r.id}</button></th>
-                          <td>{(-z.lat).toFixed(2)}° S, {Math.abs(+z.lon).toFixed(2)}° {+z.lon < 0 ? "W" : "E"}</td>
-                          <td><span className={cls(rag === "grey" ? "amber" : rag)} aria-hidden="true" />{r.score} <span className="sr">{RAG_WORD[rag]}</span></td>
-                          <td>{(+z.area_km2).toFixed(+z.area_km2 < 10 ? 2 : 0)} km²</td>
-                        </tr>
-                      ); })}
-                    </tbody>
-                  </table>
-                </>
-              )}
-            </div>
-          )}
-          {panel === "spot" && (
-            <SpotPanel spot={spot} nothingTicked={counted.length === 0} sites={sites} onSky={() => goSite("overview")} onWindows={() => goSite("windows")}
-              onCompare={(other) => { if (spot?.nearest) { setSite(spot.nearest.site.id); setCompare(other); setTab("compare"); window.scrollTo({ top: 0 }); } }}
-              xrHref={spot?.nearest ? xrUrl(spot.nearest.site.id, nowMs, false, [spot.lat, spot.lon]) : null} />
-          )}
+          <LayerPanel presets={config.presets} selection={selection} choose={choose} choosePreset={(key) => setLandChoice(key, null)}
+            labelOf={labelOf} solo={soloOn} setSolo={setSolo} opacity={opacity} setOpacity={setOpacity} showing={showing} />
         </aside>
+
+        <div className="finder-main">
+          <div className="finder-bar">
+            {!side && sideToggle}
+            {answer}
+          </div>
+          <div className="land">
+            {map}
+            <div className="land-side">
+              {spot ? (
+                <>
+                  {headline}
+                  {zoneRow && (
+                    <div className="tiles">
+                      <div><b className="sun">{(+zoneRow.sun_pct).toFixed(0)}%</b><span>Sunlight, long-run</span></div>
+                      <div><b className="earth">{(+zoneRow.earth_pct).toFixed(0)}%</b><span>Earth in view</span></div>
+                      <div><b>{days(+zoneRow.longest_dark_h)}</b><span>Longest darkness</span></div>
+                      <div><b>{zoneRow.landing_slope_deg}°</b><span>Landing slope</span></div>
+                    </div>
+                  )}
+                  <h4 className="mini-title">Parameter by parameter (0 to 100)</h4>
+                  <HBars rows={spotBars} label="The chosen spot, each parameter scored 0 to 100" />
+                  <SpotPanel spot={spot} nothingTicked={counted.length === 0} sites={sites} onSky={() => goSite("overview")} onWindows={() => goSite("windows")}
+                    onCompare={(other) => { if (spot?.nearest) { setSite(spot.nearest.site.id); setCompare(other); setTab("compare"); window.scrollTo({ top: 0 }); } }}
+                    xrHref={spot?.nearest ? xrUrl(spot.nearest.site.id, nowMs, false, [spot.lat, spot.lon]) : null} />
+                </>
+              ) : <SpotPanel spot={null} nothingTicked={counted.length === 0} sites={sites} onSky={() => undefined} onWindows={() => undefined} onCompare={() => undefined} xrHref={null} />}
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="landing-more">
-        <details>
-          <summary>Where the nine Artemis candidate points rank</summary>
-          <p className="note">
-            Not as our top picks: {summary.top20_near_artemis} of our top 20 zones under NASA-style balance {summary.top20_near_artemis === 1 ? "lies" : "lie"} inside
-            or within 5 km of an Artemis candidate region. But {summary.artemis_points_passing} of the 9 candidate points pass every limit where
-            they stand, and {summary.artemis_regions_with_a_zone} of the 9 have a passing zone within {summary.artemis_near_km} km. We rank single
-            120 m squares; the Artemis regions are about 15 km across and were also chosen for science goals and launch windows.
-            Below: each point scored like a zone and placed among the {config.confirmed_zones.toLocaleString("en-GB")} zones with a
-            confirmed 6.5-day window: rank, then score in brackets.
-          </p>
-          <div className="table-scroll">
-            <table className="compare wide">
-              <thead><tr><th>Artemis point</th>{config.presets.map((p) => <th key={p.key}>{p.label}</th>)}<th>Your ticks</th></tr></thead>
+      <section className="glance" aria-label="The south pole at a glance">
+        <div className="card">
+          <h3>How much ground passes</h3>
+          <Donut label={`${summary.pass_pct_of_region}% of the ground within 6° of the pole passes every NASA limit`}
+            centre={`${summary.pass_pct_of_region}%`} sub="passes"
+            parts={[
+              { label: "Passes every NASA limit", value: summary.pass_km2, colour: "var(--bone)", detail: `${summary.pass_km2.toLocaleString("en-GB")} km²` },
+              { label: "Fails at least one (hatched)", value: summary.region_km2 - summary.pass_km2, colour: "var(--stop)",
+                detail: `${(summary.region_km2 - summary.pass_km2).toLocaleString("en-GB")} km²` },
+            ]} />
+        </div>
+        <div className="card">
+          <h3>Why the rest fails</h3>
+          <HBars rows={failBars} label="Share of the ground that fails each NASA limit" />
+          <p className="note">Share of all the ground within 6° of the pole. One square can fail more than one limit.</p>
+        </div>
+        <div className="card">
+          <h3>Zone scores for your choice</h3>
+          {counted.length ? (
+            <>
+              <Histogram values={ranked.map((r) => r.score)} mark={best.score} colour={ragColour(bestRag)}
+                label={`How the ${zones.length} zones score for your choice; the best scores ${best.score}`} />
+              <p className="note">{zones.length.toLocaleString("en-GB")} zones by score; the brighter bar holds the best, zone {best.id} ({best.score}). Green starts at 70, amber at 40.</p>
+            </>
+          ) : <p className="note">Tick something to score the zones.</p>}
+        </div>
+      </section>
+
+      {counted.length > 0 ? (
+        <>
+          <h3 className="section-title">The ten best for your choice</h3>
+          <p className="note">A zone is a connected area where every NASA limit passes; zones whose 6.5-day stay our model confirms come first.</p>
+          <div className="table-scroll zones-list">
+            <table className="compare wide ranked">
+              <thead><tr><th>Rank</th><th>Zone</th><th>Where</th><th>Score</th><th>Area</th><th>Nearest Artemis region</th></tr></thead>
               <tbody>
-                {artemisRanks.map(({ pt: a, cells }) => (
-                  <tr key={a.id}>
-                    <th>{a.name}{a.passes_hard_limits === "no" ? <span className="unit">fails: {a.failed_limits.replace("latitude", "more than 6° from the pole").replace("sunlight", "too little sunlight")}</span> : null}</th>
-                    {cells.map((c, i) => <td key={i}>{c.rank.toLocaleString("en-GB")} ({c.score})</td>)}
+                {ranked.slice(0, 10).map((r) => { const z = zones[r.id - 1], rag = zoneRag(r.id, r.score); return (
+                  <tr key={r.id} className={r.id === spotZone ? "on" : undefined}>
+                    <td>{r.rank}</td>
+                    <th><button className="link" onClick={() => pickZone(r.id, true)} aria-label={`Zone ${r.id}`}>{r.id}</button></th>
+                    <td>{(-z.lat).toFixed(2)}° S, {Math.abs(+z.lon).toFixed(2)}° {+z.lon < 0 ? "W" : "E"}</td>
+                    <td><span className="bar" aria-hidden="true"><span style={{ width: `${r.score}%`, background: ragColour(rag) }} /></span> {r.score} <span className="sr">{RAG_WORD[rag]}</span></td>
+                    <td>{(+z.area_km2).toFixed(+z.area_km2 < 10 ? 2 : 0)} km²</td>
+                    <td>{z.nearest_artemis_region}, {z.nearest_artemis_km} km</td>
                   </tr>
-                ))}
+                ); })}
               </tbody>
             </table>
           </div>
-        </details>
-        <details>
-          <summary>The criteria: what is good, acceptable and rejected, and why</summary>
-          <div className="table-scroll">
-            <table className="compare wide">
-              <thead><tr><th>What</th><th>Good</th><th>Acceptable</th><th>Rejected</th><th>Why it matters</th></tr></thead>
-              <tbody>
-                {criteria.map((c) => (
-                  <tr key={`${c.parameter} ${c.kind}`}>
-                    <th>{c.parameter}{c.kind === "hard" ? " (NASA limit)" : c.kind === "reported" ? " (reported only)" : ""}<span className="unit">{c.unit}</span></th>
-                    <td>{c.ideal}</td><td>{c.acceptable}</td><td>{c.reject}</td><td>{c.reason}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="note">
-            Several parameters together: the weighted score, then green from 70, amber from 40, red below ({classRanges("sunlight").green} is green for sunlight alone, and so on for each).
-            Sources for every threshold are in the criteria files on the Data page. A radio signal takes {summary.signal_delay_s.min.toFixed(2)} to{" "}
-            {summary.signal_delay_s.max.toFixed(2)} seconds to cross from the Moon to Earth, the same from every site, so the delay does not help choose between them.
-          </p>
-        </details>
-        <details>
-          <summary>What past landings teach</summary>
-          <div className="table-scroll">
-            <table className="compare wide">
-              <thead><tr><th>Mission</th><th>Date</th><th>Outcome</th><th>Lesson</th></tr></thead>
-              <tbody>
-                {[...missions].reverse().map((m) => (
-                  <tr key={m.id}>
-                    <th><a href={m.source_url}>{m.name}</a></th><td>{m.landing_date_utc}</td>
-                    <td className={m.outcome === "landed" ? "outcome ok" : "outcome"}>{m.outcome}</td><td>{m.lesson}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </details>
-      </div>
+        </>
+      ) : <p className="note zones-list">Nothing is ticked, so nothing is ranked. The map shows where the NASA limits pass: {zones.length.toLocaleString("en-GB")} zones.</p>}
+
+      {spot && <WhyHere title={`Why here? ${spot.zone ? `Zone ${spot.zone.id}` : "Your spot"} against what you ticked`} list={whyList} />}
+
+      <details className="fold">
+        <summary>Where the nine Artemis candidate points rank</summary>
+        <p className="note">
+          Not as our top picks: {summary.top20_near_artemis} of our top 20 zones under NASA-style balance {summary.top20_near_artemis === 1 ? "lies" : "lie"} inside
+          or within 5 km of an Artemis candidate region. But {summary.artemis_points_passing} of the 9 candidate points pass every limit where
+          they stand, and {summary.artemis_regions_with_a_zone} of the 9 have a passing zone within {summary.artemis_near_km} km. We rank single
+          120 m squares; the Artemis regions are about 15 km across and were also chosen for science goals and launch windows.
+          Below: each point scored like a zone and placed among the {config.confirmed_zones.toLocaleString("en-GB")} zones with a
+          confirmed 6.5-day window: rank, then score in brackets.
+        </p>
+        <div className="table-scroll">
+          <table className="compare wide">
+            <thead><tr><th>Artemis point</th>{config.presets.map((p) => <th key={p.key}>{p.label}</th>)}<th>Your ticks</th></tr></thead>
+            <tbody>
+              {artemisRanks.map(({ pt: a, cells }) => (
+                <tr key={a.id}>
+                  <th>{a.name}{a.passes_hard_limits === "no" ? <span className="unit">fails: {a.failed_limits.replace("latitude", "more than 6° from the pole").replace("sunlight", "too little sunlight")}</span> : null}</th>
+                  {cells.map((c, i) => <td key={i}>{c.rank.toLocaleString("en-GB")} ({c.score})</td>)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </details>
+      <details className="fold">
+        <summary>The criteria: what is good, acceptable and rejected, and why</summary>
+        <div className="table-scroll">
+          <table className="compare wide">
+            <thead><tr><th>What</th><th>Good</th><th>Acceptable</th><th>Rejected</th><th>Why it matters</th></tr></thead>
+            <tbody>
+              {criteria.map((c) => (
+                <tr key={`${c.parameter} ${c.kind}`}>
+                  <th>{c.parameter}{c.kind === "hard" ? " (NASA limit)" : c.kind === "reported" ? " (reported only)" : ""}<span className="unit">{c.unit}</span></th>
+                  <td>{c.ideal}</td><td>{c.acceptable}</td><td>{c.reject}</td><td>{c.reason}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="note">
+          Several parameters together: the weighted score, then green from 70, amber from 40, red below ({classRanges("sunlight").green} is green for sunlight alone, and so on for each).
+          Sources for every threshold are in the criteria files on the Data &amp; Method page. A radio signal takes {summary.signal_delay_s.min.toFixed(2)} to{" "}
+          {summary.signal_delay_s.max.toFixed(2)} seconds to cross from the Moon to Earth, the same from every site, so the delay does not help choose between them.
+        </p>
+      </details>
+      <details className="fold">
+        <summary>What past landings teach</summary>
+        <div className="table-scroll">
+          <table className="compare wide">
+            <thead><tr><th>Mission</th><th>Date</th><th>Outcome</th><th>Lesson</th></tr></thead>
+            <tbody>
+              {[...missions].reverse().map((m) => (
+                <tr key={m.id}>
+                  <th><a href={m.source_url}>{m.name}</a></th><td>{m.landing_date_utc}</td>
+                  <td className={m.outcome === "landed" ? "outcome ok" : "outcome"}>{m.outcome}</td><td>{m.lesson}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </details>
     </section>
   );
 }

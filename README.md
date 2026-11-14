@@ -1,35 +1,50 @@
-# Lunar Landing Site Navigator
+# Claude's P.L.A.N: Lunar Landing Site Navigator
 
 At the Moon's south pole the Sun never climbs more than a few degrees, so one ridge decides whether a lander has
 power and whether it can see Earth to call home. This tool shows, for real terrain and any date from November 2026
 to December 2029, when a landing site has sunlight and a radio link, and where the good sites are.
-Built by team **Claude's Plan** at HackAthlone 2026 for the NASA Space Apps Challenge "Lunar Landing Site Navigator".
+Claude's P.L.A.N stands for Polar Lunar Augmented Navigation. Built by team **Claude's Plan** at HackAthlone 2026
+for the NASA Space Apps Challenge "Lunar Landing Site Navigator".
 
 **Live: https://claudes-plan-lunar-navigator.vercel.app** · 3D / VR: https://claudes-plan-lunar-navigator.vercel.app/xr/
 
-## The 3-minute tour
+## One site, two views
+
+A switch in the menu bar chooses between them; the link carries it (`view=simple` or `view=detailed`) and the
+browser remembers it. Both use the same data, the same map and the same scoring.
+
+- **Simple** (the default): the homepage, [Explore a site](https://claudes-plan-lunar-navigator.vercel.app/?view=simple&site=mma01&date=2027-01-09&days=14&tab=explore)
+  and [Plan a landing](https://claudes-plan-lunar-navigator.vercel.app/?view=simple&tab=plan), each in plain numbered steps. For a first visit and a two-minute pitch.
+- **Detailed**: the homepage and one page per tool: Overview, Site Finder, Window Finder, Compare sites, Battery.
+- In both: 3D Moon and Data & Method.
+
+## The 3-minute tour (Detailed view)
 
 Each link opens the app in exactly that state.
 
-1. **Ask where to land.** [The map](https://claudes-plan-lunar-navigator.vercel.app/?tab=map) is the home page:
-   every 120 m square within 6° of the pole, tested against NASA's Artemis III landing requirements, over shaded
-   relief with the craters named. 14.3 % of the ground passes, in 5,297 zones. Green is good, amber acceptable,
-   red poor for what you tick; hatched red is unsafe and says which limit fails. Tick a group or a single
-   parameter, or pick "Power first", "Radio link" or "Ice science": the classes and the ranking follow. One
-   parameter by itself reads in real units, as [sunlight alone](https://claudes-plan-lunar-navigator.vercel.app/?tab=map&pick=sunlight).
-2. **Click a spot.** [The best zone for everything](https://claudes-plan-lunar-navigator.vercel.app/?tab=map&spot=-84.01724,23.42232):
-   its measurements, what is good and what is weak there, how sure the numbers are, and four next steps.
-3. **See its sky.** [Malapert Massif, January 2027](https://claudes-plan-lunar-navigator.vercel.app/?site=mma01&date=2027-01-09&days=14&tab=overview).
+1. **Ask where to land.** [Site Finder](https://claudes-plan-lunar-navigator.vercel.app/?view=detailed&tab=map): every 120 m square within 6° of the pole,
+   tested against NASA's Artemis III landing requirements, over shaded relief with the craters named. 14.3 % of
+   the ground passes, in 5,297 zones. Green is good, amber acceptable, red poor for what you tick; hatched red
+   is unsafe and says which limit fails. Tick a group or a single parameter in the sidebar, or pick "Power
+   first", "Radio link" or "Ice science": the classes and the ranking follow. One parameter by itself reads in
+   real units, as [sunlight alone](https://claudes-plan-lunar-navigator.vercel.app/?view=detailed&tab=map&pick=sunlight).
+2. **Click a spot.** [The best zone for everything](https://claudes-plan-lunar-navigator.vercel.app/?view=detailed&tab=map&spot=-84.01724,23.42232):
+   its score, its measurements, what is good and what is weak there, the "Why here?" checklist, how sure the
+   numbers are, and four next steps.
+3. **See its sky.** [Malapert Massif, January 2027](https://claudes-plan-lunar-navigator.vercel.app/?view=detailed&site=mma01&date=2027-01-09&days=14&tab=overview).
    The chart is the whole horizon unrolled, with the real skyline. Drag the time slider: the Sun skims the ridges
    and Earth bobs in the north. One sentence says what it means: sunlight 51 % of the time, Earth always in view.
-4. **Slip the launch.** [Nobile Rim 1 against Malapert](https://claudes-plan-lunar-navigator.vercel.app/?site=nr107&compare=mma01&date=2027-01-09T22:00Z&days=10&tab=compare).
-   A 10-day stay at Nobile Rim 1 has 100 % sunlight. Drag "Launch slip" to +14 days: it falls to 12.5 %.
-5. **Ask when to land.** [Window Finder](https://claudes-plan-lunar-navigator.vercel.app/?site=mma01&date=2026-11-14&days=14&tab=windows),
-   then "Find landing days". A 14-day mission at Malapert works on 32 days of the next 12 months, three days a month.
-6. **Stand on the Moon.** [3D / VR](https://claudes-plan-lunar-navigator.vercel.app/xr/): the same data as a
-   place you can stand in, on a laptop or a Meta Quest 3.
-7. **Check us.** The [Data page](https://claudes-plan-lunar-navigator.vercel.app/?tab=data) lists every source with
-   its terms and every file we publish; the Method page shows our numbers against JPL's and NASA's.
+4. **Slip the launch.** [Nobile Rim 1 against Malapert](https://claudes-plan-lunar-navigator.vercel.app/?view=detailed&site=nr107&compare=mma01&date=2027-01-09T22:00Z&days=10&tab=compare).
+   A 10-day stay at Nobile Rim 1 has 100 % sunlight. Drag "Launch slip" to +14 days: it falls to 12.5 %. Below,
+   the two are judged as landing sites by the map's own rules.
+5. **Ask when to land.** [Window Finder](https://claudes-plan-lunar-navigator.vercel.app/?view=detailed&site=mma01&date=2026-11-14&days=14&tab=windows).
+   A 14-day mission at Malapert works on 32 days of the next 12 months, three days a month.
+6. **Stand on the Moon.** [3D / VR](https://claudes-plan-lunar-navigator.vercel.app/xr/): the same data as a place you can stand in, on a laptop or a
+   Meta Quest 3.
+7. **Check us.** [Data & Method](https://claudes-plan-lunar-navigator.vercel.app/?view=detailed&tab=data) lists every source with its terms, every picture
+   with its credit and every file we publish; "How it works" shows our numbers against JPL's and NASA's.
+
+The two-minute version is the Simple view: [the homepage](https://claudes-plan-lunar-navigator.vercel.app/?view=simple), Explore a site, Plan a landing.
 
 ## How it works
 
@@ -39,7 +54,7 @@ Each link opens the app in exactly that state.
    directions, up to 150 km, and keep the highest angle the terrain reaches, allowing for the Moon's curvature.
 3. **Lit, in contact, or neither.** The Sun or Earth is "up" when its centre is above that skyline. Everything
    else (percentages, longest night, landing windows, battery charge) is counting hours.
-4. **Where to land.** Six hard limits from NASA's Artemis III requirements (within 6° of the pole, landing slope
+4. **Site Finder.** Six hard limits from NASA's Artemis III requirements (within 6° of the pole, landing slope
    under 10°, walkable ground within 2 km, Earth in view, lit for the stay, a 100 m box) and a 0 to 100 score for
    the rest, shown as green (70 or more), amber (40 to 69) or red. What counts is yours to tick. Every threshold has
    a source or is marked "team choice":
@@ -62,7 +77,8 @@ One page for non-scientists: [docs/CHEATSHEET.md](docs/CHEATSHEET.md).
 | Names and positions of craters and mountains | IAU Gazetteer of Planetary Nomenclature (USGS) | Labels on the map |
 | Lunar landing attempts, 1965 to 2025 | NASA NSSDCA and mission sources | Lessons table |
 
-Each provider's terms are quoted in [DATA_LICENSE.md](DATA_LICENSE.md) and on the Data tab. Everything we compute
+Each provider's terms are quoted in [DATA_LICENSE.md](DATA_LICENSE.md) and on the Data & Method page. Every
+third-party picture, texture, font and library is in [docs/CREDITS.md](docs/CREDITS.md). Everything we compute
 is published in `web/public/data/` (listed in `index.json`, described in [docs/DATA_DICTIONARY.md](docs/DATA_DICTIONARY.md))
 under CC BY 4.0; the code is MIT.
 
@@ -98,7 +114,7 @@ The 3D / VR view: `make xr-dev` ([docs/XR.md](docs/XR.md)). Team workflow: [docs
 
 ## Team: Claude's Plan
 
-Eugenio Busta (lead, integration) · Kien (science) · Chinh (algorithms, site map) · Rahan (app, shareable links) ·
+Eugenio Busta (lead, integration) · Kien (science) · Chinh (algorithms, site map, website design) · Rahan (app, shareable links) ·
 Ahmed Diallo (power, 3D / VR concept) · Luke (story and pitch)
 
 ## Use of AI

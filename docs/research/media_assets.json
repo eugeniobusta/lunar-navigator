@@ -1,0 +1,79 @@
+{
+ "note": "Third-party pictures used on the website. Each NASA ID was looked up in the NASA Image and Video Library (images-api.nasa.gov) on 14 Nov 2026 and found with this title and date.",
+ "library": "https://images.nasa.gov",
+ "terms": "https://www.nasa.gov/nasa-brand-center/images-and-media/",
+ "assets": [
+  {
+   "file": "media/moon-gibbous.jpg",
+   "where": "Homepage, the Moon in the first screen",
+   "nasa_id": "GSFC_20171208_Archive_e001860",
+   "title": "Waning Gibbous (rendered from LRO LOLA terrain)",
+   "credit": "NASA Goddard",
+   "date": "2017-12-08"
+  },
+  {
+   "file": "media/apollo8-earthrise.jpg",
+   "where": "Homepage, \"Stand at a site\" / \"Explore a site\"",
+   "nasa_id": "as08-14-2383",
+   "title": "Apollo 8 Mission image, Earth over the horizon of the moon (Earthrise)",
+   "credit": "NASA",
+   "date": "1968-12-24"
+  },
+  {
+   "file": "media/artemis2-lunar-day-shadows.jpg",
+   "where": "Homepage, Window Finder (Detailed view)",
+   "nasa_id": "art002e009281",
+   "title": "Shadows at the Edge of Lunar Day",
+   "credit": "NASA, Artemis II crew",
+   "date": "2026-04-06"
+  },
+  {
+   "file": "media/artemis2-earthset.jpg",
+   "where": "Homepage, Compare sites (Detailed view)",
+   "nasa_id": "art002e021278",
+   "title": "A Breathtaking Earthset from Orion",
+   "credit": "NASA, Artemis II crew",
+   "date": "2026-04-06"
+  },
+  {
+   "file": "media/artemis3-lighting-test.jpg",
+   "where": "Homepage, Battery (Detailed view)",
+   "nasa_id": "CEB_1528",
+   "title": "NASA Engineers Simulate Lunar Lighting for Artemis III Moon Landing",
+   "credit": "NASA/Charles Beason",
+   "date": "2025-05-09"
+  },
+  {
+   "file": "media/apollo15-rover.jpg",
+   "where": "Homepage, 3D Moon (Detailed view)",
+   "nasa_id": "as15-86-11603",
+   "title": "Astronaut James Irwin works at Lunar Roving Vehicle during Apollo 15 EVA",
+   "credit": "NASA",
+   "date": "1971-07-31"
+  },
+  {
+   "file": "media/artemis2-moon-and-earth.jpg",
+   "where": "Homepage, \"Every number, yours to check\"",
+   "nasa_id": "art002e009287",
+   "title": "A New View of the Moon",
+   "credit": "NASA, Artemis II crew",
+   "date": "2026-04-06"
+  },
+  {
+   "file": "media/earth-apollo17.jpg",
+   "where": "Sky chart: Earth, drawn in its phase as seen from the Moon",
+   "nasa_id": "as17-148-22727",
+   "title": "View of the Earth seen by the Apollo 17 crew traveling toward the moon",
+   "credit": "NASA",
+   "date": "1972-12-07"
+  },
+  {
+   "file": "media/sun-sdo.jpg",
+   "where": "Sky chart: the Sun",
+   "nasa_id": "PIA26681",
+   "title": "Image of Sun From NASA's Solar Dynamics Observatory",
+   "credit": "NASA/GSFC/Solar Dynamics Observatory",
+   "date": "2025-09-15"
+  }
+ ]
+}

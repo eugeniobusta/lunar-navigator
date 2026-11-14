@@ -1,5 +1,6 @@
 // usage (from web/): node e2e/tools/qa-live.mjs https://claudes-plan-lunar-navigator.vercel.app public/data /tmp/qa.json
-// End-to-end QA of the map-first site (docs/REFINEMENT_BRIEF.md sections 7 and 8). Every figure the page shows for a
+// End-to-end QA of the site in both views (docs/REFINEMENT_BRIEF.md sections 7 and 8). The map checks run in
+// Site Finder (Detailed) and the same scoring is checked again in Plan a landing (Simple). Every figure the page shows for a
 // spot, a zone or a site is recomputed here from the published files with this script's own arithmetic.
 import { chromium } from "@playwright/test";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -30,7 +31,7 @@ const browser = await chromium.launch();
 // This network drops connections now and then: every navigation is retried.
 const go = async (page, url, opts) => { for (let t = 0; ; t++) { try { return await page.goto(url, opts); } catch (e) { if (t >= 5) throw e; await new Promise((r) => setTimeout(r, 2000)); } } };
 
-for (const [label, width, height] of [["1440x900", 1440, 900], ["390x844", 390, 844]]) {
+for (const [label, width, height] of [["1440x900", 1440, 900], ["1920x1080", 1920, 1080], ["1280x800", 1280, 800], ["390x844", 390, 844]]) {
   const ctx = await browser.newContext({ viewport: { width, height } });
   const page = await ctx.newPage();
   const errors = [];
@@ -40,9 +41,9 @@ for (const [label, width, height] of [["1440x900", 1440, 900], ["390x844", 390, 
 
   // 1. Launch: fresh load, time until the map layers are painted.
   const t0 = Date.now();
-  await open("/");
+  await open("/?tab=map");
   const loadMs = Date.now() - t0;
-  ok(`${label} launch: map is home and loads`, (await page.getByRole("tab", { name: "Map", exact: true }).getAttribute("aria-selected")) === "true", `${loadMs} ms to painted layers`);
+  ok(`${label} launch: Site Finder loads with its map`, (await page.locator("#pages .tab.on").innerText()).toLowerCase() === "site finder", `${loadMs} ms to painted layers`);
   report[`load_ms_${label}`] = loadMs;
   // 2. Correct region and geography.
   const mapText = await page.locator(".map-view").innerText();
@@ -55,7 +56,7 @@ for (const [label, width, height] of [["1440x900", 1440, 900], ["390x844", 390, 
   const sites = JSON.parse(text("sites.json")).sites;
   const mm = sites.find((s) => s.id === "mma01");
   await page.getByRole("button", { name: "Artemis candidate: Malapert Massif" }).click();
-  const head = await page.locator(".spot h2").innerText();
+  const head = await page.locator(".spot-coord").innerText();
   const m = head.match(/([\d.]+)° S, ([\d.]+)° ([EW])/);
   const lat = -m[1], lon = m[3] === "W" ? -m[2] : +m[2];
   ok(`${label} marker to data: Malapert Massif`, Math.abs(lat - mm.lat) < 0.002 && Math.abs(lon - mm.lon) < 0.01, `${head} vs ${mm.lat}, ${mm.lon}`);
@@ -64,7 +65,7 @@ for (const [label, width, height] of [["1440x900", 1440, 900], ["390x844", 390, 
   const scale = await page.locator(".map-scale").evaluate((el) => ({ km: parseFloat(el.innerText), px: el.querySelector("span").getBoundingClientRect().width }));
   const box = await page.locator(".map-view").boundingBox();
   await page.mouse.click(box.x + box.width / 2 + 40, box.y + box.height / 2);
-  const h2 = (await page.locator(".spot h2").innerText()).match(/([\d.]+)° S, ([\d.]+)° ([EW])/);
+  const h2 = (await page.locator(".spot-coord").innerText()).match(/([\d.]+)° S, ([\d.]+)° ([EW])/);
   const kmRight = 40 * (scale.km / scale.px), expectLat = -90 + (2 * Math.atan((kmRight * 1000) / (2 * R)) * 180) / Math.PI;
   ok(`${label} click to data: 40 px right of the pole`, Math.abs(-h2[1] - expectLat) < 0.03 && Math.abs(+h2[2] - 90) < 3 && h2[3] === "E", `${h2[0]} vs ${expectLat.toFixed(3)}, 90 E`);
 
@@ -77,8 +78,8 @@ for (const [label, width, height] of [["1440x900", 1440, 900], ["390x844", 390, 
       await open(`/?tab=map&spot=${la},${lo}`);
       const c = cellOf(la, lo), q = KEYS.map((_, k) => layers[k][c]), bits = limits[c];
       const isZone = zoneCell.has(c);
-      const verdict = (await page.locator(".verdict-line").innerText()).replace(/\s+/g, " ");
-      const shown = +(verdict.match(/score (\d+)/) ?? [])[1];
+      const verdict = (await page.locator(".verdict-line").innerText()).replace(/\s+/g, " ").trim();
+      const shown = +(await page.locator(".score-big b").innerText());
       const w = preset("everything");
       const zi = isZone ? zoneCell.get(c) : -1;
       const want = isZone ? zoneScore(mapScore(KEYS.map((k) => +zl[zi][k]), w), +zones[zi].longest_dark_h, +zones[zi].longest_no_earth_h, w) : mapScore(q, w);
@@ -115,8 +116,8 @@ for (const [label, width, height] of [["1440x900", 1440, 900], ["390x844", 390, 
     for (const k of ["darkness", "no_earth"]) { await open(`/?tab=map&pick=${k}`); const lg = await page.locator(".map-legend").innerText(); ok(`zone-only parameter ${k}: says it has no map`, lg.includes("NASA safety limits only")); }
 
     // 7. Opacity changes the picture, not the answer.
-    await open("/");
-    const answer = async () => (await page.locator(".landing-head").innerText()).match(/zone \d+, score \d+ \(\w+\)/)[0];
+    await open("/?tab=map");
+    const answer = async () => (await page.locator(".answer").innerText()).match(/zone \d+, score \d+ \(\w+\)/)[0];
     const pix = () => page.evaluate(() => { const c = document.querySelector(".map-view canvas"), d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data; let s = 0; for (let i = 0; i < d.length; i += 40) s = (s + d[i] * 3 + d[i + 1] * 5 + d[i + 2] * 7) % 1000000007; return s; });
     const a0 = await answer(), p0 = await pix();
     await page.getByRole("slider", { name: "Combined score opacity" }).fill("20");
@@ -129,7 +130,6 @@ for (const [label, width, height] of [["1440x900", 1440, 900], ["390x844", 390, 
     let rankBad = [];
     for (const p of weightsFile.presets) {
       await open(`/?tab=map&preset=${p.key}`);
-      await page.getByRole("group", { name: "Side panel" }).getByRole("button", { name: "Best zones", exact: true }).click();
       const shown = await page.locator(".ranked tbody tr").evaluateAll((trs) => trs.map((tr) => [tr.children[1].innerText.trim(), parseInt(tr.children[3].innerText)]));
       const want = rankFor(p.weights).slice(0, 10).map((z) => [String(z.id), z.score]);
       if (JSON.stringify(shown) !== JSON.stringify(want)) rankBad.push(`${p.key}: shown ${JSON.stringify(shown.slice(0, 3))} want ${JSON.stringify(want.slice(0, 3))}`);
@@ -146,7 +146,6 @@ for (const [label, width, height] of [["1440x900", 1440, 900], ["390x844", 390, 
     ok("explanations update with the ticks", all >= 4 && radio.includes("Earth in view") && !radio.match(/Good here[\s\S]*Mean ground temperature/), `${all} good reasons under everything`);
 
     // 10. Compare: scores for two sites against site_values.csv.
-    await open("/");
     await go(page, `${base}/?site=nr107&compare=mma01&tab=compare`, { waitUntil: "networkidle" });
     await page.waitForSelector(".compare.criteria");
     const overall = (await page.locator(".compare.criteria .overall").innerText()).replace(/\s+/g, " ");
@@ -154,30 +153,56 @@ for (const [label, width, height] of [["1440x900", 1440, 900], ["390x844", 390, 
     ok("Compare: both overall scores match site_values.csv", overall.includes(`score ${siteScore("nr107")}`) && overall.includes(`score ${siteScore("mma01")}`), `${overall} vs ${siteScore("nr107")}, ${siteScore("mma01")}`);
 
     // 11. Navigation, reload, and the four next steps.
-    for (const name of ["Map", "Site sky", "Window finder", "Compare", "Battery", "Data", "Method"]) {
-      await page.getByRole("tab", { name, exact: true }).click();
-      await page.waitForFunction(() => { const t = document.querySelector("main").innerText.trim(); return t.length > 40 && !/^Loading/.test(t); }, null, { timeout: 30000 });
-    }
-    ok("navigation: seven pages render", true);
+    // 11. Navigation in both views, the switch, reload, and the next steps.
+    const visit = async (names) => { for (const name of names) {
+      const menu = page.getByRole("button", { name: "Menu" }); if (await menu.isVisible()) await menu.click();
+      await page.locator("#pages .tab", { hasText: name }).first().click();
+      await page.waitForFunction((n) => { const h = document.querySelector("h1"); const t = document.querySelector("main").innerText.trim(); return h && h.innerText.toLowerCase() === n.toLowerCase() && t.length > 40 && !/^Loading/.test(t); }, name, { timeout: 30000 });
+    } };
+    await go(page, `${base}/?view=detailed`, { waitUntil: "networkidle" });
+    await visit(["Overview", "Site Finder", "Window Finder", "Compare sites", "Battery", "3D Moon", "Data & Method"]);
+    ok("navigation: seven Detailed pages render", true);
+    await page.getByRole("group", { name: "View" }).getByRole("button", { name: "Simple" }).click();
+    await visit(["Explore a site", "Plan a landing", "3D Moon", "Data & Method"]);
+    ok("navigation: four Simple pages render", true);
+    // The same scoring in both views: Plan a landing shows the score Site Finder shows for the same zone.
+    await go(page, `${base}/?view=simple&tab=plan&spot=${zones[1].lat},${zones[1].lon}`, { waitUntil: "domcontentloaded" });
+    await page.waitForSelector(".score-big b");
+    const simpleScore = +(await page.locator(".score-big b").innerText());
+    const wEv = preset("everything");
+    ok("Plan a landing (Simple) gives zone 2 the score the files give", simpleScore === zoneScore(mapScore(KEYS.map((k) => +zl[1][k]), wEv), +zones[1].longest_dark_h, +zones[1].longest_no_earth_h, wEv), String(simpleScore));
+    await page.waitForFunction(() => /\d+ of \d+ days have a landing time that works/i.test(document.body.innerText), null, { timeout: 60000 });
+    ok("Plan a landing: landing days and the battery check follow the chosen place", /Landing at zone 2 on /.test(await page.locator(".steps").innerText()));
+    await go(page, `${base}/?site=mma01&date=2026-11-14&days=14&tab=windows`, { waitUntil: "domcontentloaded" });
+    await page.waitForFunction(() => /\d+ of \d+ days have a landing time that works/i.test(document.body.innerText), null, { timeout: 60000 });
+    const wf = (await page.locator("h3.headline").innerText());
+    ok("Window Finder: 32 landing days at Malapert Massif from 14 Nov 2026", /^32 of 36[56] days/i.test(wf), wf);
     await open("/?tab=map&pick=sunlight,temperature&flip=temperature&spot=-84.0173,23.4217");
-    const before = page.url(); await page.reload(); await page.waitForSelector(".spot h2");
+    const before = page.url(); await page.reload(); await page.waitForSelector(".spot-coord");
     ok("reload keeps the view", page.url() === before && (await page.locator(".map-legend").innerText()).includes("Sunlight + Temperature"), page.url());
     const href = await page.getByRole("link", { name: "Stand here in 3D / VR" }).getAttribute("href");
     ok("3D / VR link carries the spot", /lat=-84\.0173.*lon=23\.4217/.test(href), href);
-    await page.getByRole("button", { name: "See its sky" }).click(); await page.waitForSelector("svg.sky");
+    await page.locator(".actions").getByRole("button", { name: "See its sky" }).click(); await page.waitForSelector("svg.sky");
     ok("See its sky opens the skyline", true);
     // keyboard: the map takes focus and zooms with +
-    await open("/"); await page.locator(".map-view").focus(); const bar = () => page.locator(".map-scale span").evaluate((el) => el.getBoundingClientRect().width / parseFloat(el.parentElement.innerText));
+    await open("/?tab=map"); await page.locator(".map-view").focus(); const bar = () => page.locator(".map-scale span").evaluate((el) => el.getBoundingClientRect().width / parseFloat(el.parentElement.innerText));
     const s0 = await bar(); await page.keyboard.press("+"); await page.waitForTimeout(500); const s1 = await bar();
     await page.keyboard.press("ArrowRight"); await page.keyboard.press("0"); await page.waitForTimeout(500);
     ok("keyboard: + zooms in, 0 shows the whole region again", s1 > s0 * 1.3 && Math.abs((await bar()) - s0) < 0.01, `${s0.toFixed(2)} -> ${s1.toFixed(2)} px per km`);
     // Data links
-    await page.getByRole("tab", { name: "Data", exact: true }).click(); await page.waitForSelector("main a");
+    await go(page, `${base}/?tab=data`, { waitUntil: "networkidle" }); await page.waitForSelector("main a");
     const links = [...new Set(await page.locator("main a").evaluateAll((as) => as.map((a) => a.href)))];
     let bad = [];
     for (const u of links) { let st = 0; for (let t = 0; t < 4 && !(st >= 200 && st < 400); t++) { if (t) await new Promise((r) => setTimeout(r, 2500 * t)); try { st = (await ctx.request.get(u, { timeout: 30000, maxRedirects: 5 })).status(); } catch { st = 0; } } if (!(st >= 200 && st < 400)) bad.push(`${st} ${u}`); }
     report.data_links = { total: links.length, failing: bad };
     ok(`Data page links open (${links.length})`, bad.every((b) => /^403 /.test(b)) && bad.length <= 3, bad.join(" | "));
+  }
+  // The menu bar: nothing overlaps or leaves the screen, in both views, on the homepage (with its countdown).
+  for (const v of ["simple", "detailed"]) {
+    await go(page, `${base}/?view=${v}`, { waitUntil: "networkidle" }); await page.waitForTimeout(800);
+    const boxes = await page.evaluate(() => [...document.querySelector(".nav").children].filter((el) => !/-measure/.test(el.className) && getComputedStyle(el).display !== "none" && getComputedStyle(el).position !== "absolute").map((el) => { const r = el.getBoundingClientRect(); return [el.className.split(" ")[0], Math.round(r.left), Math.round(r.right)]; }));
+    const fine = boxes.every((b, i) => b[1] >= 0 && b[2] <= width && (!i || b[1] >= boxes[i - 1][2]));
+    ok(`${label} ${v}: the menu bar fits`, fine, boxes.map((b) => b.join(" ")).join(", "));
   }
   ok(`${label} no console errors`, errors.length === 0, errors.slice(0, 3).join(" | "));
   await ctx.close();

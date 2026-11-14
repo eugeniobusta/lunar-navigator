@@ -19,6 +19,7 @@ async function xrAvailable(): Promise<boolean> {
 export function Moon3D() {
   const siteId = useStore((s) => s.siteId);
   const site = useStore((s) => s.sites.find((x) => x.id === s.siteId));
+  const spot = useStore((s) => s.spot);
   const liveMs = useStore((s) => idxToMs(s.startIdx + s.cursor));
   // The frame reloads when its address changes, so follow the time slider only once it has stopped moving.
   const [ms, setMs] = useState(liveMs);
@@ -42,10 +43,10 @@ export function Moon3D() {
   return (
     <section className="panel">
       <div className="xr-bar">
-        <h2>Standing at {site?.name}</h2>
-        <a href={xrUrl(siteId, ms)}>Open full screen / VR</a>
+        <h2>{spot ? `Standing at ${Math.abs(spot[0]).toFixed(3)}° S, ${spot[1].toFixed(3)}° E, near ${site?.name}` : `Standing at ${site?.name}`}</h2>
+        <a href={xrUrl(siteId, ms, false, spot)}>Open full screen / VR</a>
       </div>
-      <iframe className="xr-frame" title={`3D view of ${site?.name ?? "the site"}`} src={xrUrl(siteId, ms, true)}
+      <iframe className="xr-frame" title={`3D view of ${site?.name ?? "the site"}`} src={xrUrl(siteId, ms, true, spot)}
         allow="xr-spatial-tracking; fullscreen" />
     </section>
   );

@@ -17,16 +17,16 @@ Each link opens the app in exactly that state.
 2. **Slip the launch.** [Nobile Rim 1 against Malapert](https://claudes-plan-lunar-navigator.vercel.app/?site=nr107&compare=mma01&date=2027-01-09T22:00Z&days=10&tab=compare).
    A 10-day stay at Nobile Rim 1 has 100 % sunlight. Drag "Launch slip" to +14 days: it falls to 12.5 %.
 3. **Ask when to land.** [Window Finder](https://claudes-plan-lunar-navigator.vercel.app/?site=mma01&date=2026-11-14&days=14&tab=windows),
-   then "Find landing days". A 14-day mission at Malapert works on 32 days of the next 12 months, three days a month.
-4. **Ask where to land.** [Where to land](https://claudes-plan-lunar-navigator.vercel.app/?tab=land). Every 120 m
+   the search runs by itself. A 14-day mission at Malapert works on 32 days of the next 12 months, three days a month.
+4. **Ask where to land.** [Site Finder](https://claudes-plan-lunar-navigator.vercel.app/?tab=land). Every 120 m
    square within 6° of the pole, tested against NASA's Artemis III landing requirements: 14.3 % passes, in 5,297
-   zones. Tick what matters for your mission, or pick "Power first", "Radio link" or "Ice science": the map and the
+   zones. Tick what matters for your mission in the sidebar, or pick "Power first", "Radio link" or "Ice science": the map and the
    ranking follow. Tick a single box to see that parameter by itself, as [sunlight alone](https://claudes-plan-lunar-navigator.vercel.app/?tab=land&pick=sunlight).
    "Click any spot" gives any point's numbers, and "Why here?" explains a zone in plain sentences.
 5. **Stand on the Moon.** [3D / VR](https://claudes-plan-lunar-navigator.vercel.app/xr/): the same data as a
    place you can stand in, on a laptop or a Meta Quest 3.
-6. **Check us.** The [Data tab](https://claudes-plan-lunar-navigator.vercel.app/?tab=data) lists every source with
-   its terms and every file we publish; the Method tab shows our numbers against JPL's and NASA's.
+6. **Check us.** [Data & Method](https://claudes-plan-lunar-navigator.vercel.app/?tab=data) lists every source with
+   its terms and every file we publish; its "How it works" section shows our numbers against JPL's and NASA's.
 
 ## How it works
 
@@ -36,7 +36,7 @@ Each link opens the app in exactly that state.
    directions, up to 150 km, and keep the highest angle the terrain reaches, allowing for the Moon's curvature.
 3. **Lit, in contact, or neither.** The Sun or Earth is "up" when its centre is above that skyline. Everything
    else (percentages, longest night, landing windows, battery charge) is counting hours.
-4. **Where to land.** Six hard limits from NASA's Artemis III requirements (within 6° of the pole, landing slope
+4. **Site Finder.** Six hard limits from NASA's Artemis III requirements (within 6° of the pole, landing slope
    under 10°, walkable ground within 2 km, Earth in view, lit for the stay, a 100 m box) and a 0 to 100 score for
    the rest. The weights are yours to change. Every threshold has a source or is marked "team choice":
    [docs/criteria.md](docs/criteria.md), [docs/criteria.csv](docs/criteria.csv).
@@ -56,7 +56,7 @@ One page for non-scientists: [docs/CHEATSHEET.md](docs/CHEATSHEET.md).
 | Artemis candidate landing sites | Wueller et al. 2026, JGR Planets | The nine Artemis points (verified against the paper) |
 | Lunar landing attempts, 1965 to 2025 | NASA NSSDCA and mission sources | Lessons table |
 
-Each provider's terms are quoted in [DATA_LICENSE.md](DATA_LICENSE.md) and on the Data tab. Everything we compute
+Each provider's terms are quoted in [DATA_LICENSE.md](DATA_LICENSE.md) and on the Data & Method page. Everything we compute
 is published in `web/public/data/` (listed in `index.json`, described in [docs/DATA_DICTIONARY.md](docs/DATA_DICTIONARY.md))
 under CC BY 4.0; the code is MIT.
 

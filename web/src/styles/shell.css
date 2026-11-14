@@ -278,3 +278,16 @@ button.primary.big { padding: 16px 28px; font-family: var(--font-head); font-siz
   .vs { display: none; }
 }
 .cal { padding-bottom: 6px; scrollbar-width: thin; scrollbar-color: var(--rim) transparent; color-scheme: dark; }
+
+/* Data & Method: two sections behind one switch */
+.seg { display: inline-flex; margin: 0 0 20px; border: 1px solid var(--rim); border-radius: 999px; padding: 3px; background: var(--dust); }
+.seg button { border: 0; border-radius: 999px; padding: 9px 20px; background: none; color: var(--ash);
+  font-family: var(--font-head); font-size: 0.875rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
+.seg button[aria-pressed="true"] { background: var(--bone); color: var(--void); }
+.seg button:hover:not(:disabled):not([aria-pressed="true"]) { color: var(--bone); border: 0; }
+.source-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; margin: 8px 0 24px; }
+.card.source h4 { margin: 0 0 10px; font-family: var(--font-head); font-size: 1.125rem; }
+.card.source p { margin: 0 0 10px; font-size: 0.9375rem; }
+.card.source .label { display: block; color: var(--ash); font-size: 0.6875rem; letter-spacing: 0.14em; text-transform: uppercase; }
+.data-glance { margin: 16px 0 8px; }
+.data-glance .hbars li { grid-template-columns: minmax(0, 14em) minmax(0, 1fr) 6em; }

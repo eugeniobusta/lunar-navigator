@@ -56,8 +56,12 @@ test("the app loads real data and the skyline explains itself", async ({ page })
   await expect(page.locator("svg.sky")).toContainText("Sun now");
   await expect(page.getByRole("link", { name: "Stand on the Moon (3D / VR)" })).toHaveAttribute("href", /^\/xr\/\?site=\w+&t=/);
   await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", /ai-assisted/);
-  await page.getByRole("tab", { name: "Data", exact: true }).click();
+  await page.getByRole("tab", { name: "Data & Method", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Open data" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("heading", { name: "Use of AI" })).toBeVisible();
+  await page.getByRole("button", { name: "How it works" }).click();
+  await expect(page).toHaveURL(/tab=method/);
+  await expect(page.getByRole("heading", { name: "Positions of the Sun and Earth" })).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -65,7 +69,7 @@ test("every tab renders something and logs no errors", async ({ page }) => {
   const errors = watchErrors(page);
   await openApp(page);
   const names = await page.getByRole("tab").allTextContents();
-  expect(names).toEqual(expect.arrayContaining(["Overview", "Site Finder", "Window Finder", "Compare sites", "Battery", "3D Moon", "Data", "Method"]));
+  expect(names).toEqual(expect.arrayContaining(["Overview", "Site Finder", "Window Finder", "Compare sites", "Battery", "3D Moon", "Data & Method"]));
   for (const name of names) {
     await test.step(`tab: ${name}`, async () => {
       await page.getByRole("tab", { name, exact: true }).click();

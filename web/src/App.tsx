@@ -32,8 +32,7 @@ const TABS: [Tab, string, string][] = [
   ...(Grid ? [["grid", "Move the lander", "What a few hundred metres changes."] as [Tab, string, string]] : []),
   ["power", "Battery", "Will the battery last through the dark?"],
   ["moon3d", "3D Moon", "Stand at the site at true scale, with the real Sun and Earth."],
-  ["data", "Data", "Every file we publish, free to download and reuse."],
-  ["method", "Method", "How the answers are made, and how we checked them."],
+  ["data", "Data & Method", "For researchers: every file we publish, how the answers are made, and how we checked them."],
 ];
 /** Pages that work on one site and one time window, so they show the site, date and length controls. */
 const MISSION_TABS: Tab[] = ["overview", "windows", "compare", "grid", "power", "moon3d"];
@@ -64,7 +63,9 @@ export default function App() {
   const n = view?.series.sunlit.length ?? 1;
   const k = Math.min(st.cursor, n - 1);
   const sunMargin = view?.series.sunMargin[k];
-  const page = TABS.find(([t]) => t === tab);
+  // Data and Method are one page with two sections; tab=method opens the second.
+  const research = tab === "data" || tab === "method";
+  const page = TABS.find(([t]) => t === (tab === "method" ? "data" : tab));
 
   const nav = (
     <header className={tab === "home" && !scrolled && !menuOpen ? "nav" : "nav solid"}>
@@ -79,7 +80,7 @@ export default function App() {
       </button>
       <nav id="pages" className={menuOpen ? "nav-tabs open" : "nav-tabs"} role="tablist" aria-label="Pages">
         {TABS.map(([t, label]) => (
-          <button key={t} type="button" role="tab" aria-selected={tab === t} className={tab === t ? "tab on" : "tab"}
+          <button key={t} type="button" role="tab" aria-selected={tab === t || (t === "data" && research)} className={tab === t || (t === "data" && research) ? "tab on" : "tab"}
             onClick={() => st.setTab(t)}>{label}</button>
         ))}
       </nav>
@@ -134,6 +135,13 @@ export default function App() {
                 {[...new Set([1, 3, 7, 14, 30, 90, 365, st.windowDays])].sort((a, b) => a - b).map((d) => <option key={d} value={d}>{d === 1 ? "1 day" : `${d} days`}</option>)}
               </select>
             </label>
+          </div>
+        )}
+
+        {research && (
+          <div className="seg" role="group" aria-label="Section">
+            <button type="button" aria-pressed={tab === "data"} onClick={() => st.setTab("data")}>Open data</button>
+            <button type="button" aria-pressed={tab === "method"} onClick={() => st.setTab("method")}>How it works</button>
           </div>
         )}
 

@@ -174,6 +174,14 @@ stops when they leave; the laptop view is silent.
 - Nothing here runs per frame except IWSDK's grab system itself; a clip ends through the audio node's
   `onended` and effects are scheduled once.
 
+## Live view and recording
+
+- `make spectate` builds the site, starts `scripts/spectator_relay.mjs` (port 8787) and a Cloudflare quick tunnel to it, prints a QUEST address (`/xr/?live=<four words>`) and a MAC address (`http://localhost:8787/xr/?watch`), and opens the Mac one in Chrome. Ctrl+C stops everything.
+- Headset: with `?live=` it posts its state (head, both rays, stage, place, time, panel, voice clip) to `https://<words>.trycloudflare.com/pose` about 20 times a second, one request in flight at most; a green LIVE dot on the panel shows the sends succeed. Nothing is sent without `?live=`, and the tunnel only accepts `/pose`.
+- Mac: `?watch` follows that state from the relay's local event stream (quick tunnels do not carry Server-Sent Events): the wearer's view at 1920 x 1080, 90 degrees across, lightly smoothed, with their rays, panel and voice; "Waiting for headset" after 2 s of silence, and it recovers by itself.
+- RECORD (or the R key) records the canvas at 60 frames a second with the voice and effects to `claudes-plan-vr-<time>.mp4` (H.264 and AAC in Chrome, else WebM); click the page once first so sound may start. The buttons and the red dot are page elements, not in the video.
+- Tested on this Mac through a real tunnel with the IWSDK emulator as the headset: 17 states a second, 13 to 37 ms from send to viewer, every stage followed, a 24 s recording with picture (1920 x 1080 H.264) and voice (AAC). Code: `xr/src/spectator.ts`; the emulator on the dev server takes the words from session storage (`lunar-live`), because that server drops the query string.
+
 ## Pictures and credits
 
 On screen (the credits line on the laptop, the bottom of the panel in the headset): "Terrain: NASA LOLA. Moon

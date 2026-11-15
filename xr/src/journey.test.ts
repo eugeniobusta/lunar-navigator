@@ -28,7 +28,7 @@ import { BUTTON_M } from './vrpanel';
 const R2D = 180 / Math.PI;
 const state = (over: Partial<ViewState>): ViewState => ({
   stage: 'moon', message: null, caption: '', playing: false, faster: false, colours: false, coloursReady: true, siteId: null, siteName: null,
-  sunUp: null, earthUp: null, date: '2026-11-18', tH: 0, legend: null, pressed: new Set(), help: false, stats: null, inXR: false, extraNote: null, voice: null,
+  sunUp: null, earthUp: null, date: '2026-11-18', tH: 0, legend: null, pressed: new Set(), help: false, stats: null, inXR: false, extraNote: null, voice: null, live: false,
   ...over,
 });
 const ids = (v: { rows: { id: string }[][] }) => v.rows.flat().map((b) => b.id);

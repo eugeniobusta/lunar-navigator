@@ -53,6 +53,15 @@ export class Narrator {
   /** For the checks: the clips that began to play, and how many effects sounded. */
   readonly spoken: string[] = [];
   effects = 0;
+  /** For the live view (spectator.ts): the last effect, and the wearer's clock when the clip began, ms. */
+  lastEffect: Effect | null = null;
+  startedMs = 0;
+  /** The live viewer's side: it plays what the headset says it plays. */
+  private listening = false;
+  private remoteClip: string | null = null;
+  private remoteFx: number | null = null;
+  private out: GainNode | null = null;
+  private recDest: MediaStreamAudioDestinationNode | null = null;
   private rules = new VoiceRules();
   private ctx: AudioContext | null = null;
   private ready: Promise<void> | null = null;
@@ -72,17 +81,72 @@ export class Narrator {
     return this.source?.buffer?.duration ?? 0;
   }
 
-  /** Called when the visitor enters VR: starts the sound, loads the clips once, then speaks the stage's clip. */
-  enter(where: () => { stage: Stage; siteId: string | null }): void {
+  /** Starts the sound (after a user gesture) and loads the clips once. Everything is heard through `out`. */
+  private open(): AudioContext | null {
     const Ctx = window.AudioContext;
     if (!Ctx) {
-      return;
+      return null;
     }
-    this.ctx ??= new Ctx();
-    this.active = true;
+    if (!this.ctx) {
+      this.ctx = new Ctx();
+      this.out = this.ctx.createGain();
+      this.out.connect(this.ctx.destination);
+    }
     void this.ctx.resume();
     this.ready ??= this.load(this.ctx);
-    void this.ready.then(() => {
+    return this.ctx;
+  }
+
+  /** The live viewer: starts the sound; from then on `sync` plays what the headset plays. */
+  listen(): void {
+    this.listening = this.open() != null;
+  }
+
+  /** The voice and the effects as a stream, for a recording of the live view. */
+  recordStream(): MediaStream | null {
+    const ctx = this.open();
+    if (!ctx || !this.out) {
+      return null;
+    }
+    if (!this.recDest) {
+      this.recDest = ctx.createMediaStreamDestination();
+      this.out.connect(this.recDest);
+    }
+    return this.recDest.stream;
+  }
+
+  /**
+   * The live viewer follows the headset: `clip` is what it is speaking and `elapsedS` for how long; `fx` counts
+   * its effects and `kind` is the latest.
+   */
+  sync(clip: string | null, elapsedS: number, fx: number, kind: Effect | null): void {
+    const ctx = this.ctx;
+    if (!ctx || !this.listening) {
+      return;
+    }
+    if (clip !== this.remoteClip && (clip == null || this.lines.has(clip) || this.lines.size > 0)) {
+      this.remoteClip = clip;
+      this.stop();
+      const line = clip ? this.lines.get(clip) : null;
+      if (line && this.on && elapsedS < line.buffer.duration) {
+        this.play(ctx, clip!, line, Math.max(0, elapsedS));
+      }
+    }
+    if (fx !== this.remoteFx) {
+      if (this.remoteFx != null && kind) {
+        this.effect(kind);
+      }
+      this.remoteFx = fx;
+    }
+  }
+
+  /** Called when the visitor enters VR: starts the sound, loads the clips once, then speaks the stage's clip. */
+  enter(where: () => { stage: Stage; siteId: string | null }): void {
+    if (!this.open()) {
+      return;
+    }
+    this.active = true;
+    void this.ready!.then(() => {
       if (this.active && !this.source) {
         const w = where();
         this.say(this.rules.enter(w.stage, w.siteId, this.has));
@@ -141,10 +205,14 @@ export class Narrator {
       return;
     }
     this.stop();
-    const line = this.lines.get(clip)!;
+    this.rules.began(clip);
+    this.play(ctx, clip, this.lines.get(clip)!, 0);
+  }
+
+  private play(ctx: AudioContext, clip: string, line: { text: string; buffer: AudioBuffer }, offsetS: number): void {
     const src = ctx.createBufferSource();
     src.buffer = line.buffer;
-    src.connect(ctx.destination);
+    src.connect(this.out!);
     src.onended = () => {
       if (this.source === src) {
         this.source = null;
@@ -155,9 +223,9 @@ export class Narrator {
     this.source = src;
     this.speaking = clip;
     this.spoken.push(clip);
-    this.rules.began(clip);
+    this.startedMs = Date.now() - offsetS * 1000;
     this.onCaption(line.text);
-    src.start();
+    src.start(0, offsetS);
   }
 
   private stop(): void {
@@ -174,10 +242,11 @@ export class Narrator {
   /** A short, quiet sound made of one or two oscillators. */
   effect(kind: Effect): void {
     const ctx = this.ctx;
-    if (!ctx || !this.active || !this.on) {
+    if (!ctx || !(this.active || this.listening) || !this.on) {
       return;
     }
     this.effects++;
+    this.lastEffect = kind;
     const t = ctx.currentTime;
     const dur = EFFECT_S[kind];
     const peak = EFFECT_PEAK[kind];
@@ -190,7 +259,7 @@ export class Narrator {
       gain.gain.setValueAtTime(0.0001, t);
       gain.gain.linearRampToValueAtTime(level, t + rise * dur);
       gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-      osc.connect(gain).connect(ctx.destination);
+      osc.connect(gain).connect(this.out!);
       osc.start(t);
       osc.stop(t + dur);
     };

@@ -240,6 +240,17 @@ export class VrPanel {
     g.textAlign = 'left';
     g.fillStyle = C.text;
     g.font = `600 46px ${FONT}`;
+    if (m.live) {
+      // A live viewer is receiving: a small green dot and the word.
+      g.fillStyle = C.go;
+      g.beginPath();
+      g.arc(pad + 9, 26, 8, 0, 2 * Math.PI);
+      g.fill();
+      g.font = `600 20px ${FONT}`;
+      g.fillText('LIVE', pad + 26, 33);
+      g.fillStyle = C.text;
+      g.font = `600 46px ${FONT}`;
+    }
     const top = !m.help && m.stage !== 'loading';
     g.fillText(m.title, pad, 86, W - 2 * pad - 110 - (top && m.voice != null ? BUTTON_PX + 14 : 0));
     // "?" is always there, top right; beside it the speaker: voice and sounds on or off.

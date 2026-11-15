@@ -114,6 +114,7 @@ import { SUN_GLOW, earthBall, groundRing, makeLabel, makeLander, makeRocket, mak
 import { PALETTE, ShadowPass, byteTexture, fieldGeometry, rgbaTexture, setOverlay, slopeTexture, supportsFloatLinear, terrainMaterial, upTexture } from './terrain.js';
 import { VrPanel } from './vrpanel.js';
 import { Narrator } from './voice.js';
+import { LiveSender, WAIT_MS, WATCH_FOV, WATCH_H, WATCH_W, WatchUi, liveUrl, smoothing, type LiveState } from './spectator.js';
 
 type Mode = 'loading' | 'orbit' | 'flight' | 'stand';
 type Hand = 'left' | 'right';
@@ -329,6 +330,21 @@ export class ExperienceSystem extends createSystem({}) {
     right: { pressed: false, squeezed: false, held: false, gripHeld: false },
   };
   private activeHand: Hand = 'right';
+  // The live view (spectator.ts): `live` sends the wearer's state from the headset; `watch` follows it on the Mac.
+  private live: LiveSender | null = null;
+  private watch = false;
+  private watchUi: WatchUi | null = null;
+  private remote: LiveState | null = null;
+  private remoteAt = -Infinity;
+  private remoteNew = false;
+  /** The viewer is between two stages (a fade with a download in it). */
+  private remoteBusy = false;
+  private remoteStats = { got: 0, delayMs: 0 };
+  private lastDelta = 0;
+  private headPos = new Vector3();
+  private headQuat = new Quaternion();
+  private watchRays: Line[] = [];
+
   /** The panel as an entity: IWSDK's grab system moves it by its handle (DistanceGrabbable). */
   private panelEntity: Entity | null = null;
   private panelHeld = false;
@@ -401,6 +417,16 @@ export class ExperienceSystem extends createSystem({}) {
     }
 
     this.hud = new Hud({ press: (id) => this.press(id) }, this.embed);
+    this.watch = params.has('watch');
+    // The IWSDK dev server's page drops the query string, so its emulator takes the words from session storage.
+    const words = params.get('live') ?? (import.meta.env.DEV ? sessionStorage.getItem('lunar-live') : null);
+    const liveTo = this.watch ? null : liveUrl(words);
+    if (liveTo) {
+      this.live = new LiveSender(liveTo, () => (this.dirtyHud = true));
+    }
+    if (this.watch) {
+      this.startWatching();
+    }
     // The hook for a voice, or a log: every moment of the journey is announced on the window too.
     const log: object[] = [];
     this.journey.on((e) => {
@@ -496,7 +522,9 @@ export class ExperienceSystem extends createSystem({}) {
         },
       },
     });
-    this.bindDesktopInput();
+    if (!this.watch) {
+      this.bindDesktopInput(); // the viewer only watches
+    }
     this.cleanupFuncs.push(
       this.world.visibilityState.subscribe(() => {
         this.dirtyHud = true;
@@ -621,6 +649,11 @@ export class ExperienceSystem extends createSystem({}) {
     return this.world.visibilityState.peek() !== VisibilityState.NonImmersive;
   }
 
+  /** True where the scene is laid out around a room: in the headset, and in the live viewer that follows one. */
+  private get room(): boolean {
+    return this.watch || this.inXR;
+  }
+
   private get idx(): number {
     return this.startIdx + this.tH;
   }
@@ -720,7 +753,7 @@ export class ExperienceSystem extends createSystem({}) {
       const localN = poleDir(s.lat, s.lon);
       const obj = siteMarker(k.id === RECOMMENDED_SITE ? PALETTE.sunlight : PALETTE.text);
       const label = makeLabel(k.label, k.id === RECOMMENDED_SITE ? PALETTE.sunlight : PALETTE.text, 0.024);
-      label.zoom(this.inXR ? 1.9 : 1);
+      label.zoom(this.room ? 1.9 : 1);
       this.orbitMarkers.add(obj, label.sprite);
       this.markers.push({ id: k.id, obj, label, local, localN, pos: new Vector3(), normal: new Vector3() });
     }
@@ -1092,7 +1125,7 @@ export class ExperienceSystem extends createSystem({}) {
     const at = groundAt(s.field, row, col).pos;
     this.lander.group.position.set(at[0] + 9, at[1], at[2] - 12);
     this.setSpot(row, col);
-    if (this.autoTime) {
+    if (this.autoTime && !this.watch) {
       // No time was asked for: open at the next time the whole Sun is up at this point (computeSeries on its skyline).
       const up = nextSunUp(this.eph, this.spot!.hz, this.nowIdx);
       if (up != null) {
@@ -1246,6 +1279,9 @@ export class ExperienceSystem extends createSystem({}) {
   }
 
   private syncUrl(): void {
+    if (this.watch) {
+      return;
+    }
     const p = new URLSearchParams(location.search);
     p.delete('site');
     p.delete('lat');
@@ -1766,6 +1802,211 @@ export class ExperienceSystem extends createSystem({}) {
     return hit ? hit.point.distanceTo(o) : 4;
   }
 
+  // ------------------------------------------------------------------------------------------------ live view
+
+  /** What the headset sends to the live viewer (spectator.ts): the wearer's pose, the journey's state, the panel. */
+  private liveState(): LiveState {
+    const r4 = (v: number) => Math.round(v * 1e4) / 1e4;
+    const v3 = (v: Vector3): V3 => [r4(v.x), r4(v.y), r4(v.z)];
+    const cam = this.camera;
+    const q = cam.getWorldQuaternion(new Quaternion());
+    const sp = this.spot?.hit;
+    const m = this.panel.mesh;
+    return {
+      t: Date.now(),
+      head: { p: v3(this.camPos), q: [r4(q.x), r4(q.y), r4(q.z), r4(q.w)] },
+      rays: (['left', 'right'] as Hand[]).map((hand) => {
+        this.handRay(hand, this.v1, this.v2);
+        return { o: v3(this.v1), d: v3(this.v2), len: r4(this.rays[hand]!.scale.z) };
+      }),
+      mode: this.mode === 'loading' ? 'orbit' : this.mode,
+      zoom: r4(this.zoom),
+      zoomTarget: this.zoomTarget,
+      siteId: this.siteId,
+      siteName: this.placeName(),
+      spot: sp ? { row: sp.row, col: sp.col, lat: sp.lat, lon: sp.lon } : null,
+      lift: r4(this.standLift),
+      startIdx: this.startIdx,
+      tH: r4(this.tH),
+      playing: this.playing,
+      faster: this.faster,
+      colours: this.colours,
+      panel: { p: v3(m.position), yaw: r4(m.rotation.y), hover: this.hoverButton, lit: this.panelHeld || this.hoverButton === 'handle' },
+      ring: this.hoverRing.visible ? v3(this.hoverRing.position) : null,
+      view: this.view,
+      voice: { on: this.narrator.on, clip: this.narrator.speaking, at: this.narrator.startedMs, fx: this.narrator.effects, kind: this.narrator.lastEffect },
+    };
+  }
+
+  /** The Mac's side: listens to the relay on this machine (scripts/spectator_relay.mjs) and shows its controls. */
+  private startWatching(): void {
+    this.panel.mesh.visible = true;
+    for (let i = 0; i < 2; i++) {
+      const ray = polyline([0, 0, 0, 0, 0, -1], PALETTE.text2, 0.8);
+      ray.renderOrder = 30;
+      ray.visible = false;
+      this.scene.add(ray);
+      this.watchRays.push(ray);
+    }
+    this.watchUi = new WatchUi(this.renderer.domElement, this.narrator);
+    const source = new EventSource('/stream');
+    source.onmessage = (e) => {
+      try {
+        const s = JSON.parse(e.data as string) as LiveState;
+        this.remote = s;
+        this.remoteAt = performance.now();
+        this.remoteNew = true;
+        this.remoteStats.got++;
+        this.remoteStats.delayMs = Date.now() - s.t; // meaningful when both run on one machine
+      } catch {
+        // not a state: ignored
+      }
+    };
+    this.cleanupFuncs.push(() => source.close());
+    Object.assign(window, {
+      lunarWatch: () => ({
+        waiting: performance.now() - this.remoteAt > WAIT_MS,
+        got: this.remoteStats.got,
+        delayMs: this.remoteStats.delayMs,
+        mode: this.mode,
+        stage: this.stage(),
+        siteId: this.siteId,
+        tH: this.tH,
+        spot: this.spot ? { row: this.spot.hit.row, col: this.spot.hit.col } : null,
+        canvas: [this.renderer.domElement.width, this.renderer.domElement.height],
+        fov: this.camera.fov,
+        speaking: this.narrator.speaking,
+        recording: this.watchUi!.recording,
+        file: this.watchUi!.lastFile,
+      }),
+    });
+  }
+
+  /** Every frame in the viewer: takes the newest state from the headset and makes this app match it. */
+  private followRemote(): void {
+    const s = this.remote;
+    const now = performance.now();
+    const waiting = !s || now - this.remoteAt > WAIT_MS;
+    this.watchUi!.setWaiting(waiting);
+    if (waiting) {
+      this.playing = false; // nothing moves while the headset is silent
+    }
+    if (!s) {
+      return;
+    }
+    // The same clip, from the same point in it; silence when the headset has gone quiet.
+    this.narrator.sync(waiting || !s.voice.on ? null : s.voice.clip, (s.t - s.voice.at + now - this.remoteAt) / 1000, s.voice.fx, waiting ? null : s.voice.kind);
+    if (!this.remoteNew) {
+      return;
+    }
+    this.remoteNew = false;
+    this.headPos.set(...s.head.p);
+    this.headQuat.set(...s.head.q);
+    s.rays.forEach((r, i) => {
+      const ray = this.watchRays[i];
+      ray.visible = true;
+      ray.position.set(...r.o);
+      ray.lookAt(r.o[0] - r.d[0], r.o[1] - r.d[1], r.o[2] - r.d[2]); // the line runs along -z
+      ray.scale.z = r.len;
+    });
+    const m = this.panel.mesh;
+    m.position.set(...s.panel.p);
+    m.rotation.set(0, s.panel.yaw, 0);
+    this.panel.setHover(s.panel.hover === 'handle' ? null : s.panel.hover);
+    this.panel.setHandleLit(s.panel.lit);
+    if (s.startIdx !== this.startIdx) {
+      this.startIdx = s.startIdx;
+      this.refreshSeries();
+      this.dirtySun = true;
+    }
+    this.tH = s.tH;
+    this.playing = s.playing;
+    this.faster = s.faster;
+    if (s.colours !== this.colours) {
+      this.colours = s.colours;
+      this.applyOverlay();
+    }
+    this.standLift = s.lift;
+    this.hoverRing.visible = this.mode === 'stand' && s.ring != null;
+    if (s.ring) {
+      this.hoverRing.position.set(...s.ring);
+    }
+    if (this.remoteBusy) {
+      return;
+    }
+    const dest = (): Dest | null => {
+      const d = s.siteId ? (this.siteDest(s.siteId) ?? (s.spot ? this.pointDest(s.spot.lat, s.spot.lon, s.siteName ?? 'This point', s.siteId) : null)) : null;
+      return d && s.spot ? { ...d, spot: [s.spot.lat, s.spot.lon] } : d;
+    };
+    if (s.mode === 'stand' && s.spot) {
+      if (this.mode === 'stand' && this.siteId === s.siteId && this.spot) {
+        const at = this.spot.hit;
+        if (Math.abs(at.row - s.spot.row) > 1e-3 || Math.abs(at.col - s.spot.col) > 1e-3) {
+          this.setSpot(s.spot.row, s.spot.col); // the wearer moved
+          this.updateSun();
+        }
+      } else if (this.mode !== 'flight' || this.siteId !== s.siteId) {
+        // The viewer joined late or fell behind: straight to the surface.
+        const d = dest();
+        if (d) {
+          this.remoteBusy = true;
+          this.fadeThrough(async () => {
+            this.flight = null;
+            this.rocket.visible = false;
+            try {
+              await this.enterSurface(d);
+            } catch {
+              this.enterOrbit();
+            }
+            this.remoteBusy = false;
+          });
+        }
+      }
+    } else if (s.mode === 'stand') {
+      // no spot yet: wait for the next state
+    } else if (this.mode === 'stand') {
+      this.remoteBusy = true;
+      this.fadeThrough(() => {
+        this.zoom = this.zoomTarget = s.mode === 'flight' ? 1 : s.zoomTarget;
+        this.orbitFar = this.zoom < 0.5;
+        this.enterOrbit();
+        this.remoteBusy = false;
+      });
+    } else if (s.mode === 'flight') {
+      const d = this.mode === 'orbit' ? dest() : null;
+      if (d) {
+        this.zoomTarget = 1;
+        this.setZoom(1);
+        this.flyTo({ site: d.site, centre: d.centre });
+      }
+    } else if (this.mode === 'flight') {
+      this.enterOrbit();
+    } else {
+      this.zoomTarget = s.zoomTarget;
+      this.setZoom(s.zoom);
+    }
+  }
+
+  /** The viewer's camera: the wearer's head with light smoothing, 90 degrees across, always 1920 x 1080. */
+  private watchCamera(): void {
+    const cam = this.camera;
+    const el = this.renderer.domElement;
+    if (el.width !== WATCH_W || el.height !== WATCH_H) {
+      this.renderer.setPixelRatio(1);
+      this.renderer.setSize(WATCH_W, WATCH_H, false);
+    }
+    if (cam.aspect !== WATCH_W / WATCH_H) {
+      cam.aspect = WATCH_W / WATCH_H;
+      cam.updateProjectionMatrix();
+    }
+    this.setFov(WATCH_FOV);
+    if (this.remote) {
+      const k = smoothing(this.lastDelta);
+      cam.position.lerp(this.headPos, k);
+      cam.quaternion.slerp(this.headQuat, k);
+    }
+  }
+
   // ------------------------------------------------------------------------------------------------ views
 
   private updateView(): void {
@@ -1775,8 +2016,9 @@ export class ExperienceSystem extends createSystem({}) {
       this.wasXR = xr;
       this.onXRChange(xr);
     }
+    const room = this.room;
     if (this.mode === 'orbit' || this.mode === 'flight') {
-      if (!xr) {
+      if (!room) {
         const c = this.cam.orbit;
         const dist = c.dist * lerp(ORBIT_DIST[0], ORBIT_DIST[1], smooth(this.zoom));
         const [tx, ty, tz] = this.pose.room;
@@ -1786,7 +2028,7 @@ export class ExperienceSystem extends createSystem({}) {
       }
     } else if (this.scene3 && this.spot) {
       const p = this.spot.pos;
-      if (xr) {
+      if (room) {
         // The rig stays at the room origin; the Moon is moved under it.
         this.siteRoot.position.set(-p.x, -p.y + this.standLift, -p.z);
       } else {
@@ -1796,6 +2038,9 @@ export class ExperienceSystem extends createSystem({}) {
         cam.rotation.set(c.pitch, c.yaw, 0, 'YXZ');
         this.setFov(c.fov);
       }
+    }
+    if (this.watch) {
+      this.watchCamera();
     }
     cam.getWorldPosition(this.camPos);
   }
@@ -1868,7 +2113,7 @@ export class ExperienceSystem extends createSystem({}) {
   /** The six markers: a constant apparent size, a soft pulse on the recommended one, labels that do not overlap. */
   private updateMarkers(): void {
     const hot = this.hovered;
-    const xr = this.inXR;
+    const xr = this.room;
     const near = this.zoom >= NEAR_ZOOM && this.mode === 'orbit';
     const rank = (m: Marker) => (m === hot ? 0 : m.id === RECOMMENDED_SITE ? 1 : 2);
     const order = [...this.markers].sort((a, b) => rank(a) - rank(b));
@@ -1935,12 +2180,14 @@ export class ExperienceSystem extends createSystem({}) {
       inXR: this.inXR,
       extraNote: this.mode === 'stand' && this.scene3?.tile.coarse ? COARSE_NOTE : null,
       voice: this.narrator.active ? this.narrator.on : null,
+      live: this.live?.ok === true,
     });
   }
 
   // ------------------------------------------------------------------------------------------------ frame
 
   update(delta: number): void {
+    this.lastDelta = delta;
     this.frameNo++;
     this.clock += delta;
     // Ordinary objects use the near half of the depth range; terrain and sky write the far half (terrain.ts).
@@ -1949,9 +2196,12 @@ export class ExperienceSystem extends createSystem({}) {
     if (this.mode === 'loading') {
       if (this.dirtyHud) {
         this.dirtyHud = false;
-        this.hud.render({ view: this.stageModel(), xrOffered: false, inXR: xr });
+        this.hud.render({ view: this.stageModel(), xrOffered: false, inXR: xr || this.watch });
       }
       return;
+    }
+    if (this.watch) {
+      this.followRemote();
     }
     const stage = this.stage();
     if (this.playing && stage !== 'moon' && stage !== 'surface') {
@@ -1986,12 +2236,15 @@ export class ExperienceSystem extends createSystem({}) {
     }
     if (xr) {
       this.updateXRInput();
+      this.live?.tick(performance.now(), () => this.liveState());
     }
-    this.updateZoom(delta);
+    if (!this.watch) {
+      this.updateZoom(delta); // the viewer takes the zoom from the headset
+    }
     this.updateFlight(delta);
     this.updateView();
     this.updateFade(delta);
-    if (!xr && this.pointer.inside && !this.drag) {
+    if (!xr && !this.watch && this.pointer.inside && !this.drag) {
       this.screenRay(this.pointer.x, this.pointer.y, this.v1, this.v2);
       this.updateHover(this.v1.clone(), this.v2.clone());
     }
@@ -2008,7 +2261,11 @@ export class ExperienceSystem extends createSystem({}) {
     if (this.dirtyHud) {
       this.dirtyHud = false;
       this.view = this.stageModel();
-      this.hud.render({ view: this.view, xrOffered: this.world.xrEnabled !== false && 'xr' in navigator, inXR: xr });
+      this.hud.render({ view: this.view, xrOffered: this.world.xrEnabled !== false && 'xr' in navigator, inXR: xr || this.watch });
+    }
+    if (this.watch && this.remote?.view) {
+      this.panel.draw(this.remote.view, CREDITS);
+      this.panel.tick(this.clock);
     }
     if (xr && this.view) {
       if ((this.panel.draw(this.view, CREDITS) || this.logPanel) && import.meta.env.DEV) {

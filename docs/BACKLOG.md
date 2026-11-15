@@ -43,10 +43,7 @@ Start with docs/XR.md (how to run, file map, known issues, Quest test). Branches
    Stand, and let the left thumbstick turn the view in 30 degree steps."
 5. `feat/ahmed-earth-phase-labels`: "Name the brightest stars and show the Earth's phase and the Sun's azimuth as
    small labels in Stand, using stars.json names and computeSeries values only."
-Stretch: `feat/ahmed-journey-voice`: "voice-over (ElevenLabs) for the moments of the /xr/ journey: follow
-docs/NARRATION.md (one clip per moment, played on the `lunar-moment` event the first time it fires, with a mute
-button; numbers in braces come from the event's facts)."
-The old placeholder `web/src/routes/Moon3D.tsx` belongs to the website session: it embeds `/xr/?embed=1`.
+Done (PR `feat/eugenio-xr-voice`): an ElevenLabs voice for the moments of the /xr/ journey, 17 clips generated ahead of time (docs/NARRATION.md, docs/XR.md). Still open: clips for later sunrises and for each place's flight.
 
 ## Luke (story)
 1. `feat/luke-explain` (Haiku 5.5): "Add short plain-language explainers in web/src/content/ for each tab (2-3 sentences:

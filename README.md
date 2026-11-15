@@ -127,6 +127,8 @@ OpenAI Codex.
   visual design and these documents, working from prompts and reviews by the team (docs/PROMPTS.md). Research
   runs with web search gathered the sources for the landing criteria, the list of past landings and the check of
   the Artemis coordinates (docs/research/).
+- **Voice**: the narrator of the VR view is a synthetic voice. Voice: AI-generated with ElevenLabs, ahead of
+  time, from text we wrote and checked against our own numbers (docs/NARRATION.md); the app never calls it.
 - **What keeps it honest**: every number in the app and in the pitch comes from code we ran, not from a model's
   memory. Sun and Earth positions are checked against JPL Horizons (largest difference 0.0007 degrees) and long-run
   sunlight and Earth visibility against NASA's PGDA maps (largest difference 4.3 percentage points):

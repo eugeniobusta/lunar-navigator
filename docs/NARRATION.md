@@ -1,13 +1,44 @@
-# Narration for the VR journey (draft for a fuller voice-over)
+# Narration for the VR journey
 
-The VR view (docs/XR.md) is a journey of named moments. Each moment already does two things in the app: it puts
-one short line in the caption slot, and it is announced so that a voice can be attached later without touching
-the journey itself. This file lists every moment, when it fires, what its caption says, and a draft of what a
-voice (for example an ElevenLabs voice) could say.
+Voice: AI-generated with ElevenLabs (voice "Dan", model `eleven_multilingual_v2`). The clips are generated ahead
+of time by `scripts/make_voice.mjs` and stored in `xr/public/voice/`; the app never calls ElevenLabs.
 
-What is implemented today is smaller: six short spoken lines, one per stage, in the macOS voice, telling the
-visitor where they are and what to press (docs/XR.md, "Voice, sound and the movable menu"; the list is in
-`scripts/make_voice.sh`). They quote no numbers. The drafts below are not recorded.
+The VR view (docs/XR.md) is a journey of named moments. Each moment puts one short line in the caption slot and
+is announced on a hook; the narrator listens to that hook and plays the moment's clip the first time it is
+heard. This file has the clips as recorded, then every moment with its longer draft narration.
+
+## The clips as recorded
+
+Each clip says one thing about what you see and one thing to do, in about 12 seconds at most. A general clip
+never says a number that depends on where or when the visitor stands (the caption shows those). A site clip
+only uses the long-run figures of the table of the six places below, said as "over three years" (1157 days).
+`xr/src/voice.test.ts` checks both rules against the recorded text.
+
+| Clip | Text |
+|------|------|
+| `moon-intro` | This is the Moon, seen from below its south pole, where the next astronauts plan to land. Press the green Start button to set time running. |
+| `start-motion` | A whole month now passes every thirty seconds. Watch the line between day and night cross the Moon. When you are ready, press South Pole. |
+| `pole-arrived` | The Moon hardly tilts, so at its pole the Sun only skims the horizon and shadows are very long. Six landing sites are marked. Pick one. |
+| `site-recommended` | Our pick is Malapert Massif, in yellow. In our model the Earth never sets there, so a radio link home is always open. Select it to fly there. |
+| `colours-on` | The colours show how good the ground is for landing. Green is good, amber is acceptable, red is poor, and striped ground is unsafe. Now choose a landing site. |
+| `play` | Time is running: one Earth day every ten seconds. The Sun never passes overhead here; it slides around the horizon. To walk, point at the ground and pull the trigger. |
+| `play-first-sunrise` | Sunrise. Sunlight means power for a lander. Because the Sun is so low, even a small rock throws a very long shadow. Look around you. |
+| `sunset` | Sunset. With no air there is no dusk: the light simply goes out. A lander now runs on batteries until the Sun returns. Keep watching, or press Pause. |
+| `earth-in-view` | There is the Earth. While you can see it, radio signals travel straight home, so a lander can talk to mission control. Look for it above the hills. |
+| `earth-hidden` | The Earth has slipped behind the hills. Until it returns, messages home need a relay satellite. Keep time running to see it come back. |
+| `teleport` | You moved. The shape of this ground is real, measured by a NASA laser from orbit, and it is 61 kilometres across. Point anywhere and pull the trigger to explore. |
+| `landed:mma01` | You are standing on Malapert Massif. Over three years, the Earth is in the sky here one hundred percent of the time, and the Sun is up 46 percent. Press the green Play button. |
+| `landed:mmo01` | This is Mons Mouton, the sunniest of our six sites. Over three years the Sun is up 73 percent of the time, and more sunlight means more solar power. Press the green Play button. |
+| `landed:hw02` | This is Haworth. Over three years the Sun is up 48 percent of the time, and the longest night lasts 436 hours, about 18 days. Press the green Play button. |
+| `landed:nr107` | This is Nobile Rim 1. Over three years the Sun is up 53 percent of the time and the Earth is in view 59 percent, so the radio link comes and goes. Press the green Play button. |
+| `landed:dgr203` | This is de Gerlache Rim 2, the closest of our six sites to the pole. Over three years the Sun is up 58 percent of the time. Press the green Play button. |
+| `landed:im2` | This is where the lander Athena came down in March 2025. It ended on its side in a small dark crater. Over three years the Sun is up here just 45 percent of the time. Press the green Play button. |
+
+Sources of what the clips say: the percentages, the 436 hours and "closest to the pole" (88.1 S) are the table
+of the six places; "about 18 days" is 436 / 24; 61 kilometres, Athena's landing and the speeds of time are in
+the fixed figures; "the Moon hardly tilts" is the reason the Sun's centre never rises more than 1.59 degrees at
+the pole (fixed figures). `fly-to-pole` and `flight` have no clip: the stage changes within seconds, and a
+change of stage stops the voice.
 
 ## The hook
 
@@ -110,7 +141,7 @@ tested to stay under 72 characters).
 - Anything about the small craters and rocks as if they were real: they are illustrative.
 - "Always" or "never" about sunlight: no place in the table has the Sun up all the time.
 
-## To add a voice later
+## To extend the voice
 
 1. Record or generate one clip per row with text above; rows with `{...}` need either a clip per place (six
    places for `flight` and `landed`) or live text-to-speech for the numbers.

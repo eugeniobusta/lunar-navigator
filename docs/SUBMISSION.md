@@ -135,7 +135,8 @@ Artemis coordinates.
 **AI-generated audio.** The narrator of the 3D / VR view is an AI voice: ElevenLabs (voice "Dan", model
 `eleven_multilingual_v2`), 17 short clips generated ahead of time; the app only plays the files, and the text of
 every clip is in docs/NARRATION.md. The VR view says so on screen ("Voice: AI-generated with ElevenLabs"). The
-three videos in `media/` (submission-30s, pitch-3min, pitch-2min) are silent screen recordings with no narration.
+submission video (`media/submission-30s-voice.mp4`) uses three of those clips as its narration, shows "Narrator voice:
+AI-generated (ElevenLabs)" on screen throughout and says so in its metadata. The pitch videos are silent.
 
 **AI-generated images and video.** None in the app or in those videos. The pitch deck lists two more AI tools
 whose use a teammate still has to confirm (media/REFERENCES.md, items marked CONFIRM). The NASA logo is not used.

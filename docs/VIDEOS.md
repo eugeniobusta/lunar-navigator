@@ -1,16 +1,40 @@
 # Videos
 
-Cut with ffmpeg by `scripts/make_videos.py` from screen recordings; no app code is involved. All three are
-1920 x 1080, H.264, 30 frames per second, and **have no audio track**.
+Cut with ffmpeg by `scripts/make_videos.py` from screen recordings; no app code is involved. All are
+1920 x 1080, H.264, 30 frames per second. Only the narrated submission video has sound.
 
 | File | Length | For | What is in it |
 |------|--------|-----|---------------|
-| `media/submission-30s.mp4` | 29.0 s | the Space Apps form (limit 30 s) | 15 s of website (homepage, Site Finder, Window Finder), then 14 s of the real VR session (the whole Moon, flying to the pole, the coloured ground, landing, standing on the surface), with burned-in English subtitles |
+| `media/submission-30s-voice.mp4` | 29.30 s | **the Space Apps form** (limit 30 s; ours 29.5 s) | 1.2 s of homepage, 9.7 s of Site Finder, then 18.4 s of the real VR session, narrated by three of the VR view's own narrator clips; the spoken words as subtitles; "Narrator voice: AI-generated (ElevenLabs)" in the corner throughout. Details below. Public copy: https://github.com/eugeniobusta/lunar-navigator/releases/tag/submission-video |
+| `media/submission-30s.mp4` | 29.0 s | the earlier silent cut, kept as a fallback | 15 s of website (homepage, Site Finder, Window Finder), then 14 s of the real VR session (the whole Moon, flying to the pole, the coloured ground, landing, standing on the surface), with burned-in English subtitles |
 | `media/pitch-3min.mp4` | 3:00 | the live pitch; the team speaks over it | docs/PITCH.md section by section, a small section label in the corner, a QR code to the live site over the last 5 seconds |
 | `media/pitch-2min.mp4` | 2:00 | the same, shorter | the same story and the same QR ending |
 
-The mp4 files and the VR source are **not in the repository** (`.gitignore`: together they are about 280 MB, and
+The mp4 files and the VR source are **not in the repository** (`.gitignore`: together they are about 300 MB, and
 the VR source alone is over GitHub's 100 MB limit for one file). They are in `media/` on the lead's laptop.
+
+## The narrated submission video
+
+The voice is the VR view's narrator: an AI voice made with ElevenLabs ahead of time (docs/XR.md). This video uses
+three of the existing files in `xr/public/voice/`; nothing was generated for it. Each clip is cut only after its
+last word, the picture is timed to the words, and the subtitles are the lines of `xr/public/voice/lines.json`
+(the script refuses to build if they differ).
+
+| Voice clip | File length | Used | Plays at | On screen |
+|------------|-------------|------|----------|-----------|
+| (none) | | | 0.00 to 1.20 s | the homepage |
+| `colours-on.mp3` | 9.85 s | 9.70 s | 1.20 to 10.90 s | Site Finder: the whole map, then the best zone and a closer look |
+| `pole-arrived.mp3` | 8.68 s | 8.40 s | 11.25 to 19.65 s | the VR: down to the pole, its six sites marked |
+| `play-first-sunrise.mp3` | 9.10 s | 8.97 s | 20.05 to 29.02 s | the VR: the flight to Malapert Massif, the lander on the surface, long shadows |
+
+Measured on the finished file: 29.30 s (video stream 29.30 s, audio stream 29.27 s); voice from 1.24 to 10.81 s,
+11.30 to 19.56 s and 20.05 to 28.96 s, so the clips do not overlap; loudness -15.9 LUFS; audio AAC, 48 kHz, 192
+kbit/s; the index is at the front of the file (faststart). Metadata comment: "Narrator voice generated with
+ElevenLabs (AI). Built with AI coding assistants (Claude Code). Data: NASA LRO LOLA, NASA PGDA, JPL DE421. Not an
+official NASA product."
+
+Subtitle times inside each clip come from the pauses ffmpeg finds in the audio (silencedetect); nobody has
+listened to check them word by word. Make only this video with `python scripts/make_videos.py voice`.
 
 ## Sources
 

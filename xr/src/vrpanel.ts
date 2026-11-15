@@ -1,7 +1,8 @@
 // The floating panel used inside VR: one stage of the journey (journey.ts stageView) drawn on a canvas, on a plane
 // that the controller ray or a hand pinch can press. Few, large buttons: every one is at least 7 cm high. The app
 // tests its own ray against the plane (hit) and calls the same actions as the laptop panel (hud.ts).
-// A bar on top of the panel is its handle: held with the trigger, the grip or a pinch, it moves the panel.
+// A bar on top of the panel is its handle: it is the only part IWSDK's grab system can take hold of (the app
+// gives the panel a DistanceGrabbable; the panel itself ignores pointer events, the handle accepts them).
 import {
   BufferGeometry,
   CanvasTexture,
@@ -29,15 +30,11 @@ export const HANDLE_W_M = 0.4;
 export const HANDLE_H_M = 0.075;
 /** Height of the handle's centre above the panel's. */
 export const HANDLE_Y_M = PANEL_H_M / 2 + 0.012 + HANDLE_H_M / 2;
-/** How near and how far the panel can be held from the hand that drags it, metres. */
-export const GRAB_RANGE_M: [number, number] = [0.5, 3];
 /** Where the panel stands when it is put back in front of the visitor: this far from the head, this far to the
  *  left of where they look, at this height above the floor. */
 export const FRONT = { distM: 1.134, leftRad: 0.578, heightM: 1.25 };
 
 type V3 = [number, number, number];
-
-export const clampGrab = (distM: number) => Math.min(GRAB_RANGE_M[1], Math.max(GRAB_RANGE_M[0], distM));
 
 /** The turn about the vertical that makes a panel at `panel` face a head at `head` (the panel's front is +z). */
 export const facingYaw = (panel: V3, head: V3) => Math.atan2(head[0] - panel[0], head[2] - panel[2]);
@@ -93,7 +90,6 @@ export class VrPanel {
   private arrow: Mesh;
   private arrowAt: Rect | null = null;
   private handle: Mesh;
-  private grabDist = 1;
   private handleLit: boolean | null = null;
   private head = new Vector3();
 
@@ -161,23 +157,17 @@ export class VrPanel {
     }
   }
 
-  /** How far from the hand the handle is held, metres. */
-  get grabDistance(): number {
-    return this.grabDist;
+  /** Whether a pointer (IWSDK's ray in VR) can take hold of the handle. The panel itself never takes pointers. */
+  setGrabbable(on: boolean): void {
+    (this.mesh as Mesh & { pointerEvents?: string }).pointerEvents = 'none';
+    (this.handle as Mesh & { pointerEvents?: string }).pointerEvents = on ? 'auto' : 'none';
   }
 
-  /** Takes hold of the handle at `point` with a ray from `origin` (room coordinates). */
-  grab(origin: Vector3, point: Vector3): void {
-    this.grabDist = clampGrab(point.distanceTo(origin));
-  }
-
-  /** While held: the handle stays on the ray at the distance it was taken, and the panel faces the head. */
-  drag(origin: Vector3, dir: Vector3, head: Vector3): void {
-    const parent = this.mesh.parent!;
-    const h = parent.worldToLocal(this.o.copy(origin).addScaledVector(dir, this.grabDist));
-    const e = parent.worldToLocal(this.head.copy(head));
-    this.mesh.position.set(h.x, h.y - HANDLE_Y_M, h.z);
-    this.mesh.rotation.set(0, facingYaw([h.x, 0, h.z], [e.x, 0, e.z]), 0);
+  /** Turns the panel about the vertical to face the head (room coordinates). */
+  face(head: Vector3): void {
+    const e = this.mesh.parent!.worldToLocal(this.head.copy(head));
+    const p = this.mesh.position;
+    this.mesh.rotation.set(0, facingYaw([p.x, 0, p.z], [e.x, 0, e.z]), 0);
   }
 
   /** After a change of stage: a panel left behind the visitor comes back in front of them; true if it moved. */

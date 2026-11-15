@@ -1,11 +1,22 @@
 {
-  "voice": "macOS speech synthesis, voice Daniel, 175 words per minute",
-  "lines": [
-    { "id": "moon", "text": "This is the Moon from below its south pole. Press Start.", "file": "moon.m4a" },
-    { "id": "pole", "text": "Six landing sites. Yellow is our pick. Choose one.", "file": "pole.m4a" },
-    { "id": "surface", "text": "You're on the surface. Press the green Play button.", "file": "surface.m4a" },
-    { "id": "play", "text": "Watch the Sun. When it hides behind the ridge, power stops.", "file": "play.m4a" },
-    { "id": "walk", "text": "Point at the ground and pull the trigger to walk.", "file": "walk.m4a" },
-    { "id": "handle", "text": "Grab the menu's handle to move it.", "file": "handle.m4a" }
-  ]
+  "voice": "AI-generated with ElevenLabs (voice BHr135B5EUBtaWheVj8S, model eleven_multilingual_v2)",
+  "lines": {
+    "moon-intro": "This is the Moon, seen from below its south pole, where the next astronauts plan to land. Press the green Start button to set time running.",
+    "start-motion": "A whole month now passes every thirty seconds. Watch the line between day and night cross the Moon. When you are ready, press South Pole.",
+    "pole-arrived": "The Moon hardly tilts, so at its pole the Sun only skims the horizon and shadows are very long. Six landing sites are marked. Pick one.",
+    "site-recommended": "Our pick is Malapert Massif, in yellow. In our model the Earth never sets there, so a radio link home is always open. Select it to fly there.",
+    "colours-on": "The colours show how good the ground is for landing. Green is good, amber is acceptable, red is poor, and striped ground is unsafe. Now choose a landing site.",
+    "play": "Time is running: one Earth day every ten seconds. The Sun never passes overhead here; it slides around the horizon. To walk, point at the ground and pull the trigger.",
+    "play-first-sunrise": "Sunrise. Sunlight means power for a lander. Because the Sun is so low, even a small rock throws a very long shadow. Look around you.",
+    "sunset": "Sunset. With no air there is no dusk: the light simply goes out. A lander now runs on batteries until the Sun returns. Keep watching, or press Pause.",
+    "earth-in-view": "There is the Earth. While you can see it, radio signals travel straight home, so a lander can talk to mission control. Look for it above the hills.",
+    "earth-hidden": "The Earth has slipped behind the hills. Until it returns, messages home need a relay satellite. Keep time running to see it come back.",
+    "teleport": "You moved. The shape of this ground is real, measured by a NASA laser from orbit, and it is 61 kilometres across. Point anywhere and pull the trigger to explore.",
+    "landed:mma01": "You are standing on Malapert Massif. Over three years, the Earth is in the sky here one hundred percent of the time, and the Sun is up 46 percent. Press the green Play button.",
+    "landed:mmo01": "This is Mons Mouton, the sunniest of our six sites. Over three years the Sun is up 73 percent of the time, and more sunlight means more solar power. Press the green Play button.",
+    "landed:hw02": "This is Haworth. Over three years the Sun is up 48 percent of the time, and the longest night lasts 436 hours, about 18 days. Press the green Play button.",
+    "landed:nr107": "This is Nobile Rim 1. Over three years the Sun is up 53 percent of the time and the Earth is in view 59 percent, so the radio link comes and goes. Press the green Play button.",
+    "landed:dgr203": "This is de Gerlache Rim 2, the closest of our six sites to the pole. Over three years the Sun is up 58 percent of the time. Press the green Play button.",
+    "landed:im2": "This is where the lander Athena came down in March 2025. It ended on its side in a small dark crater. Over three years the Sun is up here just 45 percent of the time. Press the green Play button."
+  }
 }

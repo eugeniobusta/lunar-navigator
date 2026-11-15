@@ -3,7 +3,7 @@
 import type { StageButton, StageView } from './journey.js';
 
 export const CREDITS =
-  "Terrain: NASA LOLA. Moon globe: NASA SVS CGI Moon Kit (LROC colour, LOLA relief). Earth: NASA Blue Marble. Sun: NASA SDO. Illumination: NASA Goddard PGDA. Ephemeris: JPL DE421. Built by Claude's Plan with AI coding assistants; not an official NASA product.";
+  "Terrain: NASA LOLA. Moon globe: NASA SVS CGI Moon Kit (LROC colour, LOLA relief). Earth: NASA Blue Marble. Sun: NASA SDO. Illumination: NASA Goddard PGDA. Ephemeris: JPL DE421. Voice: AI-generated with ElevenLabs. Built by Claude's Plan with AI coding assistants; not an official NASA product.";
 
 export interface Actions {
   /** A button of the stage panel, by its id (journey.ts). */

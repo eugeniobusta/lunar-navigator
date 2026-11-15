@@ -4,16 +4,21 @@
 import {
   AmbientLight,
   DirectionalLight,
+  DistanceGrabbable,
+  Grabbed,
   Group,
   Matrix4,
   Mesh,
+  MovementMode,
   PlaneGeometry,
   Quaternion,
+  RayInteractable,
   Vector3,
   VisibilityState,
   createSystem,
   type BufferGeometry,
   type DataTexture,
+  type Entity,
   type Line,
   type MeshBasicMaterial,
   type Object3D,
@@ -324,8 +329,9 @@ export class ExperienceSystem extends createSystem({}) {
     right: { pressed: false, squeezed: false, held: false, gripHeld: false },
   };
   private activeHand: Hand = 'right';
-  /** The hand that holds the panel's handle. */
-  private dragHand: Hand | null = null;
+  /** The panel as an entity: IWSDK's grab system moves it by its handle (DistanceGrabbable). */
+  private panelEntity: Entity | null = null;
+  private panelHeld = false;
   private hoverButton: string | null = null;
   /** The line the voice is speaking, shown in the caption slot while it plays (voice.ts). */
   private voiceCaption: string | null = null;
@@ -379,7 +385,12 @@ export class ExperienceSystem extends createSystem({}) {
     this.panel.mesh.position.set(-0.62, 1.25, -0.95);
     this.panel.mesh.rotation.y = 0.58;
     this.panel.mesh.visible = false;
-    this.player.add(this.panel.mesh);
+    // IWSDK's own grab: the ray takes the panel by its handle bar and carries it at the ray's end; the app keeps
+    // it upright and facing the visitor (update). Only the handle accepts pointers, so the buttons still click.
+    this.panelEntity = this.world.createTransformEntity(this.panel.mesh);
+    this.panel.setGrabbable(false);
+    this.panelEntity.addComponent(RayInteractable);
+    this.panelEntity.addComponent(DistanceGrabbable, { movementMode: MovementMode.MoveFromTarget, rotate: false, scale: false });
     for (const hand of ['left', 'right'] as Hand[]) {
       const ray = polyline([0, 0, 0, 0, 0, -1], PALETTE.text2, 0.8);
       ray.scale.z = 4;
@@ -400,9 +411,9 @@ export class ExperienceSystem extends createSystem({}) {
       window.dispatchEvent(new CustomEvent('lunar-moment', { detail: e }));
       // The newest line is the caption: a moment's own, or the voice's if the moment has a spoken line.
       this.voiceCaption = null;
-      this.narrator.moment(e.id);
+      this.narrator.moment(e.id, this.siteId);
       // The panel stays where the visitor put it, unless a new stage finds it behind them.
-      if (this.inXR && this.dragHand == null && ['pole-arrived', 'landed', 'back-to-moon', 'back-to-pole'].includes(e.id)) {
+      if (this.inXR && !this.panelHeld && ['pole-arrived', 'landed', 'back-to-moon', 'back-to-pole'].includes(e.id)) {
         this.panel.keepInFront(this.camPos, this.camera.getWorldDirection(this.v3));
         this.logPanel = true;
       }
@@ -446,7 +457,26 @@ export class ExperienceSystem extends createSystem({}) {
       // `ray` sends a ray (room coordinates) through the code that handles a hand's ray in VR and returns where
       // the panel and its buttons then are.
       lunarTest: {
-        audio: () => this.narrator.enter(() => this.stage()),
+        audio: () => this.narrator.enter(() => ({ stage: this.stage(), siteId: this.siteId })),
+        // Shows the VR panel in front of the laptop camera with its handle grabbable, and says where its handle
+        // and the middle of its body are on the page (CSS pixels), for a drag with the real mouse.
+        panel: () => {
+          const m = this.panel.mesh;
+          const f = this.camera.getWorldDirection(new Vector3());
+          m.visible = true;
+          m.position.copy(this.camPos).addScaledVector(f, 1.6);
+          m.position.y -= 0.25;
+          this.panel.face(this.camPos);
+          this.panel.setGrabbable(true);
+          this.panel.draw(this.stageModel(), CREDITS);
+          m.updateWorldMatrix(true, true);
+          const r = this.renderer.domElement.getBoundingClientRect();
+          const px = (at: number[]) => {
+            const p = new Vector3(...(at as [number, number, number])).project(this.camera);
+            return { x: r.left + ((p.x + 1) / 2) * r.width, y: r.top + ((1 - p.y) / 2) * r.height };
+          };
+          return { handle: px(this.panel.targets().find((t) => t.id === 'handle')!.at), body: px(m.getWorldPosition(new Vector3()).toArray()) };
+        },
         ray: (kind: 'down' | 'move' | 'up' | 'grip' | 'look', o: number[] = [0, 0, 0], d: number[] = [0, 0, -1]) => {
           this.panel.mesh.visible = true;
           this.panel.draw(this.stageModel(), CREDITS);
@@ -462,7 +492,7 @@ export class ExperienceSystem extends createSystem({}) {
             this.handInput('right', new Vector3(...(o as [number, number, number])), new Vector3(...(d as [number, number, number])).normalize());
           }
           this.panel.draw(this.stageModel(), CREDITS);
-          return { head: this.camPos.toArray(), at: this.panel.mesh.position.toArray(), yaw: this.panel.mesh.rotation.y, dragging: this.dragHand != null, targets: this.panel.targets() };
+          return { head: this.camPos.toArray(), at: this.panel.mesh.position.toArray(), yaw: this.panel.mesh.rotation.y, held: this.panelHeld, targets: this.panel.targets() };
         },
       },
     });
@@ -1705,7 +1735,7 @@ export class ExperienceSystem extends createSystem({}) {
       ray.visible = true;
       ray.scale.z = this.handInput(hand, o, d);
     }
-    this.panel.setHandleLit(this.dragHand != null || this.hoverButton === 'handle');
+    this.panel.setHandleLit(this.panelHeld || this.hoverButton === 'handle');
     this.panel.setHover(this.hoverButton === 'handle' ? null : this.hoverButton);
   }
 
@@ -1715,26 +1745,13 @@ export class ExperienceSystem extends createSystem({}) {
     const trigger = sel.pressed;
     const down = sel.pressed || sel.squeezed;
     sel.pressed = sel.squeezed = false;
-    if (this.dragHand === hand) {
-      if (sel.held || sel.gripHeld) {
-        this.panel.drag(o, d, this.camPos);
-      } else {
-        this.dragHand = null; // dropped where it is, facing the visitor
-        this.logPanel = true;
-      }
-      return this.panel.grabDistance;
-    }
     const hit = this.panel.hit(o, d);
     if (hit && hand === this.activeHand) {
       this.hoverButton = hit.handle ? 'handle' : hit.button;
     }
     if (down) {
       if (hit?.handle) {
-        // Dragging starts only from the handle; the buttons below it click as before.
-        if (this.dragHand == null) {
-          this.dragHand = hand;
-          this.panel.grab(o, hit.point);
-        }
+        // The handle belongs to IWSDK's grab system; the buttons below it click as before.
       } else if (trigger && hit?.button) {
         this.press(hit.button);
       } else if (trigger && !hit) {
@@ -1802,9 +1819,10 @@ export class ExperienceSystem extends createSystem({}) {
     this.quality.reset();
     this.applyQuality();
     this.logPanel = xr;
-    this.dragHand = null;
+    this.panel.setGrabbable(xr);
     if (xr) {
-      this.narrator.enter(() => this.stage()); // sound starts here: entering VR is the visitor's gesture
+      // Sound starts here: entering VR is the visitor's gesture.
+      this.narrator.enter(() => ({ stage: this.stage(), siteId: this.siteId }));
     } else {
       this.narrator.leave();
     }
@@ -1950,7 +1968,8 @@ export class ExperienceSystem extends createSystem({}) {
       this.lastDay = dayOf(this.tH);
       this.dirtyHud = true;
     }
-    if (this.recommendAt != null && this.clock >= this.recommendAt) {
+    // The recommendation waits for the voice to finish what it is saying about the pole.
+    if (this.recommendAt != null && this.clock >= this.recommendAt && this.narrator.speaking == null) {
       this.recommendAt = null;
       if (stage === 'pole') {
         this.emit('site-recommended');
@@ -1997,6 +2016,13 @@ export class ExperienceSystem extends createSystem({}) {
       }
       this.logPanel = false;
       this.panel.tick(this.clock);
+    }
+    // While the handle is held, and once more when it is let go: upright, facing the visitor.
+    const held = this.panelEntity?.hasComponent(Grabbed) === true;
+    if (held || this.panelHeld) {
+      this.panel.face(this.camPos);
+      this.logPanel = !held;
+      this.panelHeld = held;
     }
   }
 }

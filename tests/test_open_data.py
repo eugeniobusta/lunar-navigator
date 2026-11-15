@@ -72,3 +72,9 @@ def test_every_third_party_picture_is_credited():
     moon = json.loads((ROOT / "xr" / "public" / "moon" / "moon.json").read_text())
     assert INDEX["third_party"]["vr_textures"][0]["credit"] == moon["credit"]
     assert "svs.gsfc.nasa.gov/4720" in credits
+    sky = json.loads((ROOT / "xr" / "public" / "sky" / "sky.json").read_text())
+    earth, sun = INDEX["third_party"]["vr_textures"][1:]
+    assert earth["credit"] == sky["earth"]["credit"] and earth["source"] == "https://svs.gsfc.nasa.gov/2915"
+    assert sun["credit"] == "NASA/GSFC/Solar Dynamics Observatory" and "PIA21582" in sun["source"]
+    for t in INDEX["third_party"]["vr_textures"]:
+        assert t["source"] in credits and t["licence"] != "unconfirmed"

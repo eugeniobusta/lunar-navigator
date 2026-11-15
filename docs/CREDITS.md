@@ -36,12 +36,15 @@ and implies no endorsement. The Earth photo in the sky chart is masked to show E
 
 ## 2. Textures of the 3D / VR view
 
-| Asset | Files | Source | Credit | Status |
-|-------|-------|--------|--------|--------|
-| The whole Moon (colour, relief, heights) | `xr/public/moon/` (`color_*.jpg`, `relief_*.jpg`, `height_720.u16`, `polar_height.u16`), made by `scripts/export_moon_globe.py` | NASA Scientific Visualization Studio, CGI Moon Kit, https://svs.gsfc.nasa.gov/4720 | NASA's Scientific Visualization Studio: LROC WAC colour (ASU), LOLA elevation (GSFC) | In the repository. The page exists under that title; see "Not confirmed" for its credit line |
-| Earth texture | not in the repository yet | NASA Blue Marble (NASA Earth Observatory / Visible Earth) | to be stated by the VR session when it lands | Flagged: see "Not confirmed" |
-| Sun texture | not in the repository yet | NASA Solar Dynamics Observatory | to be stated by the VR session when it lands | Flagged: see "Not confirmed" |
+| Asset | Files | Source | Credit, as the source asks | Status |
+|-------|-------|--------|-----------------------------|--------|
+| The whole Moon (colour, relief, heights) | `xr/public/moon/` (`color_*.jpg`, `relief_*.jpg`, `height_720.u16`, `polar_height.u16`), made by `scripts/export_moon_globe.py` | NASA Scientific Visualization Studio, "CGI Moon Kit", https://svs.gsfc.nasa.gov/4720 | "Please give credit for this item to: NASA's Scientific Visualization Studio" (visualizer Ernie Wright; data: LOLA elevation, LROC WAC colour mosaic collected by Arizona State University) | Confirmed: read on the page in a browser, 15 Nov 2026 |
+| Earth | `xr/public/sky/earth_2k.jpg`, `earth_1k.jpg`, made by `scripts/export_sky_textures.py` | NASA SVS, "Blue Marble - A Seamless Image Mosaic of the Earth (WMS)", item 2915, file `bluemarble-2048.png`, https://svs.gsfc.nasa.gov/2915 | "NASA/Goddard Space Flight Center Scientific Visualization Studio. The Blue Marble Next Generation data is courtesy of Reto Stockli (NASA/GSFC) and NASA's Earth Observatory." | Confirmed: read on the page in a browser, 15 Nov 2026 |
+| The Sun | `xr/public/sky/sun_512.jpg`, same script | NASA Solar Dynamics Observatory, "Spotless Sun" (PIA21582), 13 March 2017, https://images.nasa.gov/details/PIA21582 | NASA/GSFC/Solar Dynamics Observatory (the line docs/XR.md uses) | Picture confirmed: in the library and on the NASA Science photojournal page under this title, an SDO image (keywords and mission say so). Credit wording not confirmed: see section 6 |
 | Stars of the VR sky | `web/public/data/stars.json` | Yale Bright Star Catalogue, 5th rev. ed., JSON conversion by Bretton Wade | see DATA_LICENSE.md (the conversion is MIT) | Recorded in DATA_LICENSE.md |
+
+The Sun's picture is cut to its disc and brightened, and the Earth's is drawn brighter than the file (docs/XR.md,
+"Pictures and credits"). The same NASA terms as section 1 apply.
 
 ## 3. Our own pictures
 
@@ -84,12 +87,10 @@ lint: pytest 9.2.0 (MIT), ruff 0.17.5 (MIT).
 
 ## 6. Not confirmed, or to watch
 
-- **CGI Moon Kit credit line.** The SVS page https://svs.gsfc.nasa.gov/4720 exists under the title "CGI Moon Kit",
-  but its text loads in the browser and our script could not read the credit line. The credit above is the one
-  the VR session recorded in `xr/public/moon/moon.json`. Someone should read it on the page.
-- **Earth and Sun textures for the VR** (NASA Blue Marble, NASA SDO) are not in the repository at the time of
-  writing. When they are added, their file names, source pages and credit lines belong in section 2 and on the
-  Data & Method page.
+- **Credit line of the Sun picture (PIA21582).** On both NASA pages we opened (images.nasa.gov and the NASA
+  Science photojournal) the credit field reads "Spotless_combo_best.tif", a file name, not a name. Both pages
+  say it is a Solar Dynamics Observatory image. We credit it "NASA/GSFC/Solar Dynamics Observatory", the usual
+  line for SDO pictures and the one docs/XR.md records; it is not a quote from the page.
 - **@meta-quest/metavr** is under Meta's own SDK licence, not an open-source one. It is a dev dependency of `xr/`
   only. We did not read that licence in full; check it before redistributing anything built with it.
 - **Photographer for the Artemis II and Apollo frames.** The library lists no photographer (or "NASA") for them;

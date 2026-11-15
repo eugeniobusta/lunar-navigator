@@ -1,4 +1,6 @@
-// Records the two demo videos from the production build, 1920 x 1080, no visible cursor:
+// Records the demo videos from the production build, 1920 x 1080, no visible cursor:
+//   media/clips/01-home.webm ... 07-compare-sites.webm  the website, one clip per page (01 to 03 the Simple view,
+//                                                       04 to 07 the Detailed view)
 //   media/clips/08-vr-moon.webm, 09-vr-pole.webm, 10-vr-surface.webm  the three stages of /xr/ on the laptop view
 //   media/web-30s.webm  30 s: Malapert Overview, Window Finder, Site Finder (the Detailed view), the VR
 //
@@ -119,6 +121,99 @@ const VR = ONLY === 'web' ? [] : [
 
 // ------------------------------------------------------------------------------------------------ the website
 
+/** Opens a page of the website and waits for `ready` before the clip starts. */
+const site = (path, ready, run) => clip(async (page, cut) => {
+  await page.goto(BASE + path);
+  await page.waitForSelector(ready, { timeout: 60000 });
+  await wait(page, 1.5);
+  cut();
+  await run(page);
+});
+const mapReady = (page) => page.waitForFunction(() => !document.querySelector('.map-loading') && document.querySelector('.map-legend li'), null, { timeout: 60000 });
+const smooth = (page, top) => page.evaluate((t) => window.scrollBy({ top: t, behavior: 'smooth' }), top);
+const mapPoint = async (page, fx, fy) => { const b = await page.locator('.map-view').boundingBox(); return [b.x + b.width * fx, b.y + b.height * fy]; };
+
+const WEB = ONLY === 'vr' ? [] : [
+  // The Simple view: the homepage, top to bottom of its first sections.
+  ['01-home.webm', await site('/?view=simple', '.home-stats', async (page) => {
+    await wait(page, 2.5);
+    await smooth(page, 1000);
+    await wait(page, 3);
+    await smooth(page, 950);
+    await wait(page, 3);
+  })],
+  // Explore a site: the time slider moves the Sun along the skyline, then what it means for a lander.
+  ['02-explore-a-site.webm', await site(`/?view=simple&site=${SITE}&date=${DATE}&days=14&tab=explore`, 'svg.sky', async (page) => {
+    await scrollTo(page, 'svg.sky', 110);
+    await wait(page, 1.2);
+    const bar = await page.locator('.scrub input[type=range]').boundingBox();
+    await drag(page, bar.x + 8, bar.y + bar.height / 2, bar.width * 0.5, 0, 4.5);
+    await scrollTo(page, '.vitals', 220);
+    await wait(page, 3.5);
+  })],
+  // Plan a landing: another mission, a click on a spot near the pole, back to the best zone, then the landing days.
+  ['03-plan-a-landing.webm', await site('/?view=simple&tab=plan', '.map-view canvas', async (page) => {
+    await mapReady(page);
+    await scrollTo(page, '.presets.big', 110);
+    await wait(page, 2);
+    await page.click('.presets.big button:has-text("Radio link")');
+    await wait(page, 2);
+    await page.mouse.click(...(await mapPoint(page, 0.5, 0.42)));
+    await wait(page, 2.5);
+    await page.click('.answer button.link');
+    await wait(page, 2);
+    await scrollTo(page, '.window-head', 110);
+    await wait(page, 3.5);
+  })],
+  // Overview: the sky, the slider, the verdict and the numbers.
+  ['04-overview.webm', await site(`/?view=detailed&site=${SITE}&date=${DATE}&tab=overview`, '.hero svg', async (page) => {
+    const bar = await page.locator('.scrub input[type=range]').boundingBox();
+    await wait(page, 0.8);
+    await drag(page, bar.x + 8, bar.y + bar.height / 2, bar.width * 0.45, 0, 4);
+    await scrollTo(page, '.verdict', 96);
+    await wait(page, 4);
+  })],
+  // Site Finder: a preset, a group opened and one parameter alone, a zone chosen, a closer look, the ranking.
+  ['05-site-finder.webm', await site('/?view=detailed&tab=map', '.map-view canvas', async (page) => {
+    await mapReady(page);
+    await scrollTo(page, '.finder', 96);
+    await wait(page, 2);
+    await page.click('#finder-side button:has-text("Power first")');
+    await wait(page, 2);
+    await page.click('#finder-side button:has-text("Everything")');
+    await wait(page, 1.2);
+    await page.click('.answer button.link'); // the best zone: the map flies to it and the choices fold away
+    await wait(page, 3);
+    await page.mouse.move(...(await mapPoint(page, 0.5, 0.5)));
+    await page.mouse.wheel(0, -350);
+    await wait(page, 2);
+    await page.click('button[aria-label="Show the whole region"]');
+    await wait(page, 1.5);
+    await scrollTo(page, '.glance', 96);
+    await wait(page, 3.5);
+  })],
+  // Window Finder: the answer, then the calendar.
+  ['06-window-finder.webm', await site(`/?view=detailed&site=${SITE}&date=2026-11-14&days=14&tab=windows`, '.window-head', async (page) => {
+    await scrollTo(page, '.mission-cards', 96);
+    await wait(page, 2.5);
+    await scrollTo(page, '.window-head', 96);
+    await wait(page, 4);
+    await page.click('.mission-card:has-text("Crewed surface stay")');
+    await wait(page, 3.5);
+  })],
+  // Compare sites: the launch slip, then both judged as landing sites.
+  ['07-compare-sites.webm', await site('/?view=detailed&site=nr107&compare=mma01&date=2027-01-09T22:00Z&days=10&tab=compare', '.duel', async (page) => {
+    await scrollTo(page, '.panel .controls', 96);
+    await wait(page, 1.5);
+    const slip = await page.locator('.panel .controls input[type=range]').boundingBox();
+    // The slider runs from -30 to +60 days; drag from "on time" to +14 days.
+    await drag(page, slip.x + slip.width * (30 / 90), slip.y + slip.height / 2, slip.width * (14 / 90), 0, 4);
+    await wait(page, 2);
+    await scrollTo(page, '.compare.criteria', 140);
+    await wait(page, 4);
+  })],
+];
+
 const web = ONLY === 'vr' ? null : await clip(async (page, cut) => {
   // The Detailed view (one page per tool); the menu bar is Chinh's, with the pages in #pages.
   await page.goto(`${BASE}/?view=detailed&site=${SITE}&date=${DATE}&tab=overview`);
@@ -176,7 +271,7 @@ function write(out, clips) {
 }
 
 mkdirSync(join(ROOT, 'media', 'clips'), { recursive: true });
-for (const [name, c] of VR) {
+for (const [name, c] of [...WEB, ...VR]) {
   write(join(ROOT, 'media', 'clips', name), [c]);
 }
 if (web && vr) {

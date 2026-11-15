@@ -1,10 +1,10 @@
 // Records the two demo videos from the production build, 1920 x 1080, no visible cursor:
-//   media/vr-tour.webm  the guided tour of /xr/ on the laptop view, about 60 s
+//   media/clips/08-vr-moon.webm, 09-vr-pole.webm, 10-vr-surface.webm  the three stages of /xr/ on the laptop view
 //   media/web-30s.webm  30 s: Malapert Overview, Window Finder, Site Finder (the Detailed view), the VR
 //
 // Usage (from the repository root):
 //   make build && make xr && (cd web && npx vite preview --port 4179 --strictPort) &
-//   node scripts/record_footage.mjs [http://localhost:4179] [tour|web]   (no second argument: both videos)
+//   node scripts/record_footage.mjs [http://localhost:4179] [vr|web]   (no second argument: all of them)
 // Needs ffmpeg on the PATH and the Playwright Chromium that web/ already uses (cd web && npx playwright install chromium).
 // Every clip is recorded with its loading time and then cut to the part that matters.
 import { execFileSync } from 'node:child_process';
@@ -61,33 +61,65 @@ const scrollTo = (page, selector, offset = 16) =>
     [selector, offset],
   );
 
-// ------------------------------------------------------------------------------------------------ the tour
+// ------------------------------------------------------------------------------------------------ the VR, stage by stage
 
-const tour = ONLY === 'web' ? null : await clip(async (page, cut) => {
-  await page.goto(`${BASE}/xr/`);
-  await page.waitForSelector('button[data-a=tour]', { timeout: 60000 });
-  await wait(page, 2);
-  cut();
-  await wait(page, 1.5);
-  await page.click('button[data-a=tour]'); // stop 1: the south pole from orbit
-  await drag(page, 1150, 330, -260, 40, 10);
-  await page.click('button[data-a=next]'); // stop 2: the Goldilocks heat map
-  await drag(page, 1150, 330, -220, -50, 10);
-  await page.click('button[data-a=next]'); // stop 3: fly to the best zone
-  await page.waitForSelector('button[data-a=stand]', { timeout: 60000 });
-  await wait(page, 1);
-  await drag(page, 1150, 300, 240, 30, 12);
-  await page.click('button[data-a=next]'); // stop 4: stand there, two days pass
-  await wait(page, 4);
-  await drag(page, 1150, 300, 420, 0, 9);
-  await wait(page, 3);
-  await page.click('button[data-a=next]'); // back to orbit
-  await wait(page, 2.5);
-});
+const press = (page, id) => page.click(`button[data-id="${id}"]`);
+const VR = ONLY === 'web' ? [] : [
+  // Stage 1, the whole Moon: Start sets the Sun, the Earth and the day-night line in motion.
+  ['08-vr-moon.webm', await clip(async (page, cut) => {
+    await page.goto(`${BASE}/xr/?t=${DATE}T12:00Z`);
+    await page.waitForSelector('button[data-id=start]', { timeout: 60000 });
+    await wait(page, 2.5);
+    cut();
+    await wait(page, 2.5);
+    await press(page, 'start');
+    await wait(page, 6);
+    await drag(page, 1150, 420, -160, 30, 9);
+    await wait(page, 3);
+    await press(page, 'start');
+    await wait(page, 1.5);
+  })],
+  // Stage 2, the south pole: the safe landing colours, then Malapert Massif, the flight and the landing.
+  ['09-vr-pole.webm', await clip(async (page, cut) => {
+    await page.goto(`${BASE}/xr/?t=${DATE}T12:00Z`);
+    await page.waitForSelector('button[data-id=start]', { timeout: 60000 });
+    await wait(page, 2.5);
+    cut();
+    await wait(page, 1);
+    await press(page, 'pole');
+    await wait(page, 4.5);
+    await press(page, 'colours');
+    await drag(page, 1150, 330, -180, -30, 5);
+    await press(page, 'colours');
+    await wait(page, 1.5);
+    await press(page, `site:${SITE}`);
+    await page.waitForSelector('button[data-id=play]', { timeout: 60000 });
+    await wait(page, 1.5);
+    await drag(page, 1150, 300, 200, 20, 5);
+  })],
+  // Stage 3, on the surface: Play, the Sun rises at Malapert (17 December 2026), then a move by clicking the ground.
+  ['10-vr-surface.webm', await clip(async (page, cut) => {
+    await page.goto(`${BASE}/xr/?site=${SITE}&t=2026-12-16T12:00Z`);
+    await page.waitForSelector('button[data-id=play]', { timeout: 60000 });
+    await wait(page, 2.5);
+    cut();
+    await wait(page, 1.5);
+    await press(page, 'play');
+    await wait(page, 10);
+    await drag(page, 1150, 300, -240, 10, 6);
+    await press(page, 'play');
+    await wait(page, 1);
+    await page.mouse.move(1000, 830, { steps: 20 });
+    await wait(page, 1);
+    await page.mouse.click(1000, 830);
+    await wait(page, 2.5);
+    await drag(page, 1150, 300, 260, 0, 5);
+  })],
+];
 
 // ------------------------------------------------------------------------------------------------ the website
 
-const web = ONLY === 'tour' ? null : await clip(async (page, cut) => {
+const web = ONLY === 'vr' ? null : await clip(async (page, cut) => {
   // The Detailed view (one page per tool); the menu bar is Chinh's, with the pages in #pages.
   await page.goto(`${BASE}/?view=detailed&site=${SITE}&date=${DATE}&tab=overview`);
   await page.waitForSelector('#pages');
@@ -117,16 +149,15 @@ const web = ONLY === 'tour' ? null : await clip(async (page, cut) => {
   await wait(page, 3.5);
 });
 
-const vr = ONLY === 'tour' ? null : await clip(async (page, cut) => {
+const vr = ONLY === 'vr' ? null : await clip(async (page, cut) => {
   await page.goto(`${BASE}/xr/?site=${SITE}&t=${DATE}T00:00Z`);
-  await page.waitForSelector('button[data-a=stand]', { timeout: 60000 });
+  await page.waitForSelector('button[data-id=play]', { timeout: 60000 });
   await wait(page, 1.5);
   cut();
   await drag(page, 1150, 300, 160, 20, 2.5);
-  await page.click('button[data-a=stand]');
-  await wait(page, 0.6);
-  await page.click('button[data-s="10"]');
-  await drag(page, 1150, 300, 260, 0, 4.4);
+  await press(page, 'play');
+  await press(page, 'faster');
+  await drag(page, 1150, 300, 260, 0, 5);
 });
 
 await browser.close();
@@ -144,9 +175,9 @@ function write(out, clips) {
   console.log(out, clips.map((c) => `${c.duration.toFixed(1)} s`).join(' + '));
 }
 
-mkdirSync(join(ROOT, 'media'), { recursive: true });
-if (tour) {
-  write(join(ROOT, 'media', 'vr-tour.webm'), [tour]);
+mkdirSync(join(ROOT, 'media', 'clips'), { recursive: true });
+for (const [name, c] of VR) {
+  write(join(ROOT, 'media', 'clips', name), [c]);
 }
 if (web && vr) {
   write(join(ROOT, 'media', 'web-30s.webm'), [web, vr]);

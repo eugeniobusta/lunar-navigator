@@ -146,6 +146,74 @@ export function fieldUpAt(f: Field, x: number, z: number): number {
   return (1 - tr) * ((1 - tc) * a[i] + tc * a[i + 1]) + tr * ((1 - tc) * a[i + n] + tc * a[i + n + 1]);
 }
 
+/** The cell of a field's mesh (one vertex every `step` pixels) that holds scene x/z, and where in it (0..1). */
+function meshCell(f: Field, step: number, x: number, z: number): { r0: number; r1: number; c0: number; c1: number; u: number; v: number } | null {
+  const n = f.grid.size;
+  const [fr, fc] = fieldRowCol(f, x, z);
+  if (!(fr >= -1 && fc >= -1 && fr <= n && fc <= n)) {
+    return null;
+  }
+  // The mesh's rows and columns: 0, step, 2 step, ... and the last pixel.
+  const lo = (v: number) => Math.max(0, Math.min(Math.floor(v / step) * step, Math.floor((n - 2) / step) * step));
+  const hi = (v: number) => Math.min(v + step, n - 1);
+  let r0 = lo(fr);
+  let c0 = lo(fc);
+  let u = 0;
+  let v = 0;
+  // The pixel lattice is only nearly square in the scene (a pixel's height moves it sideways too, by up to tens of
+  // metres at a tile's edge): solve for the place in the cell from its four real corners, and step to the next
+  // cell while the point is outside.
+  const eps = 1e-4;
+  for (let k = 0; k < 6; k++) {
+    const r1 = hi(r0);
+    const c1 = hi(c0);
+    const [i00, i01, i10, i11] = [r0 * n + c0, r0 * n + c1, r1 * n + c0, r1 * n + c1];
+    u = v = 0.5;
+    for (let j = 0; j < 3; j++) {
+      const xa = f.x[i00] + v * (f.x[i10] - f.x[i00]);
+      const xb = f.x[i01] + v * (f.x[i11] - f.x[i01]);
+      u = (x - xa) / (xb - xa);
+      const za = f.z[i00] + u * (f.z[i01] - f.z[i00]);
+      const zb = f.z[i10] + u * (f.z[i11] - f.z[i10]);
+      v = (z - za) / (zb - za);
+    }
+    const dc = u < -eps && c0 > 0 ? -step : u > 1 + eps && c1 < n - 1 ? step : 0;
+    const dr = v < -eps && r0 > 0 ? -step : v > 1 + eps && r1 < n - 1 ? step : 0;
+    if (!dc && !dr) {
+      break;
+    }
+    c0 = lo(c0 + dc);
+    r0 = lo(r0 + dr);
+  }
+  const out = u < -0.01 || v < -0.01 || u > 1.01 || v > 1.01;
+  return out ? null : { r0, r1: hi(r0), c0, c1: hi(c0), u: Math.max(0, Math.min(1, u)), v: Math.max(0, Math.min(1, v)) };
+}
+
+/**
+ * Scene height (y) of the terrain mesh at scene x/z: the surface of the triangles that fieldGeometry (terrain.ts)
+ * draws with one vertex every `step` pixels, so that anything placed with it sits exactly on the drawn ground.
+ * NaN outside the field.
+ */
+export function meshUpAt(f: Field, step: number, x: number, z: number): number {
+  const c = meshCell(f, step, x, z);
+  if (!c) {
+    return NaN;
+  }
+  const n = f.grid.size;
+  const h00 = f.up[c.r0 * n + c.c0];
+  const h01 = f.up[c.r0 * n + c.c1];
+  const h10 = f.up[c.r1 * n + c.c0];
+  const h11 = f.up[c.r1 * n + c.c1];
+  // Each cell is two triangles split along the diagonal from (row, col + 1) to (row + 1, col).
+  return c.u + c.v <= 1 ? h00 + c.u * (h01 - h00) + c.v * (h10 - h00) : h11 + (1 - c.u) * (h10 - h11) + (1 - c.v) * (h01 - h11);
+}
+
+/** Fractional (row, col) of scene x/z from the pixels' true positions (fieldRowCol is the quick estimate). Null outside. */
+export function meshRowCol(f: Field, x: number, z: number): [number, number] | null {
+  const c = meshCell(f, 1, x, z);
+  return c ? [c.r0 + c.v * (c.r1 - c.r0), c.c0 + c.u * (c.c1 - c.c0)] : null;
+}
+
 export interface GroundHit {
   row: number;
   col: number;

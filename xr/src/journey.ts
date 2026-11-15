@@ -220,6 +220,8 @@ export interface StageView {
   help: string[] | null;
   /** The Voice switch (voice and sound effects), in the headset once sound has started; null: not offered. */
   voice: boolean | null;
+  /** The headset is sending to a live viewer and the sends succeed: a green LIVE dot (spectator.ts). */
+  live: boolean;
 }
 
 export interface ViewState {
@@ -250,6 +252,7 @@ export interface ViewState {
   extraNote: string | null;
   /** Voice and sounds on or off; null where there is no sound (the laptop view). */
   voice: boolean | null;
+  live: boolean;
 }
 
 export const NOTE_SCALE = 'Sun and Earth: sizes and distances not to scale';
@@ -278,7 +281,7 @@ const HELP: Record<Stage, string[]> = {
 /** The panel of the stage the visitor is in. */
 export function stageView(s: ViewState): StageView {
   const hint = (id: string, when: boolean) => when && !s.pressed.has(id);
-  const base = { stage: s.stage, caption: s.message ?? s.caption, status: [] as StatusLine[], legend: [] as StageView['legend'], notes: [] as string[], voice: s.voice };
+  const base = { stage: s.stage, caption: s.message ?? s.caption, status: [] as StatusLine[], legend: [] as StageView['legend'], notes: [] as string[], voice: s.voice, live: s.live };
   if (s.help) {
     return {
       ...base,

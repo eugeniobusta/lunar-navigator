@@ -1,4 +1,4 @@
-.PHONY: setup test data download mocks dev build e2e xr xr-dev
+.PHONY: setup test data download mocks dev build e2e xr xr-dev spectate
 
 setup:      ## install Python and web dependencies
 	uv sync
@@ -41,3 +41,8 @@ xr:         ## production build of the VR view; with make build first, web/dist/
 
 xr-dev:     ## VR dev server with the Quest 3 emulator, https://localhost:8081 (run it in its own terminal)
 	cd xr && npm run dev
+
+spectate:   ## live view of a real VR session on this Mac, with a RECORD button (docs/XR.md); Ctrl+C stops it
+	$(MAKE) build
+	$(MAKE) xr
+	node scripts/spectator_relay.mjs --tunnel

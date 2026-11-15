@@ -1,12 +1,14 @@
 // Records the demo videos from the production build, 1920 x 1080, no visible cursor:
 //   media/clips/01-home.webm ... 07-compare-sites.webm  the website, one clip per page (01 to 03 the Simple view,
 //                                                       04 to 07 the Detailed view)
+//   media/clips/11-im2-athena.webm, 12-battery.webm, 13-how-we-checked.webm  three more website clips for the pitch
+//                                                       videos (scripts/make_videos.py); mode "extra" records only these
 //   media/clips/08-vr-moon.webm, 09-vr-pole.webm, 10-vr-surface.webm  the three stages of /xr/ on the laptop view
 //   media/web-30s.webm  30 s: Malapert Overview, Window Finder, Site Finder (the Detailed view), the VR
 //
 // Usage (from the repository root):
 //   make build && make xr && (cd web && npx vite preview --port 4179 --strictPort) &
-//   node scripts/record_footage.mjs [http://localhost:4179] [vr|web]   (no second argument: all of them)
+//   node scripts/record_footage.mjs [http://localhost:4179] [vr|web|extra]   (no second argument: all of them)
 // Needs ffmpeg on the PATH and the Playwright Chromium that web/ already uses (cd web && npx playwright install chromium).
 // Every clip is recorded with its loading time and then cut to the part that matters.
 import { execFileSync } from 'node:child_process';
@@ -66,7 +68,7 @@ const scrollTo = (page, selector, offset = 16) =>
 // ------------------------------------------------------------------------------------------------ the VR, stage by stage
 
 const press = (page, id) => page.click(`button[data-id="${id}"]`);
-const VR = ONLY === 'web' ? [] : [
+const VR = ONLY === 'web' || ONLY === 'extra' ? [] : [
   // Stage 1, the whole Moon: Start sets the Sun, the Earth and the day-night line in motion.
   ['08-vr-moon.webm', await clip(async (page, cut) => {
     await page.goto(`${BASE}/xr/?t=${DATE}T12:00Z`);
@@ -133,7 +135,7 @@ const mapReady = (page) => page.waitForFunction(() => !document.querySelector('.
 const smooth = (page, top) => page.evaluate((t) => window.scrollBy({ top: t, behavior: 'smooth' }), top);
 const mapPoint = async (page, fx, fy) => { const b = await page.locator('.map-view').boundingBox(); return [b.x + b.width * fx, b.y + b.height * fy]; };
 
-const WEB = ONLY === 'vr' ? [] : [
+const WEB = ONLY === 'vr' || ONLY === 'extra' ? [] : [
   // The Simple view: the homepage, top to bottom of its first sections.
   ['01-home.webm', await site('/?view=simple', '.home-stats', async (page) => {
     await wait(page, 2.5);
@@ -214,7 +216,38 @@ const WEB = ONLY === 'vr' ? [] : [
   })],
 ];
 
-const web = ONLY === 'vr' ? null : await clip(async (page, cut) => {
+// Three more pages for the pitch videos: the IM-2 landing spot, the battery, and how the numbers were checked.
+const EXTRA = ONLY === 'vr' || ONLY === 'web' ? [] : [
+  // IM-2 Athena's landing spot in Site Finder: it passes every limit on the 120 m map (the lander fell in a small crater).
+  ['11-im2-athena.webm', await site('/?view=detailed&tab=map&spot=-84.7906,29.1957', '.map-view canvas', async (page) => {
+    await mapReady(page);
+    await scrollTo(page, '.finder', 96);
+    await wait(page, 1.5);
+    const [x, y] = await page.locator('.mark.pick circle').evaluate((el) => { const r = el.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; });
+    await page.mouse.move(x, y);
+    for (let i = 0; i < 6; i++) { await page.mouse.wheel(0, -160); await wait(page, 0.45); }
+    await page.mouse.move(40, 600);
+    await wait(page, 5);
+  })],
+  // Battery: the default lander runs out in the night at Malapert; a bigger battery survives.
+  ['12-battery.webm', await site(`/?view=detailed&site=${SITE}&date=2027-01-09&days=14&tab=power`, '.soc', async (page) => {
+    await scrollTo(page, '.mission-bar', 96);
+    await wait(page, 4);
+    const battery = page.getByLabel('Battery (Wh)');
+    await battery.fill('33000');
+    await wait(page, 5);
+  })],
+  // How it works: the method, then our numbers against JPL's and NASA's.
+  ['13-how-we-checked.webm', await site('/?view=detailed&tab=method', 'main table', async (page) => {
+    await wait(page, 1.5);
+    await scrollTo(page, 'main table', 120);
+    await wait(page, 4);
+    await smooth(page, 520);
+    await wait(page, 4.5);
+  })],
+];
+
+const web = ONLY === 'vr' || ONLY === 'extra' ? null : await clip(async (page, cut) => {
   // The Detailed view (one page per tool); the menu bar is Chinh's, with the pages in #pages.
   await page.goto(`${BASE}/?view=detailed&site=${SITE}&date=${DATE}&tab=overview`);
   await page.waitForSelector('#pages');
@@ -244,7 +277,7 @@ const web = ONLY === 'vr' ? null : await clip(async (page, cut) => {
   await wait(page, 3.5);
 });
 
-const vr = ONLY === 'vr' ? null : await clip(async (page, cut) => {
+const vr = ONLY === 'vr' || ONLY === 'extra' ? null : await clip(async (page, cut) => {
   await page.goto(`${BASE}/xr/?site=${SITE}&t=${DATE}T00:00Z`);
   await page.waitForSelector('button[data-id=play]', { timeout: 60000 });
   await wait(page, 1.5);
@@ -271,7 +304,7 @@ function write(out, clips) {
 }
 
 mkdirSync(join(ROOT, 'media', 'clips'), { recursive: true });
-for (const [name, c] of [...WEB, ...VR]) {
+for (const [name, c] of [...WEB, ...VR, ...EXTRA]) {
   write(join(ROOT, 'media', 'clips', name), [c]);
 }
 if (web && vr) {

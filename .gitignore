@@ -22,3 +22,6 @@ web/dist/
 .DS_Store
 .env
 .claude/settings.local.json
+
+# Large videos: kept in media/ on the laptop, not in the repository (docs/VIDEOS.md)
+media/*.mp4

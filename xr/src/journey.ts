@@ -218,6 +218,8 @@ export interface StageView {
   notes: string[];
   /** The one-screen help, when open (it replaces the rows). */
   help: string[] | null;
+  /** The Voice switch (voice and sound effects), in the headset once sound has started; null: not offered. */
+  voice: boolean | null;
 }
 
 export interface ViewState {
@@ -246,6 +248,8 @@ export interface ViewState {
   inXR: boolean;
   /** Extra small label (terrain interpolated from the 430 m map). */
   extraNote: string | null;
+  /** Voice and sounds on or off; null where there is no sound (the laptop view). */
+  voice: boolean | null;
 }
 
 export const NOTE_SCALE = 'Sun and Earth: sizes and distances not to scale';
@@ -274,7 +278,7 @@ const HELP: Record<Stage, string[]> = {
 /** The panel of the stage the visitor is in. */
 export function stageView(s: ViewState): StageView {
   const hint = (id: string, when: boolean) => when && !s.pressed.has(id);
-  const base = { stage: s.stage, caption: s.message ?? s.caption, status: [] as StatusLine[], legend: [] as StageView['legend'], notes: [] as string[] };
+  const base = { stage: s.stage, caption: s.message ?? s.caption, status: [] as StatusLine[], legend: [] as StageView['legend'], notes: [] as string[], voice: s.voice };
   if (s.help) {
     return {
       ...base,

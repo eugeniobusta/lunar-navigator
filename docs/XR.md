@@ -76,9 +76,11 @@ Keys on the laptop: Space is Start / Play, the arrow keys step an hour (a day wi
 | `hud.ts` | Laptop interface (plain DOM and CSS, Earthrise tokens): the stage panel, the caption, "?" and "Enter VR", the credits line. | laptop UI layout |
 | `vrpanel.ts` | The floating panel in VR (a canvas on a plane; buttons are rectangles hit by the app's own ray; the hint arrow is a small mesh of its own). Buttons are 7.4 cm high. | VR UI |
 
+| `voice.ts` | The narrator (which line plays when, one channel, the Voice switch) and the three sound effects. The rules are pure and tested. | what is said or heard, and when |
+
 `iwsdk.config.json` holds the WebXR settings (VR, hand tracking, emulator device). `public/scenes/` is an empty
 IWSDK scene: everything is generated from data at run time. `public/moon/` and `public/sky/` hold the pictures of
-the Moon, the Earth and the Sun (display only).
+the Moon, the Earth and the Sun (display only). `public/voice/` holds the narrator's six lines and their text.
 
 ## How it stays real
 
@@ -134,8 +136,43 @@ The journey is a sequence of named moments (`MOMENTS` in `journey.ts`): `moon-in
 `fly-to-pole`, `pole-arrived`, `site-recommended`, `colours-on`, `flight`, `landed`, `play`, `play-first-sunrise`,
 `sunset`, `earth-in-view`, `teleport` and so on. Each one fills the caption slot with one short line built from
 numbers the app computed, and is announced twice: to listeners in the code (`journey.on(fn)`) and as a
-`lunar-moment` event on `window`. No sound is implemented. `docs/NARRATION.md` lists every moment, when it fires
-and a draft narration with its sources, ready for a voice.
+`lunar-moment` event on `window`. `docs/NARRATION.md` lists every moment, when it fires and a draft narration
+with its sources, for a fuller voice-over later.
+
+## Voice, sound and the movable menu (headset only)
+
+Sound starts when the visitor enters VR (their press on "Enter VR" is the gesture the browser asks for) and
+stops when they leave; the laptop view is silent.
+
+- **Narrator** (`xr/src/voice.ts`): six pre-recorded lines, one short line per stage, in the macOS voice
+  "Daniel" at 175 words per minute (no Enhanced or Premium English voice is installed on the machine that
+  recorded them). One channel: a new line stops the one playing. While a line plays its text is the caption.
+
+  | Line | Plays | Text |
+  |------|-------|------|
+  | `moon` | on entering VR over the whole Moon, and on each return to it | "This is the Moon from below its south pole. Press Start." |
+  | `pole` | each time the view arrives at the south pole | "Six landing sites. Yellow is our pick. Choose one." |
+  | `surface` | each time you land | "You're on the surface. Press the green Play button." |
+  | `play` | the first "Play" of each visit to the surface | "Watch the Sun. When it hides behind the ridge, power stops." |
+  | `walk` | once per session, after `surface` | "Point at the ground and pull the trigger to walk." |
+  | `handle` | once per session, after the first stage line | "Grab the menu's handle to move it." |
+
+  A once-per-session line that is cut off before it begins (the visitor pressed something) is offered again
+  after the next stage line. To change the words: edit the list in `scripts/make_voice.sh` and run it on a Mac;
+  it writes `xr/public/voice/*.m4a` (AAC, 32 kbit/s, 13 to 20 KB each, 105 KB in all) and `lines.json`, which
+  is where the app takes the caption text from, so text and recording cannot drift apart. Keep the six ids.
+- **Sound effects**: WebAudio oscillators, no files. A click on every button press (0.07 s), a rising whoosh
+  when the stage changes or you move (0.5 s), a chime when "Play" starts (0.55 s); each at a tenth of the
+  voice's level or less (`EFFECT_S`, `EFFECT_PEAK`, `EFFECT_OF` in `voice.ts`, tested).
+- **Voice switch**: the speaker button beside "?" on the VR panel, on by default. Off silences the voice and
+  the effects; the journey's own captions stay.
+- **Movable menu**: the bar with six dots above the panel is its handle. Point at it and hold the trigger, the
+  grip or a pinch: the panel follows the ray at the distance it was taken (held to 0.5 to 3 m) and keeps facing
+  you; let go and it stays. Buttons click as before; only the handle drags. The panel stays where you put it
+  from stage to stage; if a new stage finds it behind you it comes back in front, a little to the left.
+  IWSDK's `DistanceGrabbable` was not used: see docs/DECISIONS.md.
+- Nothing here runs per frame: a line ends through the audio node's `onended`, effects are scheduled once, and
+  the handle costs one extra draw call and, while held, one position update per frame.
 
 ## Pictures and credits
 
@@ -148,6 +185,8 @@ NASA Goddard PGDA. Ephemeris: JPL DE421."
 | Earth | NASA Goddard Scientific Visualization Studio, "Blue Marble - A Seamless Image Mosaic of the Earth (WMS)", item 2915, file `bluemarble-2048.png`. Credit: NASA/Goddard Space Flight Center Scientific Visualization Studio; the Blue Marble Next Generation data is courtesy of Reto Stockli (NASA/GSFC) and NASA's Earth Observatory | https://svs.gsfc.nasa.gov/2915 (file: https://svs.gsfc.nasa.gov/vis/a000000/a002900/a002915/bluemarble-2048.png) | public domain (NASA) |
 | Sun | NASA Solar Dynamics Observatory, "Spotless Sun", PIA21582, the full disc on 13 March 2017. Credit: NASA/GSFC/Solar Dynamics Observatory | https://images.nasa.gov/details/PIA21582 (file: https://images-assets.nasa.gov/image/PIA21582/PIA21582~orig.jpg) | public domain (NASA) |
 | Moon | NASA SVS CGI Moon Kit: `lroc_color_poles_4k.tif`, `ldem_16_uint.tif` | https://svs.gsfc.nasa.gov/4720 | public domain (NASA) |
+
+Narration: computer-generated voice (macOS speech synthesis).
 
 `scripts/export_sky_textures.py` and `scripts/export_moon_globe.py` download the sources into `data/` and write
 `xr/public/sky/` (0.4 MB) and `xr/public/moon/` (7 MB). The Sun's picture is cut to its disc and brightened (its
@@ -225,10 +264,21 @@ What keeps it within budget:
 
 - `make test`: pytest, the website's vitest, and the tests in `xr/src` (frames and shadows against the analysis
   library; the journey's panels, hints, captions and moments; the Earth's orientation; the six places from the
-  data; the ground detail's bounds; the drawn mesh's height; the legend against the website's files).
-- `node scripts/xr_journey_check.mjs` on the production build, laptop view: 67 checks, every button of every
+  data; the ground detail's bounds; the drawn mesh's height; the legend against the website's files; the
+  narrator's lines, files, rules and the effects' lengths; the panel's drag geometry).
+- `node scripts/xr_journey_check.mjs` on the production build, laptop view: 87 checks, every button of every
   stage, each of the six places from the panel and one from its marker, Play and Faster by the clock, a move by
-  clicking the ground, 14 moments, the link parameters, and no console errors.
+  clicking the ground, 14 moments, the link parameters, and no console errors. The last 20 are the voice, the
+  effects and the menu, driven without a headset through `window.lunarTest` (starts the sound as entering VR
+  does; sends a ray through the code that handles a hand's ray) and `window.lunarVoice`: the six files exist
+  and decode, nothing sounds before "entering", the stage line plays with its text as the caption, the Voice
+  switch silences voice and effects and brings them back, dragging the handle moves the panel at the same
+  distance, a released panel stays, a button press does not move it, the grip drags too, and a far grab is held
+  at 3 m. It uses Google Chrome if installed, because Playwright's own Chromium cannot decode AAC.
+- IWSDK emulator, voice and menu: entering VR spoke `moon` then `handle`; the handle was dragged with the
+  trigger, with the grip and with a hand pinch; the Voice switch off kept the pole silent and on brought the
+  line back; after turning round, the next stage put the panel back in front; landing spoke `surface` then
+  `walk`, "Play" spoke `play`. A fresh run of all of this showed no console errors.
 - IWSDK emulator (Quest 3), controller: Start, Pause, "?", Frame rate, Close, South Pole, the colour switch on
   and off, Back to whole Moon, a place (Haworth), Play, Faster, a move by pointing at the ground and pulling the
   trigger. Hands: the same journey with a pinch, both hands, with Malapert Massif, and a move by pinching at the
@@ -266,6 +316,13 @@ What keeps it within budget:
    should sweep smoothly; then "Faster". Point at the ground 5 to 20 m away: a ring shows; trigger or pinch: a
    short fade and you stand there. Try a far hillside too.
 5. "?" opens the help. "Back to the south pole", then another place, then "Back to whole Moon".
+   Voice and menu. On entering VR a voice says "This is the Moon from below its south pole. Press Start.", then
+   "Grab the menu's handle to move it."; the same words show in the yellow caption line. Check: is the voice
+   clear and not too loud; do the click, the whoosh (South Pole, a place, a move) and the chime (Play) sound
+   quiet beside it? Each stage speaks its line when you arrive. Press the speaker button beside "?": everything
+   goes silent; press it again. Point at the bar above the panel, hold the trigger and move your hand: the
+   panel follows and faces you; release: it stays. Try the grip button and a pinch too. Press a button on the
+   moved panel: it must click, not drag. Put the panel behind you, then change stage: it comes back in front.
 6. Frame rate: "?" then "Frame rate". The line shows frames per second, milliseconds per frame (mean of the last
    72 frames), the longest single frame of those 72 and the detail level. Close the help; the line stays on the
    panel. Read it in each of: whole Moon; whole Moon with Start; south pole; south pole with the colours; surface;

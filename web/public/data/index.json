@@ -91,16 +91,26 @@
    {
     "files": "xr/public/moon/",
     "what": "The whole Moon: colour, relief and heights",
+    "name": "NASA SVS CGI Moon Kit",
     "credit": "NASA's Scientific Visualization Studio, CGI Moon Kit: LROC WAC colour (ASU), LOLA elevation (GSFC)",
     "source": "https://svs.gsfc.nasa.gov/4720",
     "licence": "public domain (NASA)"
    },
    {
-    "files": "not in the repository yet",
-    "what": "Earth texture (NASA Blue Marble) and Sun texture (NASA SDO), being added by the VR view",
-    "credit": "to be recorded when added",
-    "source": "",
-    "licence": "unconfirmed"
+    "files": "xr/public/sky/earth_2k.jpg, earth_1k.jpg",
+    "what": "Earth",
+    "name": "NASA SVS Blue Marble (item 2915)",
+    "credit": "NASA/Goddard Space Flight Center Scientific Visualization Studio. The Blue Marble Next Generation data is courtesy of Reto Stockli (NASA/GSFC) and NASA's Earth Observatory.",
+    "source": "https://svs.gsfc.nasa.gov/2915",
+    "licence": "public domain (NASA)"
+   },
+   {
+    "files": "xr/public/sky/sun_512.jpg",
+    "what": "The Sun",
+    "name": "Spotless Sun (PIA21582), 2017-03-13",
+    "credit": "NASA/GSFC/Solar Dynamics Observatory",
+    "source": "https://images.nasa.gov/details/PIA21582",
+    "licence": "public domain (NASA)"
    }
   ]
  },
@@ -246,7 +256,7 @@
   },
   {
    "path": "index.json",
-   "bytes": 49862,
+   "bytes": 50343,
    "format": "JSON",
    "description": "This list: every published file with its size, format and description."
   },

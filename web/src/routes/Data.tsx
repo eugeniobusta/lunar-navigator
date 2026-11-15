@@ -66,7 +66,7 @@ interface FileEntry { path: string; bytes: number; format: string; description: 
 interface ThirdParty {
   nasa_media_terms: string;
   website_photos: { file: string; nasa_id: string; title: string; credit: string; date: string; shown: string; source: string }[];
-  vr_textures: { files: string; what: string; credit: string; source: string; licence: string }[];
+  vr_textures: { files: string; what: string; name: string; credit: string; source: string; licence: string }[];
 }
 
 const fmtBytes = (b: number) => (b >= 1e6 ? `${(b / 1e6).toFixed(2)} MB` : `${(b / 1e3).toFixed(1)} kB`);
@@ -138,7 +138,7 @@ export function Data() {
                 ))}
                 {credits.vr_textures.map((t) => (
                   <tr key={t.what}>
-                    <th>{t.what}</th><td>3D / VR view</td><td>{t.source ? <a href={t.source}>NASA SVS CGI Moon Kit</a> : "not added yet"}</td><td /><td>{t.credit}{t.licence === "unconfirmed" ? " (unconfirmed)" : ""}</td>
+                    <th>{t.what}</th><td>3D / VR view</td><td><a href={t.source}>{t.name}</a></td><td /><td>{t.credit}</td>
                   </tr>
                 ))}
               </tbody>

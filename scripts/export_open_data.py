@@ -118,20 +118,23 @@ def describe(rel, names):
 
 def third_party():
     """Pictures and textures that are not ours: the NASA photos of the website (docs/research/media_assets.json)
-    and the VR globe (xr/public/moon/moon.json). Credits only; the files are not part of the open data."""
+    the VR globe (xr/public/moon/moon.json) and the VR's Earth and Sun (xr/public/sky/sky.json). Credits only; the files are not part of the open data."""
     media = json.loads((ROOT / "docs" / "research" / "media_assets.json").read_text())
     moon = json.loads((ROOT / "xr" / "public" / "moon" / "moon.json").read_text())
+    sky = json.loads((ROOT / "xr" / "public" / "sky" / "sky.json").read_text())
     return {"note": "Third-party pictures and textures used by the site, with their credits (docs/CREDITS.md). They "
                     "keep their own terms and are not covered by our CC BY 4.0 licence.",
             "nasa_media_terms": media["terms"],
             "website_photos": [{"file": a["file"], "nasa_id": a["nasa_id"], "title": a["title"], "credit": a["credit"],
                                 "date": a["date"], "shown": a["where"],
                                 "source": f"https://images.nasa.gov/details/{a['nasa_id']}"} for a in media["assets"]],
-            "vr_textures": [{"files": "xr/public/moon/", "what": "The whole Moon: colour, relief and heights",
-                             "credit": moon["credit"], "source": moon["source"], "licence": moon["licence"]},
-                            {"files": "not in the repository yet", "what": "Earth texture (NASA Blue Marble) and Sun "
-                             "texture (NASA SDO), being added by the VR view", "credit": "to be recorded when added",
-                             "source": "", "licence": "unconfirmed"}]}
+            "vr_textures": [
+                {"files": "xr/public/moon/", "what": "The whole Moon: colour, relief and heights", "name": "NASA SVS CGI Moon Kit",
+                 "credit": moon["credit"], "source": moon["source"], "licence": moon["licence"]},
+                {"files": "xr/public/sky/earth_2k.jpg, earth_1k.jpg", "what": "Earth", "name": "NASA SVS Blue Marble (item 2915)",
+                 "credit": sky["earth"]["credit"], "source": sky["earth"]["source"], "licence": sky["licence"]},
+                {"files": "xr/public/sky/sun_512.jpg", "what": "The Sun", "name": sky["sun_source"]["title"],
+                 "credit": sky["sun_source"]["credit"], "source": sky["sun_source"]["source"], "licence": sky["licence"]}]}
 
 
 def export_index():

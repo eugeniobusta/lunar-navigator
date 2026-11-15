@@ -1,9 +1,13 @@
-# Narration for the VR journey (draft, no audio yet)
+# Narration for the VR journey (draft for a fuller voice-over)
 
 The VR view (docs/XR.md) is a journey of named moments. Each moment already does two things in the app: it puts
 one short line in the caption slot, and it is announced so that a voice can be attached later without touching
 the journey itself. This file lists every moment, when it fires, what its caption says, and a draft of what a
-voice (for example an ElevenLabs voice) could say. No audio is implemented.
+voice (for example an ElevenLabs voice) could say.
+
+What is implemented today is smaller: six short spoken lines, one per stage, in the macOS voice, telling the
+visitor where they are and what to press (docs/XR.md, "Voice, sound and the movable menu"; the list is in
+`scripts/make_voice.sh`). They quote no numbers. The drafts below are not recorded.
 
 ## The hook
 

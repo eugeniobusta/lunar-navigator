@@ -108,6 +108,7 @@ import { CREDITS, Hud } from './hud.js';
 import { SUN_GLOW, earthBall, groundRing, makeLabel, makeLander, makeRocket, makeStars, polyline, setMap, siteMarker, sunDisc, type Label } from './objects.js';
 import { PALETTE, ShadowPass, byteTexture, fieldGeometry, rgbaTexture, setOverlay, slopeTexture, supportsFloatLinear, terrainMaterial, upTexture } from './terrain.js';
 import { VrPanel } from './vrpanel.js';
+import { Narrator } from './voice.js';
 
 type Mode = 'loading' | 'orbit' | 'flight' | 'stand';
 type Hand = 'left' | 'right';
@@ -317,8 +318,24 @@ export class ExperienceSystem extends createSystem({}) {
 
   // XR
   private panel = new VrPanel();
-  private select: Record<Hand, { pressed: boolean }> = { left: { pressed: false }, right: { pressed: false } };
+  /** Per hand: a trigger pull or pinch (pressed) or a grip squeeze (squeezed) not yet handled, and whether each is held. */
+  private select: Record<Hand, { pressed: boolean; squeezed: boolean; held: boolean; gripHeld: boolean }> = {
+    left: { pressed: false, squeezed: false, held: false, gripHeld: false },
+    right: { pressed: false, squeezed: false, held: false, gripHeld: false },
+  };
   private activeHand: Hand = 'right';
+  /** The hand that holds the panel's handle. */
+  private dragHand: Hand | null = null;
+  private hoverButton: string | null = null;
+  /** The line the voice is speaking, shown in the caption slot while it plays (voice.ts). */
+  private voiceCaption: string | null = null;
+  private narrator = new Narrator((text) => {
+    if (import.meta.env.DEV && text) {
+      console.info(`[voice] ${text}`);
+    }
+    this.voiceCaption = text;
+    this.dirtyHud = true;
+  });
   private rays: Partial<Record<Hand, Line>> = {};
   private hookedSession: XRSession | null = null;
   private standLift = 0;
@@ -381,6 +398,14 @@ export class ExperienceSystem extends createSystem({}) {
         console.info(`[moment] ${e.id}: ${e.caption}`);
       }
       window.dispatchEvent(new CustomEvent('lunar-moment', { detail: e }));
+      // The newest line is the caption: a moment's own, or the voice's if the moment has a spoken line.
+      this.voiceCaption = null;
+      this.narrator.moment(e.id);
+      // The panel stays where the visitor put it, unless a new stage finds it behind them.
+      if (this.inXR && this.dragHand == null && ['pole-arrived', 'landed', 'back-to-moon', 'back-to-pole'].includes(e.id)) {
+        this.panel.keepInFront(this.camPos, this.camera.getWorldDirection(this.v3));
+        this.logPanel = true;
+      }
       this.dirtyHud = true;
     });
     // For the checks in docs/XR.md: what the renderer drew in the last frame, and the moments so far.
@@ -408,6 +433,38 @@ export class ExperienceSystem extends createSystem({}) {
           }),
       }),
       lunarMoments: () => log,
+      lunarVoice: () => ({
+        active: this.narrator.active,
+        on: this.narrator.on,
+        loaded: this.narrator.loaded,
+        speaking: this.narrator.speaking,
+        spoken: [...this.narrator.spoken],
+        effects: this.narrator.effects,
+        caption: this.voiceCaption,
+      }),
+      // For scripts/xr_journey_check.mjs, which has no headset: `audio` starts the sound as entering VR does;
+      // `ray` sends a ray (room coordinates) through the code that handles a hand's ray in VR and returns where
+      // the panel and its buttons then are.
+      lunarTest: {
+        audio: () => this.narrator.enter(() => this.stage()),
+        ray: (kind: 'down' | 'move' | 'up' | 'grip' | 'look', o: number[] = [0, 0, 0], d: number[] = [0, 0, -1]) => {
+          this.panel.mesh.visible = true;
+          this.panel.draw(this.stageModel(), CREDITS);
+          const sel = this.select.right;
+          if (kind === 'down') {
+            sel.pressed = sel.held = true;
+          } else if (kind === 'grip') {
+            sel.squeezed = sel.gripHeld = true;
+          } else if (kind === 'up') {
+            sel.held = sel.gripHeld = false;
+          }
+          if (kind !== 'look') {
+            this.handInput('right', new Vector3(...(o as [number, number, number])), new Vector3(...(d as [number, number, number])).normalize());
+          }
+          this.panel.draw(this.stageModel(), CREDITS);
+          return { head: this.camPos.toArray(), at: this.panel.mesh.position.toArray(), yaw: this.panel.mesh.rotation.y, dragging: this.dragHand != null, targets: this.panel.targets() };
+        },
+      },
     });
     this.bindDesktopInput();
     this.cleanupFuncs.push(
@@ -511,6 +568,7 @@ export class ExperienceSystem extends createSystem({}) {
     }
     this.panel.draw(this.stageModel(), CREDITS);
     r.initTexture(this.panel.map);
+    r.initTexture(this.panel.handleMap);
     if (!this.scene3) {
       const first = this.siteDest(RECOMMENDED_SITE);
       if (first) {
@@ -1346,6 +1404,10 @@ export class ExperienceSystem extends createSystem({}) {
     }
     this.pressed.add(kind);
     this.dirtyHud = true;
+    if (kind === 'voice') {
+      this.narrator.setOn(!this.narrator.on);
+    }
+    this.narrator.effect('click'); // silent when the voice switch is off, and outside VR
     if (kind === 'help') {
       this.help = !this.help;
     } else if (kind === 'close') {
@@ -1609,10 +1671,21 @@ export class ExperienceSystem extends createSystem({}) {
     session.addEventListener('selectstart', (e) => {
       const h = e.inputSource.handedness;
       if (h === 'left' || h === 'right') {
-        this.select[h].pressed = true;
+        this.select[h].pressed = this.select[h].held = true;
         this.activeHand = h;
       }
     });
+    // Holding is what drags the panel by its handle: the trigger or a pinch (select), or the grip (squeeze).
+    const on = (type: 'selectend' | 'squeezestart' | 'squeezeend', set: (s: (typeof this.select)[Hand]) => void) =>
+      session.addEventListener(type, (e) => {
+        const h = e.inputSource.handedness;
+        if (h === 'left' || h === 'right') {
+          set(this.select[h]);
+        }
+      });
+    on('selectend', (s) => (s.held = false));
+    on('squeezestart', (s) => (s.squeezed = s.gripHeld = true));
+    on('squeezeend', (s) => (s.gripHeld = false));
   }
 
   private handRay(hand: Hand, o: Vector3, d: Vector3): void {
@@ -1623,34 +1696,57 @@ export class ExperienceSystem extends createSystem({}) {
 
   private updateXRInput(): void {
     this.hookSession();
-    let hoverButton: string | null = null;
+    this.hoverButton = null;
     for (const hand of ['left', 'right'] as Hand[]) {
-      const sel = this.select[hand];
       const o = this.v1;
       const d = this.v2;
       this.handRay(hand, o, d);
-      const hit = this.panel.hit(o, d);
       const ray = this.rays[hand]!;
       ray.visible = true;
-      ray.scale.z = hit ? hit.point.distanceTo(o) : 4;
-      if (hit && hand === this.activeHand) {
-        hoverButton = hit.button;
+      ray.scale.z = this.handInput(hand, o, d);
+    }
+    this.panel.setHandleLit(this.dragHand != null || this.hoverButton === 'handle');
+    this.panel.setHover(this.hoverButton === 'handle' ? null : this.hoverButton);
+  }
+
+  /** One hand's ray: the panel's handle, then its buttons, then the scene. Returns how long the ray is drawn. */
+  private handInput(hand: Hand, o: Vector3, d: Vector3): number {
+    const sel = this.select[hand];
+    const trigger = sel.pressed;
+    const down = sel.pressed || sel.squeezed;
+    sel.pressed = sel.squeezed = false;
+    if (this.dragHand === hand) {
+      if (sel.held || sel.gripHeld) {
+        this.panel.drag(o, d, this.camPos);
+      } else {
+        this.dragHand = null; // dropped where it is, facing the visitor
+        this.logPanel = true;
       }
-      if (sel.pressed) {
-        sel.pressed = false;
-        if (hit?.button) {
-          this.press(hit.button);
-        } else if (!hit) {
-          this.activate(o.clone(), d.clone());
+      return this.panel.grabDistance;
+    }
+    const hit = this.panel.hit(o, d);
+    if (hit && hand === this.activeHand) {
+      this.hoverButton = hit.handle ? 'handle' : hit.button;
+    }
+    if (down) {
+      if (hit?.handle) {
+        // Dragging starts only from the handle; the buttons below it click as before.
+        if (this.dragHand == null) {
+          this.dragHand = hand;
+          this.panel.grab(o, hit.point);
         }
-      }
-      if (!hit && hand === this.activeHand) {
-        this.updateHover(o.clone(), d.clone());
-      } else if (hit && hand === this.activeHand) {
-        this.hoverRing.visible = false;
+      } else if (trigger && hit?.button) {
+        this.press(hit.button);
+      } else if (trigger && !hit) {
+        this.activate(o.clone(), d.clone());
       }
     }
-    this.panel.setHover(hoverButton);
+    if (!hit && hand === this.activeHand) {
+      this.updateHover(o.clone(), d.clone());
+    } else if (hit && hand === this.activeHand) {
+      this.hoverRing.visible = false;
+    }
+    return hit ? hit.point.distanceTo(o) : 4;
   }
 
   // ------------------------------------------------------------------------------------------------ views
@@ -1706,6 +1802,12 @@ export class ExperienceSystem extends createSystem({}) {
     this.quality.reset();
     this.applyQuality();
     this.logPanel = xr;
+    this.dragHand = null;
+    if (xr) {
+      this.narrator.enter(() => this.stage()); // sound starts here: entering VR is the visitor's gesture
+    } else {
+      this.narrator.leave();
+    }
     if (xr) {
       this.world.session?.updateTargetFrameRate?.(72)?.catch?.(() => undefined);
       this.standLift = 0;
@@ -1797,7 +1899,7 @@ export class ExperienceSystem extends createSystem({}) {
     return stageView({
       stage: this.stage(),
       message: this.message,
-      caption: this.journey.caption,
+      caption: this.voiceCaption ?? this.journey.caption,
       playing: this.playing,
       faster: this.faster,
       colours: this.colours,
@@ -1814,6 +1916,7 @@ export class ExperienceSystem extends createSystem({}) {
       stats: this.showStats ? this.statsText || 'Measuring the frame rate' : null,
       inXR: this.inXR,
       extraNote: this.mode === 'stand' && this.scene3?.tile.coarse ? COARSE_NOTE : null,
+      voice: this.narrator.active ? this.narrator.on : null,
     });
   }
 

@@ -1,0 +1,11 @@
+{
+  "voice": "macOS speech synthesis, voice Daniel, 175 words per minute",
+  "lines": [
+    { "id": "moon", "text": "This is the Moon from below its south pole. Press Start.", "file": "moon.m4a" },
+    { "id": "pole", "text": "Six landing sites. Yellow is our pick. Choose one.", "file": "pole.m4a" },
+    { "id": "surface", "text": "You're on the surface. Press the green Play button.", "file": "surface.m4a" },
+    { "id": "play", "text": "Watch the Sun. When it hides behind the ridge, power stops.", "file": "play.m4a" },
+    { "id": "walk", "text": "Point at the ground and pull the trigger to walk.", "file": "walk.m4a" },
+    { "id": "handle", "text": "Grab the menu's handle to move it.", "file": "handle.m4a" }
+  ]
+}

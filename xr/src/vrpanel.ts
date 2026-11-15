@@ -1,6 +1,7 @@
 // The floating panel used inside VR: one stage of the journey (journey.ts stageView) drawn on a canvas, on a plane
 // that the controller ray or a hand pinch can press. Few, large buttons: every one is at least 7 cm high. The app
 // tests its own ray against the plane (hit) and calls the same actions as the laptop panel (hud.ts).
+// A bar on top of the panel is its handle: held with the trigger, the grip or a pinch, it moves the panel.
 import {
   BufferGeometry,
   CanvasTexture,
@@ -23,6 +24,32 @@ export const PANEL_H_M = (PANEL_W_M * H) / W;
 /** Button height on the canvas, and in the room: 92 px of 1024 across 0.82 m. */
 export const BUTTON_PX = 92;
 export const BUTTON_M = (BUTTON_PX * PANEL_W_M) / W;
+/** The handle: a bar above the panel's top edge, metres. */
+export const HANDLE_W_M = 0.4;
+export const HANDLE_H_M = 0.075;
+/** Height of the handle's centre above the panel's. */
+export const HANDLE_Y_M = PANEL_H_M / 2 + 0.012 + HANDLE_H_M / 2;
+/** How near and how far the panel can be held from the hand that drags it, metres. */
+export const GRAB_RANGE_M: [number, number] = [0.5, 3];
+/** Where the panel stands when it is put back in front of the visitor: this far from the head, this far to the
+ *  left of where they look, at this height above the floor. */
+export const FRONT = { distM: 1.134, leftRad: 0.578, heightM: 1.25 };
+
+type V3 = [number, number, number];
+
+export const clampGrab = (distM: number) => Math.min(GRAB_RANGE_M[1], Math.max(GRAB_RANGE_M[0], distM));
+
+/** The turn about the vertical that makes a panel at `panel` face a head at `head` (the panel's front is +z). */
+export const facingYaw = (panel: V3, head: V3) => Math.atan2(head[0] - panel[0], head[2] - panel[2]);
+
+/** True if the panel is behind a head looking along `forward` (only the horizontal parts count). */
+export const isBehind = (head: V3, forward: V3, panel: V3) => (panel[0] - head[0]) * forward[0] + (panel[2] - head[2]) * forward[2] < 0;
+
+/** The place in front of the visitor, a little to the left, where the panel is put back. */
+export function frontSpot(head: V3, forward: V3): V3 {
+  const yaw = Math.atan2(forward[0], forward[2]) + FRONT.leftRad;
+  return [head[0] + FRONT.distM * Math.sin(yaw), FRONT.heightM, head[2] + FRONT.distM * Math.cos(yaw)];
+}
 
 const C = {
   panel: '#24201B',
@@ -39,6 +66,8 @@ const C = {
 export interface PanelHit {
   point: Vector3;
   button: string | null;
+  /** The ray is on the handle above the panel. */
+  handle: boolean;
 }
 
 interface Rect {
@@ -63,6 +92,10 @@ export class VrPanel {
    *  the canvas being drawn and uploaded again. */
   private arrow: Mesh;
   private arrowAt: Rect | null = null;
+  private handle: Mesh;
+  private grabDist = 1;
+  private handleLit: boolean | null = null;
+  private head = new Vector3();
 
   constructor() {
     this.canvas.width = W;
@@ -82,6 +115,84 @@ export class VrPanel {
     this.arrow.renderOrder = 21;
     this.arrow.visible = false;
     this.mesh.add(this.arrow);
+    this.handle = new Mesh(new PlaneGeometry(HANDLE_W_M, HANDLE_H_M), new MeshBasicMaterial({ map: this.handleTexture(), transparent: true, depthTest: false, depthWrite: false }));
+    this.handle.position.y = HANDLE_Y_M;
+    this.handle.renderOrder = 20;
+    this.mesh.add(this.handle);
+    this.setHandleLit(false);
+  }
+
+  /** The handle's picture: a thin rounded bar with a grip of six dots, drawn once. */
+  private handleTexture(): CanvasTexture {
+    const c = document.createElement('canvas');
+    c.width = 512;
+    c.height = 96;
+    const g = c.getContext('2d')!;
+    g.fillStyle = C.panel;
+    g.strokeStyle = C.text;
+    g.lineWidth = 5;
+    g.beginPath();
+    g.roundRect(4, 14, 504, 68, 34);
+    g.fill();
+    g.stroke();
+    g.fillStyle = C.text;
+    for (let i = -1; i <= 1; i++) {
+      for (const y of [38, 58]) {
+        g.beginPath();
+        g.arc(256 + i * 26, y, 6, 0, 2 * Math.PI);
+        g.fill();
+      }
+    }
+    const t = new CanvasTexture(c);
+    t.minFilter = LinearFilter;
+    t.colorSpace = SRGBColorSpace;
+    return t;
+  }
+
+  get handleMap(): CanvasTexture {
+    return (this.handle.material as MeshBasicMaterial).map as CanvasTexture;
+  }
+
+  /** The handle is quiet until the ray is on it or it is held. */
+  setHandleLit(lit: boolean): void {
+    if (lit !== this.handleLit) {
+      this.handleLit = lit;
+      (this.handle.material as MeshBasicMaterial).color.set(lit ? 0xffffff : 0x8f8a82);
+    }
+  }
+
+  /** How far from the hand the handle is held, metres. */
+  get grabDistance(): number {
+    return this.grabDist;
+  }
+
+  /** Takes hold of the handle at `point` with a ray from `origin` (room coordinates). */
+  grab(origin: Vector3, point: Vector3): void {
+    this.grabDist = clampGrab(point.distanceTo(origin));
+  }
+
+  /** While held: the handle stays on the ray at the distance it was taken, and the panel faces the head. */
+  drag(origin: Vector3, dir: Vector3, head: Vector3): void {
+    const parent = this.mesh.parent!;
+    const h = parent.worldToLocal(this.o.copy(origin).addScaledVector(dir, this.grabDist));
+    const e = parent.worldToLocal(this.head.copy(head));
+    this.mesh.position.set(h.x, h.y - HANDLE_Y_M, h.z);
+    this.mesh.rotation.set(0, facingYaw([h.x, 0, h.z], [e.x, 0, e.z]), 0);
+  }
+
+  /** After a change of stage: a panel left behind the visitor comes back in front of them; true if it moved. */
+  keepInFront(head: Vector3, forward: Vector3): boolean {
+    const parent = this.mesh.parent!;
+    const e = parent.worldToLocal(this.head.copy(head));
+    const f = parent.worldToLocal(this.o.copy(head).add(forward)).sub(e);
+    const p = this.mesh.position;
+    if (!isBehind([e.x, e.y, e.z], [f.x, f.y, f.z], [p.x, p.y, p.z])) {
+      return false;
+    }
+    const [x, y, z] = frontSpot([e.x, e.y, e.z], [f.x, f.y, f.z]);
+    p.set(x, y, z);
+    this.mesh.rotation.set(0, facingYaw([x, 0, z], [e.x, 0, e.z]), 0);
+    return true;
   }
 
   get map(): CanvasTexture {
@@ -108,13 +219,15 @@ export class VrPanel {
   /** Room positions of the centres of the buttons now on the panel (for the emulator checks of docs/XR.md). */
   targets(): { id: string; at: number[] }[] {
     this.mesh.updateWorldMatrix(true, false);
-    return this.buttons.map(({ id, r }) => ({
-      id,
-      at: new Vector3(((r.x + r.w / 2) / W - 0.5) * PANEL_W_M, (0.5 - (r.y + r.h / 2) / H) * PANEL_H_M, 0)
+    const at = (x: number, y: number) =>
+      new Vector3(x, y, 0)
         .applyMatrix4(this.mesh.matrixWorld)
         .toArray()
-        .map((v) => Math.round(v * 1000) / 1000),
-    }));
+        .map((v) => Math.round(v * 1000) / 1000);
+    return [
+      ...this.buttons.map(({ id, r }) => ({ id, at: at(((r.x + r.w / 2) / W - 0.5) * PANEL_W_M, (0.5 - (r.y + r.h / 2) / H) * PANEL_H_M) })),
+      { id: 'handle', at: at(0, HANDLE_Y_M) },
+    ];
   }
 
   /** Draws the panel if anything on it changed; true if it did. */
@@ -137,10 +250,16 @@ export class VrPanel {
     g.textAlign = 'left';
     g.fillStyle = C.text;
     g.font = `600 46px ${FONT}`;
-    g.fillText(m.title, pad, 86, W - 2 * pad - 110);
-    // "?" is always there, top right.
-    if (!m.help && m.stage !== 'loading') {
+    const top = !m.help && m.stage !== 'loading';
+    g.fillText(m.title, pad, 86, W - 2 * pad - 110 - (top && m.voice != null ? BUTTON_PX + 14 : 0));
+    // "?" is always there, top right; beside it the speaker: voice and sounds on or off.
+    if (top) {
       this.button({ id: 'help', label: '?' }, { x: W - pad - BUTTON_PX, y: 26, w: BUTTON_PX, h: BUTTON_PX }, 44);
+      if (m.voice != null) {
+        const r = { x: W - pad - 2 * BUTTON_PX - 14, y: 26, w: BUTTON_PX, h: BUTTON_PX };
+        this.button({ id: 'voice', label: '' }, r, 44);
+        this.speaker(r.x + r.w / 2, r.y + r.h / 2, m.voice);
+      }
     }
     let y = 118;
     const para = (text: string, size: number, color: string, weight = 400, x = pad, gap = 10) => {
@@ -304,6 +423,39 @@ export class VrPanel {
     }
   }
 
+  /** The speaker on the Voice button: with sound waves when on, crossed out when off (never colour alone). */
+  private speaker(cx: number, cy: number, on: boolean): void {
+    const g = this.ctx;
+    g.fillStyle = g.strokeStyle = on ? C.text : C.text2;
+    g.lineWidth = 5;
+    g.lineCap = 'round';
+    g.beginPath();
+    g.moveTo(cx - 26, cy - 9);
+    g.lineTo(cx - 14, cy - 9);
+    g.lineTo(cx, cy - 22);
+    g.lineTo(cx, cy + 22);
+    g.lineTo(cx - 14, cy + 9);
+    g.lineTo(cx - 26, cy + 9);
+    g.closePath();
+    g.fill();
+    if (on) {
+      for (const r of [12, 24]) {
+        g.beginPath();
+        g.arc(cx + 2, cy, r, -0.85, 0.85);
+        g.stroke();
+      }
+    } else {
+      g.strokeStyle = C.alert;
+      g.beginPath();
+      g.moveTo(cx + 10, cy - 12);
+      g.lineTo(cx + 30, cy + 12);
+      g.moveTo(cx + 30, cy - 12);
+      g.lineTo(cx + 10, cy + 12);
+      g.stroke();
+    }
+    g.lineCap = 'butt';
+  }
+
   /** Splits text into rows no wider than `width` in the current font. */
   private wrap(text: string, width: number): string[] {
     const out: string[] = [];
@@ -335,12 +487,19 @@ export class VrPanel {
     const t = -o.z / d.z;
     const x = o.x + d.x * t;
     const y = o.y + d.y * t;
-    if (t < 0 || Math.abs(x) > PANEL_W_M / 2 || Math.abs(y) > PANEL_H_M / 2) {
+    if (t < 0) {
+      return null;
+    }
+    // The handle, with a centimetre of slack around it and no gap between it and the panel.
+    if (Math.abs(x) <= HANDLE_W_M / 2 + 0.01 && y > PANEL_H_M / 2 && y <= HANDLE_Y_M + HANDLE_H_M / 2 + 0.01) {
+      return { point: new Vector3(x, y, 0.002).applyMatrix4(this.mesh.matrixWorld), button: null, handle: true };
+    }
+    if (Math.abs(x) > PANEL_W_M / 2 || Math.abs(y) > PANEL_H_M / 2) {
       return null;
     }
     const px = (x / PANEL_W_M + 0.5) * W;
     const py = (0.5 - y / PANEL_H_M) * H;
     const b = this.buttons.find(({ r }) => px >= r.x - 6 && px <= r.x + r.w + 6 && py >= r.y - 6 && py <= r.y + r.h + 6);
-    return { point: new Vector3(x, y, 0.002).applyMatrix4(this.mesh.matrixWorld), button: b?.id ?? null };
+    return { point: new Vector3(x, y, 0.002).applyMatrix4(this.mesh.matrixWorld), button: b?.id ?? null, handle: false };
   }
 }

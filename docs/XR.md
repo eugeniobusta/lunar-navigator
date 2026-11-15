@@ -189,19 +189,19 @@ headset starts at.
 
 | Stage | Before, ms | After, ms | After, longest frame, ms | Before, headset detail, ms | After, headset detail, ms | After, headset detail, longest, ms |
 |-------|-----------:|----------:|-------------------------:|---------------------------:|--------------------------:|-----------------------------------:|
-| 1. Whole Moon | 3.1 | 3.0 | 3.9 | 2.9 | 2.7 | 5.1 |
-| 1. Whole Moon, Start (new) | none | 6.5 | 18.8 | none | 3.4 | 6.2 |
-| 2. South pole | 4.1 | 4.1 | 5.7 | 3.4 | 3.3 | 5.6 |
-| 2. South pole, colours on | 4.1 | 4.2 | 6.0 | 3.4 | 3.4 | 4.7 |
-| 3. Surface | 3.2 | 4.3 | 7.6 | 3.3 | 3.9 | 7.4 |
-| 3. Surface, Play | 5.7 | 7.1 | 13.8 | 4.2 | 4.4 | 9.7 |
-| 3. Surface, Play, Faster | none | 6.7 | 12.2 | none | 4.2 | 10.6 |
+| 1. Whole Moon | 3.1 | 3.0 | 5.2 | 2.9 | 2.7 | 4.8 |
+| 1. Whole Moon, Start (new) | none | 5.6 | 8.7 | none | 3.4 | 6.9 |
+| 2. South pole | 4.1 | 4.2 | 5.2 | 3.4 | 3.5 | 6.4 |
+| 2. South pole, colours on | 4.1 | 4.4 | 5.1 | 3.4 | 3.4 | 5.7 |
+| 3. Surface | 3.2 | 4.8 | 6.6 | 3.3 | 3.9 | 6.8 |
+| 3. Surface, Play | 5.7 | 6.9 | 11.4 | 4.2 | 4.5 | 11.7 |
+| 3. Surface, Play, Faster | none | 6.7 | 13.2 | none | 4.3 | 11.0 |
 
 The surface is the stage that got dearer: the detailed ground costs 0.6 ms at headset detail on this machine
-(1.1 ms at full detail), and 0.2 ms more while time runs. "Before" for "Surface, Play" ran time at 10 hours per
-second, "after" at 2.4. These runs were taken with the machine otherwise idle; later runs, while another
-browser was busy on the same GPU, were 1 to 3 ms slower in every stage, the unchanged ones included, with single
-frames of up to 38 ms. Triangles drawn per frame at headset detail: 59,560 (whole Moon), 184,566 (pole),
+(1.6 ms at full detail). "Before" for "Surface, Play" ran time at 10 hours per second, "after" at 2.4. These
+runs are of the merged build with the machine otherwise idle; an earlier idle run agreed within 0.5 ms, and runs
+taken while another browser was busy on the same GPU were 1 to 3 ms slower in every stage, the unchanged ones
+included, with single frames of up to 38 ms. Triangles drawn per frame at headset detail: 59,560 (whole Moon), 184,566 (pole),
 210,550 (surface).
 
 What keeps it within budget:
